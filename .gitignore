@@ -3,5 +3,5 @@ backups/daily/
 backups/weekly/
 backups/monthly/
 
-# Temporary files
+# Archives
 *.tar.gz
