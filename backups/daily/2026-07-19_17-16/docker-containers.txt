@@ -1,0 +1,5 @@
+CONTAINER ID   IMAGE                           COMMAND                  CREATED        STATUS                    PORTS                                                                                                NAMES
+4137c32307f8   amir20/dozzle:v8.13.6           "/dozzle"                5 hours ago    Up 5 hours                0.0.0.0:8888->8080/tcp, [::]:8888->8080/tcp                                                          dozzle
+6f96431bf43f   louislam/uptime-kuma:latest     "/usr/bin/dumb-init …"   19 hours ago   Up 19 hours (healthy)     0.0.0.0:3001->3001/tcp, [::]:3001->3001/tcp                                                          uptime-kuma
+fc1bd2cb9a7f   portainer/portainer-ce:latest   "/portainer"             19 hours ago   Up 19 hours               0.0.0.0:9000->9000/tcp, [::]:9000->9000/tcp, 8000/tcp, 0.0.0.0:9443->9443/tcp, [::]:9443->9443/tcp   portainer
+eb98dbc60c67   hello-world                     "/hello"                 27 hours ago   Exited (0) 27 hours ago                                                                                                        suspicious_tharp

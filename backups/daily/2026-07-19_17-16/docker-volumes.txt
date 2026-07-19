@@ -1,0 +1,4 @@
+DRIVER    VOLUME NAME
+local     lab_portainer_data
+local     lab_uptime_kuma_data
+local     portainer_portainer_data

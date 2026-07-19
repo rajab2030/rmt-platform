@@ -1,0 +1,6 @@
+IMAGE                           ID             DISK USAGE   CONTENT SIZE   EXTRA
+amir20/dozzle:latest            ea95d22b51f9       90.1MB         21.7MB        
+amir20/dozzle:v8.13.6           c8f75291f994       74.4MB         17.2MB   U    
+hello-world:latest              c3cbe1cc1aa5       25.9kB         9.49kB   U    
+louislam/uptime-kuma:latest     3d632903e6af        724MB          156MB   U    
+portainer/portainer-ce:latest   f6bc23d16955        187MB         41.9MB   U    
