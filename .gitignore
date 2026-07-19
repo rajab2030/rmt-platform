@@ -1,0 +1,7 @@
+# Backup data
+backups/daily/
+backups/weekly/
+backups/monthly/
+
+# Temporary files
+*.tar.gz
