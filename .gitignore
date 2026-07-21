@@ -5,3 +5,9 @@ backups/monthly/
 
 # Archives
 *.tar.gz
+# Python virtual environments
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
