@@ -1,8 +1,8 @@
-# HomeLab Control Center MVP v0.1
+# RMT Platform Control Center MVP v0.1
 
 ## Purpose
 
-HomeLab Control Center is a management dashboard for the homelab platform.
+RMT Platform Control Center is the management layer of the RMT Platform. It provides visibility and control over infrastructure services and future applications.
 
 The goal is to provide visibility into:
 - Docker containers

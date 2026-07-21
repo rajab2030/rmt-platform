@@ -3,7 +3,7 @@ from app.docker_api import get_containers
 
 
 app = FastAPI(
-    title="HomeLab Control Center",
+    title="RMT Platform Center",
     version="0.1"
 )
 
@@ -11,7 +11,7 @@ app = FastAPI(
 @app.get("/")
 def root():
     return {
-        "name": "HomeLab Control Center",
+        "name": "RMT Platform Control Center",
         "version": "0.1"
     }
 

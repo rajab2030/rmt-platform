@@ -1,4 +1,4 @@
-# HomeLab Control Center Backend
+# RMT Platform Control Center Backend
 
 ## Run
 
