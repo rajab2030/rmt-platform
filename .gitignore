@@ -11,3 +11,9 @@ backups/monthly/
 # Python cache
 __pycache__/
 *.pyc
+
+# Frontend dependencies
+projects/homelab-control-center/frontend/node_modules/
+
+# Frontend build output
+projects/homelab-control-center/frontend/dist/
