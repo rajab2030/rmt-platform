@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.docker_api import get_containers
-
+from app.schemas.container import Container
 
 app = FastAPI(
     title="RMT Platform Center",
@@ -30,6 +30,7 @@ def root():
     }
 
 
-@app.get("/containers")
+@app.get("/containers", response_model=list[Container])
 def containers():
     return get_containers()
+
