@@ -12,6 +12,11 @@ function App() {
   const [containers, setContainers] = useState<Container[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const runningCount = containers.filter(
+  (container) => container.status === "running"
+).length;
+
+const stoppedCount = containers.length - runningCount;
 
   useEffect(() => {
     getContainers()
@@ -31,6 +36,11 @@ function App() {
       <h1>RMT Platform Control Center</h1>
 
       <h2>Containers</h2>
+    <div>
+      <p>Total Containers: {containers.length}</p>
+      <p>Running: {runningCount}</p>
+      <p>Stopped: {stoppedCount}</p>
+    </div>
 
       {loading && <p>Loading...</p>}
 
