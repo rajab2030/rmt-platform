@@ -21,3 +21,15 @@ def get_containers():
         )
 
     return result
+
+
+def get_container_stats(name):
+    container = client.containers.get(name)
+
+    stats = container.stats(stream=False)
+
+    return {
+        "name": container.name,
+        "status": container.status,
+        "memory_usage": stats["memory_stats"].get("usage", 0),
+    }
