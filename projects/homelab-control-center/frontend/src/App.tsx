@@ -8,6 +8,15 @@ interface Container {
   status: string;
 }
 
+function StatusBadge({ status }: { status: string }) {
+  const isRunning = status === "running";
+
+  return (
+    <span className={isRunning ? "status running" : "status stopped"}>
+      {isRunning ? "🟢 Running" : "🔴 Exited"}
+    </span>
+  );
+}
 function App() {
   const [containers, setContainers] = useState<Container[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +70,9 @@ const stoppedCount = containers.length - runningCount;
               <tr key={container.name}>
                 <td>{container.name}</td>
                 <td>{container.image}</td>
-                <td>{container.status}</td>
+                <td>
+                  <StatusBadge status={container.status} />
+                </td>
               </tr>
             ))}
           </tbody>
