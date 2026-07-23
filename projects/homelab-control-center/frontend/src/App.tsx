@@ -27,24 +27,33 @@ function App() {
 
 const stoppedCount = containers.length - runningCount;
 
-  useEffect(() => {
-    getContainers()
-      .then((data) => {
-        setContainers(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setError("Failed to fetch containers");
-        setLoading(false);
-      });
-  }, []);
+  async function loadContainers() {
+  setLoading(true);
+  setError(null);
 
+  try {
+    const data = await getContainers();
+    setContainers(data);
+  } catch (err) {
+    console.error(err);
+    setError("Failed to fetch containers");
+  } finally {
+    setLoading(false);
+  }
+}
+
+   useEffect(() => {
+     loadContainers();
+   }, []);
   return (
     <div>
       <h1>RMT Platform Control Center</h1>
 
       <h2>Containers</h2>
+
+      <button onClick={loadContainers}>
+        Refresh Containers
+      </button>
     <div>
       <p>Total Containers: {containers.length}</p>
       <p>Running: {runningCount}</p>
