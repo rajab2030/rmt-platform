@@ -17,34 +17,40 @@ function StatusBadge({ status }: { status: string }) {
     </span>
   );
 }
+
 function App() {
   const [containers, setContainers] = useState<Container[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const runningCount = containers.filter(
-  (container) => container.status === "running"
-).length;
 
-const stoppedCount = containers.length - runningCount;
+  const [selectedContainer, setSelectedContainer] =
+    useState<Container | null>(null);
+
+  const runningCount = containers.filter(
+    (container) => container.status === "running"
+  ).length;
+
+  const stoppedCount = containers.length - runningCount;
 
   async function loadContainers() {
-  setLoading(true);
-  setError(null);
+    setLoading(true);
+    setError(null);
 
-  try {
-    const data = await getContainers();
-    setContainers(data);
-  } catch (err) {
-    console.error(err);
-    setError("Failed to fetch containers");
-  } finally {
-    setLoading(false);
+    try {
+      const data = await getContainers();
+      setContainers(data);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to fetch containers");
+    } finally {
+      setLoading(false);
+    }
   }
-}
 
-   useEffect(() => {
-     loadContainers();
-   }, []);
+  useEffect(() => {
+    loadContainers();
+  }, []);
+
   return (
     <div>
       <h1>RMT Platform Control Center</h1>
@@ -54,38 +60,65 @@ const stoppedCount = containers.length - runningCount;
       <button onClick={loadContainers}>
         Refresh Containers
       </button>
-    <div>
-      <p>Total Containers: {containers.length}</p>
-      <p>Running: {runningCount}</p>
-      <p>Stopped: {stoppedCount}</p>
-    </div>
+
+      <div>
+        <p>Total Containers: {containers.length}</p>
+        <p>Running: {runningCount}</p>
+        <p>Stopped: {stoppedCount}</p>
+      </div>
 
       {loading && <p>Loading...</p>}
 
       {error && <p>{error}</p>}
 
       {!loading && !error && (
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Image</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {containers.map((container) => (
-              <tr key={container.name}>
-                <td>{container.name}</td>
-                <td>{container.image}</td>
-                <td>
-                  <StatusBadge status={container.status} />
-                </td>
+        <>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Image</th>
+                <th>Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {containers.map((container) => (
+                <tr key={container.name}>
+                  <td>
+                    <button
+                      onClick={() => setSelectedContainer(container)}
+                    >
+                      {container.name}
+                    </button>
+                  </td>
+
+                  <td>{container.image}</td>
+
+                  <td>
+                    <StatusBadge status={container.status} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {selectedContainer && (
+            <div>
+              <h2>Container Details</h2>
+
+              <p>Name: {selectedContainer.name}</p>
+              <p>Image: {selectedContainer.image}</p>
+              <p>Status: {selectedContainer.status}</p>
+
+              <button
+                onClick={() => setSelectedContainer(null)}
+              >
+                Close
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
