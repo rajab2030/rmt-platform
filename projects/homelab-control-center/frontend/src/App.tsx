@@ -12,6 +12,7 @@ interface ContainerStats {
   name: string;
   status: string;
   memory_usage: number;
+  cpu_usage: number;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -192,6 +193,16 @@ function App() {
                 containerStats.memory_usage / 1024 / 1024
               )}
               MB
+            </p>
+
+          )}
+
+          {containerStats && (
+
+            <p>
+              CPU:
+              {" "}
+              {containerStats.cpu_usage}%
             </p>
 
           )}
