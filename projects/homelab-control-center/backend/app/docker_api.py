@@ -65,4 +65,6 @@ def get_container_stats(name: str):
         "status": container.status,
         "memory_usage": memory_usage,
         "cpu_usage": round(cpu_percent, 2),
+        "started_at": container.attrs["State"]["StartedAt"],
     }
+
