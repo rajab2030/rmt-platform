@@ -13,6 +13,7 @@ interface ContainerStats {
   status: string;
   memory_usage: number;
   cpu_usage: number;
+  started_at: string;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -42,7 +43,6 @@ function App() {
 
   const stoppedCount = containers.length - runningCount;
 
-
   async function loadContainers() {
     setLoading(true);
     setError(null);
@@ -57,7 +57,6 @@ function App() {
       setLoading(false);
     }
   }
-
 
   async function loadContainerStats(name: string) {
     try {
@@ -75,11 +74,9 @@ function App() {
     }
   }
 
-
   useEffect(() => {
     loadContainers();
   }, []);
-
 
   return (
     <div>
@@ -88,11 +85,9 @@ function App() {
 
       <h2>Containers</h2>
 
-
       <button onClick={loadContainers}>
         Refresh Containers
       </button>
-
 
       <div>
         <p>Total Containers: {containers.length}</p>
@@ -100,11 +95,9 @@ function App() {
         <p>Stopped: {stoppedCount}</p>
       </div>
 
-
       {loading && <p>Loading...</p>}
 
       {error && <p>{error}</p>}
-
 
       {!loading && !error && (
 
@@ -117,7 +110,6 @@ function App() {
               <th>Status</th>
             </tr>
           </thead>
-
 
           <tbody>
 
@@ -138,16 +130,13 @@ function App() {
 
                 </td>
 
-
                 <td>
                   {container.image}
                 </td>
 
-
                 <td>
                   <StatusBadge status={container.status} />
                 </td>
-
 
               </tr>
 
@@ -155,12 +144,9 @@ function App() {
 
           </tbody>
 
-
         </table>
 
       )}
-
-
 
       {selectedContainer && (
 
@@ -168,16 +154,13 @@ function App() {
 
           <h2>Container Details</h2>
 
-
           <p>
             Name: {selectedContainer.name}
           </p>
 
-
           <p>
             Image: {selectedContainer.image}
           </p>
-
 
           <p>
             Status: {selectedContainer.status}
@@ -186,24 +169,34 @@ function App() {
 
           {containerStats && (
 
-            <p>
-              Memory:
-              {" "}
-              {Math.round(
-                containerStats.memory_usage / 1024 / 1024
-              )}
-              MB
-            </p>
+            <div>
 
-          )}
+              <p>
+                Memory:
+                {" "}
+                {Math.round(
+                  containerStats.memory_usage / 1024 / 1024
+                )}
+                MB
+              </p>
 
-          {containerStats && (
 
-            <p>
-              CPU:
-              {" "}
-              {containerStats.cpu_usage}%
-            </p>
+              <p>
+                CPU:
+                {" "}
+                {containerStats.cpu_usage}%
+              </p>
+
+
+              <p>
+                Started:
+                {" "}
+                {new Date(
+                  containerStats.started_at
+                ).toLocaleString()}
+              </p>
+
+            </div>
 
           )}
 
@@ -217,15 +210,12 @@ function App() {
             Close
           </button>
 
-
         </div>
 
       )}
 
-
     </div>
   );
 }
-
 
 export default App;
