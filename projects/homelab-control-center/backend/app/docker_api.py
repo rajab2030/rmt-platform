@@ -58,6 +58,12 @@ def get_container_stats(name: str):
                 [1]
             )
         ) * 100
+    health_status = (
+        container.attrs["State"]
+        .get("Health", {})
+        .get("Status", "none")
+    )
+
 
 
     return {
@@ -66,5 +72,6 @@ def get_container_stats(name: str):
         "memory_usage": memory_usage,
         "cpu_usage": round(cpu_percent, 2),
         "started_at": container.attrs["State"]["StartedAt"],
+        "health": health_status,
     }
 
