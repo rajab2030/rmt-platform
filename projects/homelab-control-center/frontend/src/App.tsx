@@ -14,6 +14,7 @@ interface ContainerStats {
   memory_usage: number;
   cpu_usage: number;
   started_at: string;
+  health: string;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -185,6 +186,16 @@ function App() {
                 CPU:
                 {" "}
                 {containerStats.cpu_usage}%
+              </p>
+
+
+
+              <p>
+                Health:
+                {" "}
+                {containerStats.health === "healthy"
+                  ? "🟢 Healthy"
+                  : containerStats.health}
               </p>
 
 
