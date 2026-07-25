@@ -28,24 +28,51 @@ def get_container_stats(name: str):
 
     stats = container.stats(stream=False)
 
-    memory_usage = stats["memory_stats"].get("usage", 0)
-
-
-    cpu_delta = (
-        stats["cpu_stats"]["cpu_usage"]["total_usage"]
-        -
-        stats["precpu_stats"]["cpu_usage"]["total_usage"]
-    )
-
-
-    system_delta = (
-        stats["cpu_stats"]["system_cpu_usage"]
-        -
-        stats["precpu_stats"]["system_cpu_usage"]
+    memory_usage = stats.get(
+        "memory_stats", {}
+    ).get(
+        "usage",
+        0
     )
 
 
     cpu_percent = 0.0
+
+    cpu_stats = stats.get(
+        "cpu_stats",
+        {}
+    )
+
+    precpu_stats = stats.get(
+        "precpu_stats",
+        {}
+    )
+
+
+    cpu_usage = cpu_stats.get(
+        "cpu_usage",
+        {}
+    )
+
+    precpu_usage = precpu_stats.get(
+        "cpu_usage",
+        {}
+    )
+
+
+    cpu_delta = (
+        cpu_usage.get("total_usage", 0)
+        -
+        precpu_usage.get("total_usage", 0)
+    )
+
+
+    system_delta = (
+        cpu_stats.get("system_cpu_usage", 0)
+        -
+        precpu_stats.get("system_cpu_usage", 0)
+    )
+
 
     if system_delta > 0 and cpu_delta > 0:
         cpu_percent = (
@@ -53,17 +80,18 @@ def get_container_stats(name: str):
             /
             system_delta
         ) * len(
-            stats["cpu_stats"]["cpu_usage"].get(
+            cpu_usage.get(
                 "percpu_usage",
                 [1]
             )
         ) * 100
+
+
     health_status = (
         container.attrs["State"]
         .get("Health", {})
         .get("Status", "none")
     )
-
 
 
     return {
@@ -74,4 +102,3 @@ def get_container_stats(name: str):
         "started_at": container.attrs["State"]["StartedAt"],
         "health": health_status,
     }
-
