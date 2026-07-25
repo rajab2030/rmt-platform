@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { getContainers } from "./api/client";
+import {
+  getContainers,
+  startContainer,
+  stopContainer,
+  restartContainer,
+  removeContainer,
+} from "./api/client";
 import "./App.css";
 
 interface Container {
@@ -38,11 +44,13 @@ function App() {
   const [containerStats, setContainerStats] =
     useState<ContainerStats | null>(null);
 
+
   const runningCount = containers.filter(
     (container) => container.status === "running"
   ).length;
 
   const stoppedCount = containers.length - runningCount;
+
 
   async function loadContainers() {
     setLoading(true);
@@ -58,6 +66,7 @@ function App() {
       setLoading(false);
     }
   }
+
 
   async function loadContainerStats(name: string) {
     try {
@@ -75,9 +84,20 @@ function App() {
     }
   }
 
+
+  async function refreshAfterAction() {
+    await loadContainers();
+
+    if (selectedContainer) {
+      await loadContainerStats(selectedContainer.name);
+    }
+  }
+
+
   useEffect(() => {
     loadContainers();
   }, []);
+
 
   return (
     <div>
@@ -90,15 +110,18 @@ function App() {
         Refresh Containers
       </button>
 
+
       <div>
         <p>Total Containers: {containers.length}</p>
         <p>Running: {runningCount}</p>
         <p>Stopped: {stoppedCount}</p>
       </div>
 
+
       {loading && <p>Loading...</p>}
 
       {error && <p>{error}</p>}
+
 
       {!loading && !error && (
 
@@ -111,6 +134,7 @@ function App() {
               <th>Status</th>
             </tr>
           </thead>
+
 
           <tbody>
 
@@ -131,13 +155,16 @@ function App() {
 
                 </td>
 
+
                 <td>
                   {container.image}
                 </td>
 
+
                 <td>
                   <StatusBadge status={container.status} />
                 </td>
+
 
               </tr>
 
@@ -145,9 +172,12 @@ function App() {
 
           </tbody>
 
+
         </table>
 
       )}
+
+
 
       {selectedContainer && (
 
@@ -155,13 +185,16 @@ function App() {
 
           <h2>Container Details</h2>
 
+
           <p>
             Name: {selectedContainer.name}
           </p>
 
+
           <p>
             Image: {selectedContainer.image}
           </p>
+
 
           <p>
             Status: {selectedContainer.status}
@@ -189,7 +222,6 @@ function App() {
               </p>
 
 
-
               <p>
                 Health:
                 {" "}
@@ -207,9 +239,62 @@ function App() {
                 ).toLocaleString()}
               </p>
 
+
             </div>
 
           )}
+
+
+          <h3>Actions</h3>
+
+
+          {selectedContainer.status === "running" ? (
+
+            <>
+              <button
+                onClick={async () => {
+                  await stopContainer(selectedContainer.name);
+                  await refreshAfterAction();
+                }}
+              >
+                Stop
+              </button>
+
+
+              <button
+                onClick={async () => {
+                  await restartContainer(selectedContainer.name);
+                  await refreshAfterAction();
+                }}
+              >
+                Restart
+              </button>
+            </>
+
+          ) : (
+
+            <button
+              onClick={async () => {
+                await startContainer(selectedContainer.name);
+                await refreshAfterAction();
+              }}
+            >
+              Start
+            </button>
+
+          )}
+
+
+          <button
+            onClick={async () => {
+              await removeContainer(selectedContainer.name);
+              setSelectedContainer(null);
+              setContainerStats(null);
+              await loadContainers();
+            }}
+          >
+            Remove
+          </button>
 
 
           <button
@@ -221,9 +306,11 @@ function App() {
             Close
           </button>
 
+
         </div>
 
       )}
+
 
     </div>
   );
