@@ -3,7 +3,16 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.docker_api import get_containers, get_container_stats
+from app.docker_api import (
+    get_containers,
+    get_container_stats,
+    start_container,
+    stop_container,
+    restart_container,
+    create_container,
+    remove_container,
+
+)
 from app.schemas.container import Container
 
 from app.monitor import get_history
@@ -69,3 +78,35 @@ def container_stats(name: str):
 @app.get("/monitor/history")
 def history():
     return get_history()
+
+
+@app.post("/containers/{name}/start")
+def start(name: str):
+    return start_container(name)
+
+
+@app.post("/containers/{name}/stop")
+def stop(name: str):
+    return stop_container(name)
+
+
+@app.post("/containers/{name}/restart")
+def restart(name: str):
+    return restart_container(name)
+
+
+@app.post("/containers/create")
+def create(
+    name: str,
+    image: str
+):
+    return create_container(
+        name,
+        image
+    )
+
+@app.delete("/containers/{name}")
+def remove(name: str):
+    return remove_container(name)
+
+

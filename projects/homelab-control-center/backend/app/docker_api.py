@@ -102,3 +102,67 @@ def get_container_stats(name: str):
         "started_at": container.attrs["State"]["StartedAt"],
         "health": health_status,
     }
+
+def start_container(name: str):
+    container = client.containers.get(name)
+    container.start()
+
+    return {
+        "name": name,
+        "action": "start",
+        "status": "success"
+    }
+
+
+def stop_container(name: str):
+    container = client.containers.get(name)
+    container.stop()
+
+    return {
+        "name": name,
+        "action": "stop",
+        "status": "success"
+    }
+
+
+def restart_container(name: str):
+    container = client.containers.get(name)
+    container.restart()
+
+    return {
+        "name": name,
+        "action": "restart",
+        "status": "success"
+    }
+
+
+def create_container(
+    name: str,
+    image: str
+):
+    container = client.containers.run(
+        image,
+        name=name,
+        detach=True
+    )
+
+    return {
+        "name": container.name,
+        "image": image,
+        "status": "created"
+    }
+
+
+def remove_container(name: str):
+    container = client.containers.get(name)
+
+    container.remove(
+        force=True
+    )
+
+    return {
+        "name": name,
+        "action": "remove",
+        "status": "success"
+    }
+
