@@ -1,0 +1,47 @@
+[
+    {
+        "module_id": "control-center",
+        "name": "RMT Platform Control Center",
+        "description": "Platform management console",
+        "version": "0.1.0",
+        "type": "platform-service",
+        "status": "active",
+        "runtime": {
+            "engine": "docker",
+            "service": "fastapi-react",
+            "container": "control-center",
+            "ports": [
+                8000,
+                5173
+            ]
+        },
+        "dependencies": [],
+        "configuration": {},
+        "health": {
+            "status": "healthy",
+            "endpoint": null,
+            "last_check": null
+        }
+    },
+    {
+        "module_id": "rmt-ai-assistant-e04095",
+        "name": "RMT AI Assistant",
+        "description": "",
+        "version": "0.1.0",
+        "type": "platform-service",
+        "status": "active",
+        "runtime": {
+            "engine": "docker",
+            "service": null,
+            "container": "rmt-ai-assistant",
+            "ports": []
+        },
+        "dependencies": [],
+        "configuration": {},
+        "health": {
+            "status": "unknown",
+            "endpoint": null,
+            "last_check": null
+        }
+    }
+]

@@ -18,6 +18,8 @@ from app.schemas.container import Container
 from app.monitor import get_history
 from app.collector import collect_metrics
 
+from app.core.module_registry.registry import get_modules
+
 import asyncio
 
 
@@ -48,7 +50,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://192.168.142.128:5173",
+        "http://192.168.235.128:5173",
         "http://localhost:5173"
     ],
     allow_credentials=True,
@@ -69,6 +71,9 @@ def root():
 def containers():
     return get_containers()
 
+@app.get("/modules")
+def modules():
+    return get_modules()
 
 @app.get("/containers/{name}/stats")
 def container_stats(name: str):

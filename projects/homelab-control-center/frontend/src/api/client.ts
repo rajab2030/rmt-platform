@@ -1,4 +1,5 @@
-const API_URL = "http://192.168.142.128:8000";
+const API_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export async function getContainers() {
   const response = await fetch(`${API_URL}/containers`);
