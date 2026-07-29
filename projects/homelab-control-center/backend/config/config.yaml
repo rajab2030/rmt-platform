@@ -1,0 +1,17 @@
+platform:
+  name: RMT Platform
+  version: "0.3"
+
+
+environment:
+  name: homelab
+  debug: false
+
+
+api:
+  host: 0.0.0.0
+  port: 8000
+
+
+runtime:
+  engine: docker
