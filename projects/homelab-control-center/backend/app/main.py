@@ -19,7 +19,9 @@ from app.monitor import get_history
 from app.collector import collect_metrics
 
 from app.core.module_registry.registry import get_modules
+from app.core.configuration.settings import load_settings
 
+from app.core.configuration.public import create_public_config
 import asyncio
 
 
@@ -74,6 +76,15 @@ def containers():
 @app.get("/modules")
 def modules():
     return get_modules()
+
+@app.get("/config")
+def config():
+
+    settings = load_settings()
+
+    return create_public_config(
+        settings
+    )
 
 @app.get("/containers/{name}/stats")
 def container_stats(name: str):
