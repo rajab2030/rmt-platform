@@ -1,8 +1,15 @@
-const API_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:8000";
+import { getRuntimeConfig } from "../config/runtime";
+
+
+function getApiUrl(): string {
+
+  const config = getRuntimeConfig();
+
+  return `http://${window.location.hostname}:${config.api_port}`;
+}
 
 export async function getContainers() {
-  const response = await fetch(`${API_URL}/containers`);
+  const response = await fetch(`${getApiUrl()}/containers`);
 
   if (!response.ok) {
     throw new Error("Failed to fetch containers");
@@ -14,7 +21,7 @@ export async function getContainers() {
 
 export async function startContainer(name: string) {
   const response = await fetch(
-    `${API_URL}/containers/${name}/start`,
+    `${getApiUrl()}/containers/${name}/start`,
     {
       method: "POST",
     }
@@ -30,7 +37,7 @@ export async function startContainer(name: string) {
 
 export async function stopContainer(name: string) {
   const response = await fetch(
-    `${API_URL}/containers/${name}/stop`,
+    `${getApiUrl()}/containers/${name}/stop`,
     {
       method: "POST",
     }
@@ -46,7 +53,7 @@ export async function stopContainer(name: string) {
 
 export async function restartContainer(name: string) {
   const response = await fetch(
-    `${API_URL}/containers/${name}/restart`,
+    `${getApiUrl()}/containers/${name}/restart`,
     {
       method: "POST",
     }
@@ -62,7 +69,7 @@ export async function restartContainer(name: string) {
 
 export async function removeContainer(name: string) {
   const response = await fetch(
-    `${API_URL}/containers/${name}`,
+    `${getApiUrl()}/containers/${name}`,
     {
       method: "DELETE",
     }
