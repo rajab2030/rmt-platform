@@ -1,0 +1,15 @@
+{
+  "platform": "RMT",
+  "timestamp": "2026-07-31T09:01:59+00:00",
+  "hostname": "rmt-lab",
+  "os": "Ubuntu 24.04.4 LTS",
+  "kernel": "6.8.0-136-generic",
+  "docker": "Docker version 29.6.2, build dfc4efb",
+  "git": {
+    "branch": "master",
+    "commit": "1bb2e05"
+  },
+  "containers": [
+{"name":"portainer","status":"Up 59 minutes"},{"name":"dozzle","status":"Up 59 minutes"},{"name":"uptime-kuma","status":"Up 59 minutes (healthy)"}
+  ]
+}
