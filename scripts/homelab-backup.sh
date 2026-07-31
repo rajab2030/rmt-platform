@@ -36,9 +36,13 @@ echo "[3/6] Backing up scripts..."
 
 cp -r "$HOME/homelab/scripts" "$BACKUP_DIR/"
 
+echo
+echo "[4/7] Backing up projects..."
+
+cp -r "$HOME/homelab/projects" "$BACKUP_DIR/"
 
 echo
-echo "[4/6] Exporting Docker metadata..."
+echo "[5/7] Exporting Docker metadata..."
 
 docker ps -a > "$BACKUP_DIR/docker-containers.txt"
 
@@ -47,7 +51,7 @@ docker images > "$BACKUP_DIR/docker-images.txt"
 docker volume ls > "$BACKUP_DIR/docker-volumes.txt"
 
 echo
-echo "[5/6] Backing up Docker volumes..."
+echo "[6/7] Backing up Docker volumes..."
 
 mkdir -p "$BACKUP_DIR/volumes"
 
@@ -63,7 +67,7 @@ do
 done
 
 echo
-echo "[6/6] Generating backup manifest..."
+echo "[7/7] Generating backup manifest..."
 
 cat > "$BACKUP_DIR/manifest.txt" <<EOF
 HomeLab Backup Manifest
@@ -89,6 +93,11 @@ $(docker ps --format '{{.Names}}')
 
 Volumes:
 $(docker volume ls -q)
+Git Commit:
+$(git -C "$HOME/homelab" rev-parse HEAD)
+
+Git Branch:
+$(git -C "$HOME/homelab" branch --show-current)
 
 EOF
 
