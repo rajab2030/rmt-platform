@@ -1,4 +1,7 @@
+
+import ContainerTable from "./components/ContainerTable";
 import { useEffect, useState } from "react";
+
 import {
   getContainers,
   startContainer,
@@ -6,6 +9,14 @@ import {
   restartContainer,
   removeContainer,
 } from "./api/client";
+
+import { getPlatformState } from "./api/platform";
+
+import PlatformState from "./components/PlatformState";
+
+import type { PlatformState as PlatformStateType } from "./types/platform";
+
+import ContainerDetails from "./components/ContainerDetails";
 import "./App.css";
 
 interface Container {
@@ -23,20 +34,13 @@ interface ContainerStats {
   health: string;
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const isRunning = status === "running";
-
-  return (
-    <span className={isRunning ? "status running" : "status stopped"}>
-      {isRunning ? "🟢 Running" : "🔴 Exited"}
-    </span>
-  );
-}
-
 function App() {
   const [containers, setContainers] = useState<Container[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [platformState, setPlatformState] =
+    useState<PlatformStateType | null>(null);
+  
 
   const [selectedContainer, setSelectedContainer] =
     useState<Container | null>(null);
@@ -93,9 +97,27 @@ function App() {
     }
   }
 
+  async function loadPlatformState() {
 
+  try {
+
+    const data = await getPlatformState();
+
+    setPlatformState(data);
+
+  } catch (err) {
+
+    console.error(
+      "Platform state error:",
+      err
+    );
+
+  }
+}
   useEffect(() => {
     loadContainers();
+    loadPlatformState();
+
   }, []);
 
 
@@ -103,6 +125,13 @@ function App() {
     <div>
 
       <h1>RMT Platform Control Center</h1>
+  {
+  platformState && (
+    <PlatformState
+      state={platformState}
+    />
+  )
+}
 
       <h2>Containers</h2>
 
@@ -125,189 +154,54 @@ function App() {
 
       {!loading && !error && (
 
-        <table>
+        <ContainerTable
+         
+         containers={containers}
 
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Image</th>
-              <th>Status</th>
-            </tr>
-          </thead>
+         onSelect={(container) => {
+           setSelectedContainer(container);
+           loadContainerStats(container.name);
+         }}
+      />
+    
 
-
-          <tbody>
-
-            {containers.map((container) => (
-
-              <tr key={container.name}>
-
-                <td>
-
-                  <button
-                    onClick={() => {
-                      setSelectedContainer(container);
-                      loadContainerStats(container.name);
-                    }}
-                  >
-                    {container.name}
-                  </button>
-
-                </td>
-
-
-                <td>
-                  {container.image}
-                </td>
-
-
-                <td>
-                  <StatusBadge status={container.status} />
-                </td>
-
-
-              </tr>
-
-            ))}
-
-          </tbody>
-
-
-        </table>
-
-      )}
+    )}
 
 
 
       {selectedContainer && (
 
-        <div>
+        <ContainerDetails
+          container={selectedContainer}
+          stats={containerStats}
 
-          <h2>Container Details</h2>
+          onStart={async () => {
+            await startContainer(selectedContainer.name);
+            await refreshAfterAction();
+          }}
 
+          onStop={async () => {
+            await stopContainer(selectedContainer.name);
+            await refreshAfterAction();
+          }}
 
-          <p>
-            Name: {selectedContainer.name}
-          </p>
+          onRestart={async () => {
+            await restartContainer(selectedContainer.name);
+            await refreshAfterAction();
+          }}
 
+          onRemove={async () => {
+            await removeContainer(selectedContainer.name);
+            setSelectedContainer(null);
+            setContainerStats(null);
+            await loadContainers();
+          }}
 
-          <p>
-            Image: {selectedContainer.image}
-          </p>
-
-
-          <p>
-            Status: {selectedContainer.status}
-          </p>
-
-
-          {containerStats && (
-
-            <div>
-
-              <p>
-                Memory:
-                {" "}
-                {Math.round(
-                  containerStats.memory_usage / 1024 / 1024
-                )}
-                MB
-              </p>
-
-
-              <p>
-                CPU:
-                {" "}
-                {containerStats.cpu_usage}%
-              </p>
-
-
-              <p>
-                Health:
-                {" "}
-                {containerStats.health === "healthy"
-                  ? "🟢 Healthy"
-                  : containerStats.health}
-              </p>
-
-
-              <p>
-                Started:
-                {" "}
-                {new Date(
-                  containerStats.started_at
-                ).toLocaleString()}
-              </p>
-
-
-            </div>
-
-          )}
-
-
-          <h3>Actions</h3>
-
-
-          {selectedContainer.status === "running" ? (
-
-            <>
-              <button
-                onClick={async () => {
-                  await stopContainer(selectedContainer.name);
-                  await refreshAfterAction();
-                }}
-              >
-                Stop
-              </button>
-
-
-              <button
-                onClick={async () => {
-                  await restartContainer(selectedContainer.name);
-                  await refreshAfterAction();
-                }}
-              >
-                Restart
-              </button>
-            </>
-
-          ) : (
-
-            <button
-              onClick={async () => {
-                await startContainer(selectedContainer.name);
-                await refreshAfterAction();
-              }}
-            >
-              Start
-            </button>
-
-          )}
-
-
-          <button
-            onClick={async () => {
-              await removeContainer(selectedContainer.name);
-              setSelectedContainer(null);
-              setContainerStats(null);
-              await loadContainers();
-            }}
-          >
-            Remove
-          </button>
-
-
-          <button
-            onClick={() => {
-              setSelectedContainer(null);
-              setContainerStats(null);
-            }}
-          >
-            Close
-          </button>
-
-
-        </div>
+          onClose={() => {
+            setSelectedContainer(null);
+            setContainerStats(null);
+          }}
+        />
 
       )}
 

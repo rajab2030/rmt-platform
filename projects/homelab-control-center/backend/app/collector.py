@@ -8,7 +8,6 @@ async def collect_metrics():
     while True:
 
         containers = [
-            "rmt-test-nginx",
             "portainer",
             "dozzle",
             "uptime-kuma",

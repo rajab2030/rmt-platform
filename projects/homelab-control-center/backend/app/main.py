@@ -22,6 +22,8 @@ from app.core.module_registry.registry import get_modules
 from app.core.configuration.settings import load_settings
 
 from app.core.configuration.public import create_public_config
+from app.core.platform_state.service import get_platform_state
+
 import asyncio
 
 
@@ -85,6 +87,10 @@ def config():
     return create_public_config(
         settings
     )
+
+@app.get("/platform/state")
+def platform_state():
+    return get_platform_state()
 
 @app.get("/containers/{name}/stats")
 def container_stats(name: str):
