@@ -13,6 +13,7 @@ import {
 import { getPlatformState } from "./api/platform";
 
 import PlatformState from "./components/PlatformState";
+import ObservabilityPanel from "./components/ObservabilityPanel";
 
 import type { PlatformState as PlatformStateType } from "./types/platform";
 
@@ -132,6 +133,8 @@ function App() {
     />
   )
 }
+
+      <ObservabilityPanel />
 
       <h2>Containers</h2>
 
