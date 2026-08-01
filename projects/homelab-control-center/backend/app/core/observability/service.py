@@ -1,3 +1,6 @@
+
+from app.core.observability.storage import save_container_metric
+
 from datetime import datetime
 
 from app.core.observability.schemas import (
@@ -15,6 +18,10 @@ def record_container_metric(
     metric: ContainerMetric
 ):
     container_metrics.append(metric)
+
+    container_metrics.append(metric)
+
+    save_container_metric(metric)
 
 
 def record_platform_metric(
