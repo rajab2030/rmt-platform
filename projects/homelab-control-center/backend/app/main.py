@@ -24,6 +24,7 @@ from app.core.configuration.settings import load_settings
 from app.core.configuration.public import create_public_config
 from app.core.platform_state.service import get_platform_state
 
+from app.core.observability.api import router as observability_router
 import asyncio
 
 
@@ -62,6 +63,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(observability_router)
 
 @app.get("/")
 def root():
