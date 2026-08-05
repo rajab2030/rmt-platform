@@ -3,6 +3,7 @@ from datetime import datetime
 from app.core.observability.storage import (
     save_container_metric,
     get_container_metrics,
+    get_latest_container_metrics as get_latest_container_metric_rows,
 )
 
 from app.core.observability.schemas import (
@@ -24,18 +25,15 @@ def record_container_metric(
     save_container_metric(metric)
 
 
-
 def record_platform_metric(
     metric: PlatformMetric
 ):
     platform_metrics.append(metric)
 
 
-
 def get_latest_container_metrics():
 
     return container_metrics[-1:]
-
 
 
 def get_recent_container_metrics(limit=50):
@@ -54,6 +52,22 @@ def get_recent_container_metrics(limit=50):
         for row in rows
     ]
 
+
+def get_current_container_metrics():
+
+    rows = get_latest_container_metric_rows()
+
+    return [
+        ContainerMetric(
+            name=row[0],
+            status=row[1],
+            cpu_usage=row[2],
+            memory_usage=row[3],
+            health=row[4],
+            timestamp=datetime.fromisoformat(row[5]),
+        )
+        for row in rows
+    ]
 
 
 def get_latest_platform_metric():

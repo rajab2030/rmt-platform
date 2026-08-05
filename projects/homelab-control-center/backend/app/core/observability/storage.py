@@ -97,3 +97,35 @@ def get_container_metrics(limit=50):
     conn.close()
 
     return rows
+
+
+def get_latest_container_metrics():
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT
+            name,
+            status,
+            cpu_usage,
+            memory_usage,
+            health,
+            timestamp
+        FROM container_metrics
+        WHERE id IN (
+            SELECT MAX(id)
+            FROM container_metrics
+            GROUP BY name
+        )
+        ORDER BY name
+        """
+    )
+
+    rows = cursor.fetchall()
+
+    conn.close()
+
+    return rows

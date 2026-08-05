@@ -1,5 +1,5 @@
 from app.core.observability.service import (
-    get_recent_container_metrics,
+    get_current_container_metrics,
 )
 
 from app.core.intelligence.rules import (
@@ -14,7 +14,7 @@ from app.core.intelligence.schemas import (
 
 def calculate_platform_health():
 
-    metrics = get_recent_container_metrics()
+    metrics = get_current_container_metrics()
 
 
     if not metrics:
