@@ -3,6 +3,9 @@ from datetime import datetime, timezone
 from app.core.intelligence.schemas import (
     HealthIssue,
     HealthStatus,
+    HealthEvaluation,
+    HealthReason,
+    HealthImpact,
 )
 
 
@@ -140,5 +143,47 @@ def evaluate_container_health(metric, context=None):
     }
 
 def create_health_evaluation(metric, context=None):
+
+    now = datetime.now(timezone.utc)
+
+    timestamp = metric.timestamp
+
+    age = (
+        now - timestamp.replace(tzinfo=timezone.utc)
+    ).total_seconds()
+
+
+    if age > 600:
+
+        evidence = [
+            f"Metric age: {age} seconds",
+        ]
+
+        if context:
+
+            evidence.append(
+                f"Role: {context.role}"
+            )
+
+            evidence.append(
+                f"Criticality: {context.criticality}"
+            )
+
+
+        return HealthEvaluation(
+            component=metric.name,
+            status=HealthStatus.WARNING,
+            reason=HealthReason.STALE_DATA,
+            evidence=evidence,
+            confidence=90,
+            impact=(
+                HealthImpact.HIGH
+                if context and context.criticality == "high"
+                else HealthImpact.MEDIUM
+            ),
+            recommendation="Check metric collector freshness",
+            message="Metric data is old",
+        )
+
 
     return None
