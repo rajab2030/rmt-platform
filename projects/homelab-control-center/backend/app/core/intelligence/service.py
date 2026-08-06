@@ -6,6 +6,10 @@ from app.core.intelligence.rules import (
     evaluate_container_health,
 )
 
+from app.core.intelligence.context.service import (
+    enrich_component,
+)
+
 from app.core.intelligence.schemas import (
     HealthReport,
     HealthStatus,
@@ -39,6 +43,10 @@ def calculate_platform_health():
 
     for metric in metrics:
 
+        context_result = enrich_component(
+            metric
+        )
+
         result = evaluate_container_health(
             metric
         )
@@ -52,7 +60,6 @@ def calculate_platform_health():
         recommendations.extend(
             result["recommendations"]
         )
-
 
     score = int(
         total_score / len(metrics)
