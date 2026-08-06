@@ -48,7 +48,8 @@ def calculate_platform_health():
         )
 
         result = evaluate_container_health(
-            metric
+            metric,
+            context_result["context"]
         )
 
         total_score += result["score"]

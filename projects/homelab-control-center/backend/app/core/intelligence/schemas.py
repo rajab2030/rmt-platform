@@ -18,6 +18,9 @@ class HealthIssue(BaseModel):
     message: str
     severity: HealthStatus
 
+    role: str | None = None
+    criticality: str | None = None
+
 
 
 class HealthReport(BaseModel):

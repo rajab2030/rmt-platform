@@ -6,7 +6,7 @@ from app.core.intelligence.schemas import (
 )
 
 
-def evaluate_container_health(metric):
+def evaluate_container_health(metric, context=None):
 
     score = 100
 
@@ -26,6 +26,8 @@ def evaluate_container_health(metric):
                 component=metric.name,
                 message="Container is not running",
                 severity=HealthStatus.CRITICAL,
+                role=context.role if context else None,
+                criticality=context.criticality if context else None,
             )
         )
 
@@ -112,6 +114,8 @@ def evaluate_container_health(metric):
                 component=metric.name,
                 message="Metric data is old",
                 severity=HealthStatus.WARNING,
+                role=context.role if context else None,
+                criticality=context.criticality if context else None,
             )
         )
 
