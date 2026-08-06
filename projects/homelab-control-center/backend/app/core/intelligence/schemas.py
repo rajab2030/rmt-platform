@@ -23,6 +23,44 @@ class HealthIssue(BaseModel):
 
 
 
+class HealthReason(str, Enum):
+
+    NEW_COMPONENT = "new_component"
+    NO_METRICS = "no_metrics"
+    STALE_DATA = "stale_data"
+    BASELINE_NOT_READY = "baseline_not_ready"
+    COLLECTOR_FAILURE = "collector_failure"
+    CONFIGURATION_MISSING = "configuration_missing"
+
+
+
+class HealthImpact(str, Enum):
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+
+class HealthEvaluation(BaseModel):
+
+    component: str
+
+    status: HealthStatus
+
+    reason: HealthReason
+
+    evidence: List[str] = []
+
+    confidence: int = 0
+
+    impact: HealthImpact = HealthImpact.LOW
+
+    recommendation: str | None = None
+    message: str
+
+
+
 class HealthReport(BaseModel):
 
     platform: str
@@ -30,7 +68,9 @@ class HealthReport(BaseModel):
     status: HealthStatus
 
     issues: List[HealthIssue] = []
+    evaluations: List[HealthEvaluation] = []
     recommendations: List[str] = []
+
 
 
 class MetricBaseline(BaseModel):
@@ -52,35 +92,3 @@ class MetricDeviation(BaseModel):
     memory_deviation: float
 
     risk: HealthStatus
-
-class HealthReason(str, Enum):
-
-    NEW_COMPONENT = "new_component"
-    NO_METRICS = "no_metrics"
-    STALE_DATA = "stale_data"
-    BASELINE_NOT_READY = "baseline_not_ready"
-    COLLECTOR_FAILURE = "collector_failure"
-    CONFIGURATION_MISSING = "configuration_missing"
-
-class HealthImpact(str, Enum):
-
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    
-class HealthEvaluation(BaseModel):
-
-    component: str
-
-    status: HealthStatus
-
-    reason: HealthReason
-
-    evidence: List[str] = []
-
-    confidence: int = 0
-
-    impact: HealthImpact = HealthImpact.LOW
-
-    recommendation: str | None = None
-    message: str
