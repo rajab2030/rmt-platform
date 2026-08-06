@@ -138,3 +138,7 @@ def evaluate_container_health(metric, context=None):
         "issues": issues,
         "recommendations": recommendations,
     }
+
+def create_health_evaluation(metric, context=None):
+
+    return None
