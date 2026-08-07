@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+from app.core.intelligence.observation.normalize import normalize_observation
+
 from app.core.intelligence.schemas import (
     HealthIssue,
     HealthStatus,
@@ -99,7 +101,7 @@ def evaluate_container_health(metric, context=None):
         now - metric.timestamp.replace(
             tzinfo=timezone.utc
         )
-    ).seconds
+    ).total_seconds()
 
     if age > 600:
 
@@ -134,20 +136,24 @@ def evaluate_container_health(metric, context=None):
     }
 
 
-def create_health_evaluation(metric, context=None):
+def create_health_evaluation(data, context=None):
 
-    if metric is None:
+    if data is None:
         return create_no_metrics_evaluation()
 
-    if metric.status != "running":
+    observation = normalize_observation(data)
+
+    if observation.state != "running":
+
         return create_container_failure_evaluation(
-            metric,
+            observation,
             context,
         )
 
-    if is_metric_stale(metric):
+    if is_metric_stale(observation):
+
         return create_stale_data_evaluation(
-            metric,
+            observation,
             context,
         )
 
@@ -170,10 +176,10 @@ def create_no_metrics_evaluation():
     )
 
 
-def create_container_failure_evaluation(metric, context=None):
+def create_container_failure_evaluation(observation, context=None):
 
     evidence = [
-        "Container is not running"
+        "Component is not running"
     ]
 
     if context:
@@ -187,23 +193,23 @@ def create_container_failure_evaluation(metric, context=None):
         )
 
     return HealthEvaluation(
-        component=metric.name,
+        component=observation.component,
         status=HealthStatus.CRITICAL,
         reason=HealthReason.COLLECTOR_FAILURE,
         evidence=evidence,
         confidence=95,
         impact=HealthImpact.MEDIUM,
-        recommendation=f"Restart {metric.name}",
-        message="Container unavailable",
+        recommendation=f"Restart {observation.component}",
+        message="Component unavailable",
     )
 
 
-def is_metric_stale(metric):
+def is_metric_stale(observation):
 
     now = datetime.now(timezone.utc)
 
     age = (
-        now - metric.timestamp.replace(
+        now - observation.timestamp.replace(
             tzinfo=timezone.utc
         )
     ).total_seconds()
@@ -211,12 +217,12 @@ def is_metric_stale(metric):
     return age > 600
 
 
-def create_stale_data_evaluation(metric, context=None):
+def create_stale_data_evaluation(observation, context=None):
 
     now = datetime.now(timezone.utc)
 
     age = (
-        now - metric.timestamp.replace(
+        now - observation.timestamp.replace(
             tzinfo=timezone.utc
         )
     ).total_seconds()
@@ -236,7 +242,7 @@ def create_stale_data_evaluation(metric, context=None):
         )
 
     return HealthEvaluation(
-        component=metric.name,
+        component=observation.component,
         status=HealthStatus.WARNING,
         reason=HealthReason.STALE_DATA,
         evidence=evidence,
