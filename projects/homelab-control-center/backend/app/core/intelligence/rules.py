@@ -144,6 +144,39 @@ def evaluate_container_health(metric, context=None):
 
 def create_health_evaluation(metric, context=None):
 
+    if metric.status != "running":
+
+        evidence = [
+            "Container is not running"
+        ]
+
+        if context:
+
+            evidence.append(
+                f"Role: {context.role}"
+            )
+
+            evidence.append(
+                f"Criticality: {context.criticality}"
+            )
+
+
+        return HealthEvaluation(
+            component=metric.name,
+            status=HealthStatus.CRITICAL,
+            reason=HealthReason.COLLECTOR_FAILURE,
+            evidence=evidence,
+            confidence=95,
+            impact=(
+                HealthImpact.HIGH
+                if context and context.criticality == "high"
+                else HealthImpact.MEDIUM
+            ),
+            recommendation=f"Restart {metric.name}",
+            message="Container unavailable",
+        )
+
+
     now = datetime.now(timezone.utc)
 
     timestamp = metric.timestamp
@@ -154,6 +187,7 @@ def create_health_evaluation(metric, context=None):
 
 
     if age > 600:
+
 
         evidence = [
             f"Metric age: {age} seconds",
