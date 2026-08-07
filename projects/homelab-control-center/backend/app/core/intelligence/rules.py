@@ -11,7 +11,7 @@ from app.core.intelligence.schemas import (
 )
 
 
-def evaluate_container_health(metric, context=None):
+def evaluate_observation_health(observation, context=None):
 
     score = 100
 
@@ -19,16 +19,31 @@ def evaluate_container_health(metric, context=None):
 
     recommendations = []
 
-    # Status rule
+    cpu_usage = observation.signals.get(
+        "cpu_usage",
+        0,
+    )
 
-    if metric.status != "running":
+    memory_usage = observation.signals.get(
+        "memory_usage",
+        0,
+    )
+
+    health = observation.metadata.get(
+        "health",
+        "unknown",
+    )
+
+    # State rule
+
+    if observation.state != "running":
 
         score -= 40
 
         issues.append(
             HealthIssue(
-                component=metric.name,
-                message="Container is not running",
+                component=observation.component,
+                message="Component is not running",
                 severity=HealthStatus.CRITICAL,
                 role=context.role if context else None,
                 criticality=context.criticality if context else None,
@@ -36,72 +51,77 @@ def evaluate_container_health(metric, context=None):
         )
 
         recommendations.append(
-            f"Restart {metric.name}"
+            f"Restart {observation.component}"
         )
+
 
     # CPU rule
 
-    if metric.cpu_usage > 90:
+    if cpu_usage > 90:
 
         score -= 20
 
         issues.append(
             HealthIssue(
-                component=metric.name,
+                component=observation.component,
                 message="High CPU usage",
                 severity=HealthStatus.WARNING,
             )
         )
 
-    elif metric.cpu_usage > 70:
+    elif cpu_usage > 70:
 
         score -= 10
 
         issues.append(
             HealthIssue(
-                component=metric.name,
+                component=observation.component,
                 message="Elevated CPU usage",
                 severity=HealthStatus.WARNING,
             )
         )
 
+
     # Memory rule
 
-    if metric.memory_usage > 1024 * 1024 * 1024:
+    if memory_usage > 1024 * 1024 * 1024:
 
         score -= 20
 
         issues.append(
             HealthIssue(
-                component=metric.name,
+                component=observation.component,
                 message="High memory usage",
                 severity=HealthStatus.WARNING,
             )
         )
 
+
     # Health rule
 
-    if metric.health == "unhealthy":
+    if health == "unhealthy":
 
         score -= 30
 
         issues.append(
             HealthIssue(
-                component=metric.name,
-                message="Docker health check failed",
+                component=observation.component,
+                message="Component health check failed",
                 severity=HealthStatus.CRITICAL,
             )
         )
+
 
     # Freshness rule
 
     now = datetime.now(timezone.utc)
 
     age = (
-        now - metric.timestamp.replace(
+        now - observation.timestamp.replace(
             tzinfo=timezone.utc
         )
     ).total_seconds()
+
 
     if age > 600:
 
@@ -109,24 +129,29 @@ def evaluate_container_health(metric, context=None):
 
         issues.append(
             HealthIssue(
-                component=metric.name,
-                message="Metric data is old",
+                component=observation.component,
+                message="Observation data is old",
                 severity=HealthStatus.WARNING,
                 role=context.role if context else None,
                 criticality=context.criticality if context else None,
             )
         )
 
+
     # Final status
 
     if score >= 85:
+
         status = HealthStatus.HEALTHY
 
     elif score >= 60:
+
         status = HealthStatus.WARNING
 
     else:
+
         status = HealthStatus.CRITICAL
+
 
     return {
         "score": max(score, 0),

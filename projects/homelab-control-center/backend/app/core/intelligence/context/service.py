@@ -3,13 +3,13 @@ from app.core.intelligence.context.registry import (
 )
 
 
-def enrich_component(metric):
+def enrich_component(observation):
 
     context = get_component_context(
-        metric.name
+        observation.component
     )
 
     return {
-        "metric": metric,
+        "observation": observation,
         "context": context,
     }
