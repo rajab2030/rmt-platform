@@ -144,77 +144,58 @@ def evaluate_container_health(metric, context=None):
 
 def create_health_evaluation(metric, context=None):
 
+    # 1. No metrics
+    if metric is None:
+        return HealthEvaluation(
+            component="unknown",
+            status=HealthStatus.WARNING,
+            reason=HealthReason.NO_METRICS,
+            evidence=[
+                "No metric data received"
+            ],
+            confidence=80,
+            impact=HealthImpact.MEDIUM,
+            recommendation="Check metrics collector",
+            message="No metrics available",
+        )
+
+
+    # 2. Container failure
     if metric.status != "running":
-
-        evidence = [
-            "Container is not running"
-        ]
-
-        if context:
-
-            evidence.append(
-                f"Role: {context.role}"
-            )
-
-            evidence.append(
-                f"Criticality: {context.criticality}"
-            )
-
 
         return HealthEvaluation(
             component=metric.name,
             status=HealthStatus.CRITICAL,
             reason=HealthReason.COLLECTOR_FAILURE,
-            evidence=evidence,
+            evidence=[
+                "Container is not running"
+            ],
             confidence=95,
-            impact=(
-                HealthImpact.HIGH
-                if context and context.criticality == "high"
-                else HealthImpact.MEDIUM
-            ),
+            impact=HealthImpact.MEDIUM,
             recommendation=f"Restart {metric.name}",
             message="Container unavailable",
         )
 
 
+    # 3. Stale metrics
     now = datetime.now(timezone.utc)
 
-    timestamp = metric.timestamp
-
     age = (
-        now - timestamp.replace(tzinfo=timezone.utc)
+        now - metric.timestamp.replace(tzinfo=timezone.utc)
     ).total_seconds()
 
 
     if age > 600:
 
-
-        evidence = [
-            f"Metric age: {age} seconds",
-        ]
-
-        if context:
-
-            evidence.append(
-                f"Role: {context.role}"
-            )
-
-            evidence.append(
-                f"Criticality: {context.criticality}"
-            )
-
-
         return HealthEvaluation(
             component=metric.name,
             status=HealthStatus.WARNING,
             reason=HealthReason.STALE_DATA,
-            evidence=evidence,
+            evidence=[
+                f"Metric age: {age} seconds"
+            ],
             confidence=90,
-            impact=(
-                HealthImpact.HIGH
-                if context and context.criticality == "high"
-                else HealthImpact.MEDIUM
-            ),
+            impact=HealthImpact.MEDIUM,
             recommendation="Check metric collector freshness",
             message="Metric data is old",
         )
