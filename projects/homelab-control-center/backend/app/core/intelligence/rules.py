@@ -17,7 +17,6 @@ def evaluate_container_health(metric, context=None):
 
     recommendations = []
 
-
     # Status rule
 
     if metric.status != "running":
@@ -38,7 +37,6 @@ def evaluate_container_health(metric, context=None):
             f"Restart {metric.name}"
         )
 
-
     # CPU rule
 
     if metric.cpu_usage > 90:
@@ -53,7 +51,6 @@ def evaluate_container_health(metric, context=None):
             )
         )
 
-
     elif metric.cpu_usage > 70:
 
         score -= 10
@@ -65,7 +62,6 @@ def evaluate_container_health(metric, context=None):
                 severity=HealthStatus.WARNING,
             )
         )
-
 
     # Memory rule
 
@@ -81,8 +77,7 @@ def evaluate_container_health(metric, context=None):
             )
         )
 
-
-    # Docker health rule
+    # Health rule
 
     if metric.health == "unhealthy":
 
@@ -96,17 +91,15 @@ def evaluate_container_health(metric, context=None):
             )
         )
 
-
     # Freshness rule
 
     now = datetime.now(timezone.utc)
 
-    timestamp = metric.timestamp
-
     age = (
-        now - timestamp.replace(tzinfo=timezone.utc)
+        now - metric.timestamp.replace(
+            tzinfo=timezone.utc
+        )
     ).seconds
-
 
     if age > 600:
 
@@ -122,7 +115,6 @@ def evaluate_container_health(metric, context=None):
             )
         )
 
-
     # Final status
 
     if score >= 85:
@@ -134,7 +126,6 @@ def evaluate_container_health(metric, context=None):
     else:
         status = HealthStatus.CRITICAL
 
-
     return {
         "score": max(score, 0),
         "status": status,
@@ -142,63 +133,115 @@ def evaluate_container_health(metric, context=None):
         "recommendations": recommendations,
     }
 
+
 def create_health_evaluation(metric, context=None):
 
-    # 1. No metrics
     if metric is None:
-        return HealthEvaluation(
-            component="unknown",
-            status=HealthStatus.WARNING,
-            reason=HealthReason.NO_METRICS,
-            evidence=[
-                "No metric data received"
-            ],
-            confidence=80,
-            impact=HealthImpact.MEDIUM,
-            recommendation="Check metrics collector",
-            message="No metrics available",
-        )
+        return create_no_metrics_evaluation()
 
-
-    # 2. Container failure
     if metric.status != "running":
-
-        return HealthEvaluation(
-            component=metric.name,
-            status=HealthStatus.CRITICAL,
-            reason=HealthReason.COLLECTOR_FAILURE,
-            evidence=[
-                "Container is not running"
-            ],
-            confidence=95,
-            impact=HealthImpact.MEDIUM,
-            recommendation=f"Restart {metric.name}",
-            message="Container unavailable",
+        return create_container_failure_evaluation(
+            metric,
+            context,
         )
 
+    if is_metric_stale(metric):
+        return create_stale_data_evaluation(
+            metric,
+            context,
+        )
 
-    # 3. Stale metrics
+    return None
+
+
+def create_no_metrics_evaluation():
+
+    return HealthEvaluation(
+        component="unknown",
+        status=HealthStatus.WARNING,
+        reason=HealthReason.NO_METRICS,
+        evidence=[
+            "No metric data received"
+        ],
+        confidence=80,
+        impact=HealthImpact.MEDIUM,
+        recommendation="Check metrics collector",
+        message="No metrics available",
+    )
+
+
+def create_container_failure_evaluation(metric, context=None):
+
+    evidence = [
+        "Container is not running"
+    ]
+
+    if context:
+
+        evidence.append(
+            f"Role: {context.role}"
+        )
+
+        evidence.append(
+            f"Criticality: {context.criticality}"
+        )
+
+    return HealthEvaluation(
+        component=metric.name,
+        status=HealthStatus.CRITICAL,
+        reason=HealthReason.COLLECTOR_FAILURE,
+        evidence=evidence,
+        confidence=95,
+        impact=HealthImpact.MEDIUM,
+        recommendation=f"Restart {metric.name}",
+        message="Container unavailable",
+    )
+
+
+def is_metric_stale(metric):
+
     now = datetime.now(timezone.utc)
 
     age = (
-        now - metric.timestamp.replace(tzinfo=timezone.utc)
+        now - metric.timestamp.replace(
+            tzinfo=timezone.utc
+        )
     ).total_seconds()
 
+    return age > 600
 
-    if age > 600:
 
-        return HealthEvaluation(
-            component=metric.name,
-            status=HealthStatus.WARNING,
-            reason=HealthReason.STALE_DATA,
-            evidence=[
-                f"Metric age: {age} seconds"
-            ],
-            confidence=90,
-            impact=HealthImpact.MEDIUM,
-            recommendation="Check metric collector freshness",
-            message="Metric data is old",
+def create_stale_data_evaluation(metric, context=None):
+
+    now = datetime.now(timezone.utc)
+
+    age = (
+        now - metric.timestamp.replace(
+            tzinfo=timezone.utc
+        )
+    ).total_seconds()
+
+    evidence = [
+        f"Metric age: {age} seconds"
+    ]
+
+    if context:
+
+        evidence.append(
+            f"Role: {context.role}"
         )
 
+        evidence.append(
+            f"Criticality: {context.criticality}"
+        )
 
-    return None
+    return HealthEvaluation(
+        component=metric.name,
+        status=HealthStatus.WARNING,
+        reason=HealthReason.STALE_DATA,
+        evidence=evidence,
+        confidence=90,
+        impact=HealthImpact.MEDIUM,
+        recommendation="Check metric collector freshness",
+        message="Metric data is old",
+    )
