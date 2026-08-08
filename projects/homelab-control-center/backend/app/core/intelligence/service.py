@@ -6,8 +6,11 @@ from app.core.intelligence.context.service import (
     enrich_component,
 )
 
+from app.core.intelligence.observation.normalize import (
+    normalize_observation,
+)
+
 from app.core.intelligence.rules import (
-    evaluate_container_health,
     create_health_evaluation,
 )
 
@@ -17,11 +20,9 @@ from app.core.intelligence.schemas import (
 )
 
 
-
 def calculate_platform_health():
 
     metrics = get_current_container_metrics()
-
 
     if not metrics:
 
@@ -39,8 +40,6 @@ def calculate_platform_health():
 
     total_score = 0
 
-    issues = []
-
     evaluations = []
 
     recommendations = []
@@ -48,24 +47,21 @@ def calculate_platform_health():
 
     for metric in metrics:
 
-
-        context_result = enrich_component(
+        observation = normalize_observation(
             metric
         )
 
 
+        context_result = enrich_component(
+            observation
+        )
+
         context = context_result["context"]
 
 
-        result = evaluate_container_health(
-            metric,
-            context
-        )
-
-
         evaluation = create_health_evaluation(
-            metric,
-            context
+            observation,
+            context,
         )
 
 
@@ -76,17 +72,25 @@ def calculate_platform_health():
             )
 
 
-        total_score += result["score"]
+            if evaluation.status == HealthStatus.CRITICAL:
+                total_score += 40
+
+            elif evaluation.status == HealthStatus.WARNING:
+                total_score += 70
+
+            else:
+                total_score += 100
 
 
-        issues.extend(
-            result["issues"]
-        )
+            if evaluation.recommendation:
 
+                recommendations.append(
+                    evaluation.recommendation
+                )
 
-        recommendations.extend(
-            result["recommendations"]
-        )
+        else:
+
+            total_score += 100
 
 
     score = int(
@@ -111,7 +115,7 @@ def calculate_platform_health():
         platform="RMT",
         score=score,
         status=status,
-        issues=issues,
+        issues=[],
         evaluations=evaluations,
         recommendations=recommendations,
     )
