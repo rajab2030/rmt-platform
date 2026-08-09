@@ -1,3 +1,19 @@
+
+from app.core.intelligence.memory import (
+    health_evaluation_to_memory,
+    remember,
+)
+
+from app.core.intelligence.analysis.history import (
+    analyze_component_history,
+)
+
+from app.core.intelligence.recommendations.engine import (
+    generate_recommendations,
+)
+
+
+
 from app.core.observability.service import (
     get_current_container_metrics,
 )
@@ -72,6 +88,32 @@ def calculate_platform_health():
             )
 
 
+            memory_record = health_evaluation_to_memory(
+                evaluation
+            )
+
+            remember(
+                memory_record
+            )
+
+
+            history = analyze_component_history(
+                evaluation.component
+            )
+
+
+            generated = generate_recommendations(
+                evaluation,
+                history,
+                context,
+            )
+
+
+            recommendations.extend(
+                generated
+
+            )
+
             if evaluation.status == HealthStatus.CRITICAL:
                 total_score += 40
 
@@ -82,11 +124,7 @@ def calculate_platform_health():
                 total_score += 100
 
 
-            if evaluation.recommendation:
 
-                recommendations.append(
-                    evaluation.recommendation
-                )
 
         else:
 
