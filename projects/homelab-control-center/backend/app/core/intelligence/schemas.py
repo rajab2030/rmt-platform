@@ -61,18 +61,6 @@ class HealthEvaluation(BaseModel):
 
 
 
-class HealthReport(BaseModel):
-
-    platform: str
-    score: int
-    status: HealthStatus
-
-    issues: List[HealthIssue] = []
-    evaluations: List[HealthEvaluation] = []
-    recommendations: List[str] = []
-
-
-
 class MetricBaseline(BaseModel):
 
     component: str
@@ -92,3 +80,29 @@ class MetricDeviation(BaseModel):
     memory_deviation: float
 
     risk: HealthStatus
+
+
+
+
+
+class IntelligenceAnalysis(BaseModel):
+
+    component: str
+
+    deviation: MetricDeviation | None = None
+
+    trend: dict = {}
+
+    history: dict = {}
+
+
+class HealthReport(BaseModel):
+
+    platform: str
+    score: int
+    status: HealthStatus
+
+    issues: List[HealthIssue] = []
+    evaluations: List[HealthEvaluation] = []
+    recommendations: List[str] = []
+    analysis: list[IntelligenceAnalysis] = []

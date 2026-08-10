@@ -1,4 +1,31 @@
 
+from app.core.intelligence.analysis.baseline import (
+    calculate_baseline,
+)
+
+from app.core.intelligence.analysis.anomaly import (
+    calculate_deviation,
+)
+
+
+from app.core.intelligence.analysis.anomaly import (
+    calculate_deviation,
+)
+
+from app.core.intelligence.analysis.baseline import (
+    calculate_baseline,
+)
+
+from app.core.intelligence.analysis.trends import (
+    analyze_trend,
+)
+
+from app.core.intelligence.schemas import (
+    IntelligenceAnalysis,
+)
+
+
+
 from app.core.intelligence.memory import (
     health_evaluation_to_memory,
     remember,
@@ -51,6 +78,7 @@ def calculate_platform_health():
             recommendations=[
                 "No observability metrics available"
             ],
+            analysis_results = []
         )
 
 
@@ -59,6 +87,8 @@ def calculate_platform_health():
     evaluations = []
 
     recommendations = []
+
+    analysis_results = []
 
 
     for metric in metrics:
@@ -99,6 +129,42 @@ def calculate_platform_health():
 
             history = analyze_component_history(
                 evaluation.component
+            )
+
+            baseline = calculate_baseline(
+                evaluation.component
+            )
+
+            trend = analyze_trend(
+                evaluation.component
+            )
+
+
+            baseline = calculate_baseline(
+                evaluation.component
+            )
+
+            deviation = None
+
+            if baseline.samples:
+
+                deviation = calculate_deviation(
+                    component=evaluation.component,
+                    current_cpu=observation.cpu_usage,
+                    current_memory=observation.memory_usage,
+                    baseline_cpu=baseline.avg_cpu,
+                    baseline_memory=baseline.avg_memory,
+                )
+
+
+
+            analysis_results.append(
+                IntelligenceAnalysis(
+                    component=evaluation.component,
+                    deviation=deviation,
+                    trend=trend,
+                    history=history,
+                )
             )
 
 
@@ -156,4 +222,5 @@ def calculate_platform_health():
         issues=[],
         evaluations=evaluations,
         recommendations=recommendations,
+        analysis=analysis_results,
     )
