@@ -71,3 +71,44 @@ def save_memory(
     conn.close()
 
     return record
+
+
+def get_memory_history(component: str):
+
+    import json
+
+    from app.core.intelligence.memory.models import (
+        MemoryRecord,
+    )
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT
+            component,
+            event_type,
+            timestamp,
+            data
+        FROM intelligence_memory
+        WHERE component = ?
+        ORDER BY id ASC
+        """,
+        (component,),
+    )
+
+    rows = cursor.fetchall()
+
+    conn.close()
+
+    return [
+        MemoryRecord(
+            component=row[0],
+            event_type=row[1],
+            timestamp=row[2],
+            data=json.loads(row[3]),
+        )
+        for row in rows
+    ]
