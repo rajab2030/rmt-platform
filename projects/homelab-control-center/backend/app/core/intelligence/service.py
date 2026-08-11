@@ -1,12 +1,6 @@
-
-from app.core.intelligence.analysis.baseline import (
-    calculate_baseline,
+from app.core.intelligence.decision.engine import (
+    make_decision,
 )
-
-from app.core.intelligence.analysis.anomaly import (
-    calculate_deviation,
-)
-
 
 from app.core.intelligence.analysis.anomaly import (
     calculate_deviation,
@@ -20,26 +14,24 @@ from app.core.intelligence.analysis.trends import (
     analyze_trend,
 )
 
-from app.core.intelligence.schemas import (
-    IntelligenceAnalysis,
+from app.core.intelligence.analysis.history import (
+    analyze_component_history,
 )
 
-
+from app.core.intelligence.schemas import (
+    IntelligenceAnalysis,
+    HealthReport,
+    HealthStatus,
+)
 
 from app.core.intelligence.memory import (
     health_evaluation_to_memory,
     remember,
 )
 
-from app.core.intelligence.analysis.history import (
-    analyze_component_history,
-)
-
 from app.core.intelligence.recommendations.engine import (
     generate_recommendations,
 )
-
-
 
 from app.core.observability.service import (
     get_current_container_metrics,
@@ -57,18 +49,12 @@ from app.core.intelligence.rules import (
     create_health_evaluation,
 )
 
-from app.core.intelligence.schemas import (
-    HealthReport,
-    HealthStatus,
-)
-
 
 def calculate_platform_health():
 
     metrics = get_current_container_metrics()
 
     if not metrics:
-
         return HealthReport(
             platform="RMT",
             score=0,
@@ -78,18 +64,16 @@ def calculate_platform_health():
             recommendations=[
                 "No observability metrics available"
             ],
-            analysis_results = []
+            analysis=[],
+            decisions=[],
         )
-
 
     total_score = 0
 
     evaluations = []
-
     recommendations = []
-
     analysis_results = []
-
+    decisions = []
 
     for metric in metrics:
 
@@ -97,103 +81,97 @@ def calculate_platform_health():
             metric
         )
 
-
         context_result = enrich_component(
             observation
         )
 
         context = context_result["context"]
 
-
         evaluation = create_health_evaluation(
             observation,
             context,
         )
 
+        if not evaluation:
+            total_score += 100
+            continue
 
-        if evaluation:
+        evaluations.append(
+            evaluation
+        )
 
-            evaluations.append(
-                evaluation
+        memory_record = health_evaluation_to_memory(
+            evaluation
+        )
+
+        remember(
+            memory_record
+        )
+
+        history = analyze_component_history(
+            evaluation.component
+        )
+
+        baseline = calculate_baseline(
+            evaluation.component
+        )
+
+        trend = analyze_trend(
+            evaluation.component
+        )
+
+        deviation = None
+
+        if baseline and baseline.samples:
+
+            deviation = calculate_deviation(
+                component=evaluation.component,
+                current_cpu=observation.cpu_usage,
+                current_memory=observation.memory_usage,
+                baseline_cpu=baseline.avg_cpu,
+                baseline_memory=baseline.avg_memory,
             )
 
+        analysis = IntelligenceAnalysis(
+            component=evaluation.component,
+            deviation=deviation,
+            trend=trend or {},
+            history=history or {},
+        )
 
-            memory_record = health_evaluation_to_memory(
-                evaluation
+        analysis_results.append(
+            analysis
+        )
+
+        decision_result = make_decision(
+            evaluation,
+            analysis,
+            context,
+        )
+
+        if decision_result:
+
+            decisions.append(
+                decision_result
             )
 
-            remember(
-                memory_record
-            )
+        generated = generate_recommendations(
+            evaluation,
+            history,
+            context,
+        ) or []
 
+        recommendations.extend(
+            generated
+        )
 
-            history = analyze_component_history(
-                evaluation.component
-            )
+        if evaluation.status == HealthStatus.CRITICAL:
+            total_score += 40
 
-            baseline = calculate_baseline(
-                evaluation.component
-            )
-
-            trend = analyze_trend(
-                evaluation.component
-            )
-
-
-            baseline = calculate_baseline(
-                evaluation.component
-            )
-
-            deviation = None
-
-            if baseline.samples:
-
-                deviation = calculate_deviation(
-                    component=evaluation.component,
-                    current_cpu=observation.cpu_usage,
-                    current_memory=observation.memory_usage,
-                    baseline_cpu=baseline.avg_cpu,
-                    baseline_memory=baseline.avg_memory,
-                )
-
-
-
-            analysis_results.append(
-                IntelligenceAnalysis(
-                    component=evaluation.component,
-                    deviation=deviation,
-                    trend=trend,
-                    history=history,
-                )
-            )
-
-
-            generated = generate_recommendations(
-                evaluation,
-                history,
-                context,
-            )
-
-
-            recommendations.extend(
-                generated
-
-            )
-
-            if evaluation.status == HealthStatus.CRITICAL:
-                total_score += 40
-
-            elif evaluation.status == HealthStatus.WARNING:
-                total_score += 70
-
-            else:
-                total_score += 100
-
-
-
+        elif evaluation.status == HealthStatus.WARNING:
+            total_score += 70
 
         else:
-
             total_score += 100
 
 
@@ -203,15 +181,12 @@ def calculate_platform_health():
 
 
     if score >= 85:
-
         status = HealthStatus.HEALTHY
 
     elif score >= 60:
-
         status = HealthStatus.WARNING
 
     else:
-
         status = HealthStatus.CRITICAL
 
 
@@ -223,4 +198,5 @@ def calculate_platform_health():
         evaluations=evaluations,
         recommendations=recommendations,
         analysis=analysis_results,
+        decisions=decisions,
     )

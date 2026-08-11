@@ -1,3 +1,7 @@
+from app.core.intelligence.decision.models import (
+    IntelligenceDecision,
+)
+
 from enum import Enum
 from pydantic import BaseModel
 from typing import List
@@ -106,3 +110,4 @@ class HealthReport(BaseModel):
     evaluations: List[HealthEvaluation] = []
     recommendations: List[str] = []
     analysis: list[IntelligenceAnalysis] = []
+    decisions: list[IntelligenceDecision] = []
