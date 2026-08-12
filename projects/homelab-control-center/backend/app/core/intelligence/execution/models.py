@@ -1,0 +1,41 @@
+from datetime import datetime, timezone
+from uuid import uuid4
+
+from pydantic import BaseModel, Field
+
+
+class ExecutionStatus(str):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class ExecutionRequest(BaseModel):
+    execution_id: str = Field(
+        default_factory=lambda: str(uuid4())
+    )
+
+    authorization_id: str
+
+    action_id: str
+
+    target: str
+
+    operation: str
+
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+
+class ExecutionResult(BaseModel):
+    execution_id: str
+
+    status: str
+
+    success: bool
+
+    message: str = ""
+
+    output: dict = {}
