@@ -1,0 +1,48 @@
+from app.core.intelligence.execution.adapters.registry import (
+    adapter_registry,
+)
+
+from app.core.intelligence.execution.models import (
+    ExecutionRequest,
+    ExecutionResult,
+)
+
+
+class ExecutionEngine:
+    """
+    Coordinates controlled execution.
+
+    This layer selects adapters and triggers execution.
+    It does not authorize actions.
+    """
+
+    def execute(
+        self,
+        request: ExecutionRequest,
+        adapter_name: str = "simulation",
+    ) -> ExecutionResult:
+
+        adapter = adapter_registry.get(
+            adapter_name,
+        )
+
+        if adapter is None:
+            return ExecutionResult(
+                execution_id=request.execution_id,
+                status="failed",
+                success=False,
+                message=f"Adapter '{adapter_name}' not found",
+            )
+
+        if not adapter.supports(request):
+            return ExecutionResult(
+                execution_id=request.execution_id,
+                status="failed",
+                success=False,
+                message="Adapter does not support request",
+            )
+
+        return adapter.execute(request)
+
+
+execution_engine = ExecutionEngine()
