@@ -2,6 +2,10 @@ from app.core.intelligence.execution.adapters.registry import (
     adapter_registry,
 )
 
+from app.core.intelligence.execution.audit import (
+    ExecutionAuditRecord,
+)
+
 from app.core.intelligence.execution.models import (
     ExecutionRequest,
     ExecutionResult,
@@ -42,7 +46,18 @@ class ExecutionEngine:
                 message="Adapter does not support request",
             )
 
-        return adapter.execute(request)
+        result = adapter.execute(request)
+
+        audit_record = ExecutionAuditRecord(
+            execution_id=result.execution_id,
+            action_id=request.action_id,
+            authorization_id=request.authorization_id,
+            adapter=adapter_name,
+            status=result.status,
+            message=result.message,
+        )
+
+        return result
 
 
 execution_engine = ExecutionEngine()
