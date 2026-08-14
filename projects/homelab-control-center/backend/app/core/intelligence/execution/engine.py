@@ -6,6 +6,10 @@ from app.core.intelligence.execution.audit import (
     ExecutionAuditRecord,
 )
 
+from app.core.intelligence.execution.storage import (
+    execution_audit_storage,
+)
+
 from app.core.intelligence.execution.models import (
     ExecutionRequest,
     ExecutionResult,
@@ -55,6 +59,10 @@ class ExecutionEngine:
             adapter=adapter_name,
             status=result.status,
             message=result.message,
+        )
+
+        execution_audit_storage.save(
+            audit_record,
         )
 
         return result
