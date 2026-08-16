@@ -28,6 +28,21 @@ class ExecutionPolicy:
         request: ExecutionRequest,
     ) -> PolicyDecision:
 
+        operation = request.operation.lower()
+
+        if operation in {
+            "delete",
+            "destroy",
+            "remove",
+        }:
+            return PolicyDecision.REQUIRES_APPROVAL
+
+        if operation in {
+            "format",
+            "wipe",
+        }:
+            return PolicyDecision.DENY
+
         return PolicyDecision.ALLOW
 
 
