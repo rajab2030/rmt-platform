@@ -84,6 +84,7 @@ class ExecutionEngine:
             adapter=adapter_name,
             status=result.status,
             message=result.message,
+            risk_level=risk_result.value,
         )
 
         execution_audit_storage.save(
