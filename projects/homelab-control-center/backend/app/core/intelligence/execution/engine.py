@@ -15,6 +15,10 @@ from app.core.intelligence.execution.policy import (
     PolicyDecision,
 )
 
+from app.core.intelligence.execution.risk import (
+    execution_risk_analyzer,
+)
+
 from app.core.intelligence.execution.models import (
     ExecutionRequest,
     ExecutionResult,
@@ -46,6 +50,10 @@ class ExecutionEngine:
                 success=False,
                 message=f"Execution blocked by policy: {policy_result.value}",
             )
+
+        risk_result = execution_risk_analyzer.evaluate(
+            request,
+        )
 
         adapter = adapter_registry.get(
             adapter_name,
