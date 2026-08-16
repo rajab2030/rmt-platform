@@ -10,6 +10,14 @@ from app.core.intelligence.execution.storage import (
     execution_audit_storage,
 )
 
+from app.core.intelligence.execution.trace import (
+    ExecutionTrace,
+)
+
+from app.core.intelligence.execution.trace_storage import (
+    execution_trace_storage,
+)
+
 from app.core.intelligence.execution.policy import (
     execution_policy,
     PolicyDecision,
@@ -89,6 +97,20 @@ class ExecutionEngine:
 
         execution_audit_storage.save(
             audit_record,
+        )
+
+        trace_record = ExecutionTrace(
+            execution_id=result.execution_id,
+            action_id=request.action_id,
+            authorization_id=request.authorization_id,
+            policy_decision=policy_result.value,
+            risk_level=risk_result.value,
+            outcome=result.status,
+            reason=result.message,
+        )
+
+        execution_trace_storage.save(
+            trace_record,
         )
 
         return result
