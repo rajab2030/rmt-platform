@@ -10,6 +10,11 @@ from app.core.intelligence.execution.storage import (
     execution_audit_storage,
 )
 
+from app.core.intelligence.execution.policy import (
+    execution_policy,
+    PolicyDecision,
+)
+
 from app.core.intelligence.execution.models import (
     ExecutionRequest,
     ExecutionResult,
@@ -29,6 +34,18 @@ class ExecutionEngine:
         request: ExecutionRequest,
         adapter_name: str = "simulation",
     ) -> ExecutionResult:
+
+        policy_result = execution_policy.evaluate(
+            request,
+        )
+
+        if policy_result != PolicyDecision.ALLOW:
+            return ExecutionResult(
+                execution_id=request.execution_id,
+                status="failed",
+                success=False,
+                message=f"Execution blocked by policy: {policy_result.value}",
+            )
 
         adapter = adapter_registry.get(
             adapter_name,
