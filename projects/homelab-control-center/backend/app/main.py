@@ -11,8 +11,8 @@ from app.docker_api import (
     restart_container,
     create_container,
     remove_container,
-
 )
+
 from app.schemas.container import Container
 
 from app.monitor import get_history
@@ -27,6 +27,10 @@ from app.core.platform_state.service import get_platform_state
 from app.core.observability.api import router as observability_router
 from app.core.intelligence.api import router as intelligence_router
 
+from app.core.intelligence.execution.adapters.bootstrap import (
+    register_default_adapters,
+)
+
 import asyncio
 
 
@@ -36,6 +40,8 @@ collector_task = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global collector_task
+
+    register_default_adapters()
 
     collector_task = asyncio.create_task(
         collect_metrics()
@@ -65,9 +71,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 app.include_router(observability_router)
 
 app.include_router(intelligence_router)
+
 
 @app.get("/")
 def root():
@@ -81,9 +89,11 @@ def root():
 def containers():
     return get_containers()
 
+
 @app.get("/modules")
 def modules():
     return get_modules()
+
 
 @app.get("/config")
 def config():
@@ -94,9 +104,11 @@ def config():
         settings
     )
 
+
 @app.get("/platform/state")
 def platform_state():
     return get_platform_state()
+
 
 @app.get("/containers/{name}/stats")
 def container_stats(name: str):
@@ -133,8 +145,7 @@ def create(
         image
     )
 
+
 @app.delete("/containers/{name}")
 def remove(name: str):
     return remove_container(name)
-
-
