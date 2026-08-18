@@ -47,21 +47,42 @@ class ExecutionEngine:
         adapter_name: str = "simulation",
     ) -> ExecutionResult:
 
+        risk_result = execution_risk_analyzer.evaluate(
+            request,
+        )
+
         policy_result = execution_policy.evaluate(
             request,
         )
 
         if policy_result != PolicyDecision.ALLOW:
+
+            trace_record = ExecutionTrace(
+                execution_id=request.execution_id,
+                action_id=request.action_id,
+                authorization_id=request.authorization_id,
+                policy_decision=policy_result.value,
+                risk_level=risk_result.value,
+                outcome="blocked",
+                reason=(
+                    f"Execution blocked by policy: "
+                    f"{policy_result.value}"
+                ),
+            )
+
+            execution_trace_storage.save(
+                trace_record,
+            )
+
             return ExecutionResult(
                 execution_id=request.execution_id,
                 status="failed",
                 success=False,
-                message=f"Execution blocked by policy: {policy_result.value}",
+                message=(
+                    f"Execution blocked by policy: "
+                    f"{policy_result.value}"
+                ),
             )
-
-        risk_result = execution_risk_analyzer.evaluate(
-            request,
-        )
 
         adapter = adapter_registry.get(
             adapter_name,
