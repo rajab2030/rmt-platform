@@ -13,3 +13,11 @@ data/
 
 # Logs
 *.log
+
+# Runtime durable governance evidence (C02/C03)
+app/core/intelligence/actions/authorizations.json
+app/core/intelligence/actions/approval_holds.json
+app/core/intelligence/actions/approval_records.json
+app/core/intelligence/execution/audit.json
+app/core/intelligence/execution/traces.json
+app/core/intelligence/verification/verifications.json

@@ -59,3 +59,52 @@ def analyze_component_history(component: str):
         ),
         "recurring": len(history) > 1,
     }
+
+
+def analyze_governed_outcomes(component: str | None = None):
+    """
+    L1 - summarize governed lifecycle evidence as analysis INFO ONLY.
+
+    Consumes the read-only governed-history boundary. This function never
+    authorizes, executes, or mutates governance state; it only reports what
+    governed outcomes have been observed.
+
+    Kept distinct from analyze_component_history() so observation/evaluation
+    history and governed lifecycle history remain distinguishable.
+    """
+    from app.core.intelligence.analysis.governed_history import (
+        get_governed_outcomes,
+    )
+
+    outcomes = get_governed_outcomes(component=component)
+
+    blocked = [o for o in outcomes if o.outcome == "blocked"]
+    completed = [o for o in outcomes if o.outcome == "completed"]
+
+    verification_counts = {}
+    for o in outcomes:
+        if o.verification_status:
+            verification_counts[o.verification_status] = (
+                verification_counts.get(o.verification_status, 0) + 1
+            )
+
+    return {
+        "component": component,
+        "total_governed_outcomes": len(outcomes),
+        "blocked": len(blocked),
+        "completed": len(completed),
+        "verification_counts": verification_counts,
+        "outcomes": [
+            {
+                "action_id": o.action_id,
+                "execution_id": o.execution_id,
+                "component": o.component,
+                "operation": o.operation,
+                "outcome": o.outcome,
+                "execution_status": o.execution_status,
+                "verification_status": o.verification_status,
+                "sources": o.sources,
+            }
+            for o in outcomes
+        ],
+    }

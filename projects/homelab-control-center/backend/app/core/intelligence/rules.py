@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 
-from app.core.intelligence.observation.normalize import normalize_observation
+from app.core.intelligence.observation.normalize import (
+    normalize_observation,
+)
 
 from app.core.intelligence.schemas import (
     HealthIssue,
@@ -9,6 +11,76 @@ from app.core.intelligence.schemas import (
     HealthReason,
     HealthImpact,
 )
+
+# Freshness thresholds (D2). The semantics are fixed in the Core contract; the
+# numeric values are configuration defaults. 600s preserves prior behavior and
+# is defined once so it is not duplicated across callers.
+FRESH_MAX_SECONDS = 60.0
+STALE_THRESHOLD_SECONDS = 600.0
+
+
+def observation_age(observation):
+    """Age of an observation in seconds since its recorded timestamp."""
+    return (
+        datetime.now(timezone.utc)
+        - observation.timestamp.replace(tzinfo=timezone.utc)
+    ).total_seconds()
+
+
+def freshness_for_age(age):
+    """Agreed freshness semantics.
+
+    - current: age <= FRESH_MAX_SECONDS
+    - fresh:   age <= STALE_THRESHOLD_SECONDS
+    - stale:   age > STALE_THRESHOLD_SECONDS
+    """
+    if age <= FRESH_MAX_SECONDS:
+        return "current"
+    if age <= STALE_THRESHOLD_SECONDS:
+        return "fresh"
+    return "stale"
+
+
+def _derive_confidence(observation, age):
+    """Deterministic confidence (0-100) derived from actual evidence (D3).
+
+    Confidence is never an arbitrary fixed value; it is a sum of evidence
+    components that also appear in confidence_basis so the value is reviewable:
+      - state resolvability, up to 40 (explicit running/stopped);
+      - signal presence, up to 40 (scaled by count, baseline of 2 signals);
+      - freshness, up to 30 (current 30 / fresh 20 / stale 10).
+    Capped at 100.
+    """
+    confidence = 0
+    basis = []
+
+    state = (observation.state or "").strip().lower()
+    if state in ("running", "stopped"):
+        confidence += 40
+        basis.append("state:" + state)
+    elif state:
+        confidence += 10
+        basis.append("state:(unresolved)")
+    else:
+        basis.append("state:(none)")
+
+    signal_count = len(observation.signals or {})
+    confidence += min(signal_count, 2) * 20
+    basis.append("signals:" + str(signal_count))
+
+    if age is None:
+        basis.append("age:(none)")
+    elif age <= FRESH_MAX_SECONDS:
+        confidence += 30
+        basis.append("fresh:current")
+    elif age <= STALE_THRESHOLD_SECONDS:
+        confidence += 20
+        basis.append("fresh:fresh")
+    else:
+        confidence += 10
+        basis.append("fresh:stale")
+
+    return min(confidence, 100), ", ".join(basis)
 
 
 def evaluate_observation_health(observation, context=None):
@@ -114,16 +186,9 @@ def evaluate_observation_health(observation, context=None):
 
     # Freshness rule
 
-    now = datetime.now(timezone.utc)
+    age = observation_age(observation)
 
-    age = (
-        now - observation.timestamp.replace(
-            tzinfo=timezone.utc
-        )
-    ).total_seconds()
-
-
-    if age > 600:
+    if age > STALE_THRESHOLD_SECONDS:
 
         score -= 10
 
@@ -162,46 +227,192 @@ def evaluate_observation_health(observation, context=None):
 
 
 def create_health_evaluation(data, context=None):
+    """Return a HealthEvaluation for every resolvable input state.
+
+    Never returns None. Explicitly handles (D2):
+    - missing observation
+    - malformed observation
+    - unknown component state
+    - insufficient evidence
+    - stale data
+    - component/container failure (non-running)
+    - healthy/running
+    """
 
     if data is None:
-        return create_no_metrics_evaluation()
+        return create_missing_observation_evaluation()
 
-    observation = normalize_observation(data)
+    try:
+        observation = normalize_observation(data)
+    except Exception:
+        return create_malformed_observation_evaluation()
 
-    if observation.state != "running":
+    if not observation.component:
+        return create_malformed_observation_evaluation()
 
-        return create_container_failure_evaluation(
-            observation,
-            context,
-        )
+    state = (observation.state or "").strip().lower()
+
+    if state in ("", "unknown"):
+        return create_unknown_state_evaluation(observation, context)
+
+    if state != "running":
+        return create_container_failure_evaluation(observation, context)
 
     if is_metric_stale(observation):
+        return create_stale_data_evaluation(observation, context)
 
-        return create_stale_data_evaluation(
-            observation,
-            context,
-        )
+    if not observation.signals:
+        return create_insufficient_evidence_evaluation(observation, context)
 
-    return None
+    return create_healthy_evaluation(observation, context)
 
 
-def create_no_metrics_evaluation():
+def create_missing_observation_evaluation():
 
     return HealthEvaluation(
         component="unknown",
-        status=HealthStatus.WARNING,
-        reason=HealthReason.NO_METRICS,
+        status=HealthStatus.UNKNOWN,
+        reason=HealthReason.MISSING_OBSERVATION,
         evidence=[
-            "No metric data received"
+            "No observation data received"
         ],
-        confidence=80,
+        confidence=0,
+        freshness="unknown",
+        confidence_basis="no observation",
         impact=HealthImpact.MEDIUM,
-        recommendation="Check metrics collector",
-        message="No metrics available",
+        recommendation="Verify the observation source is producing data",
+        message="Observation missing",
+    )
+
+
+def create_malformed_observation_evaluation():
+
+    return HealthEvaluation(
+        component="unknown",
+        status=HealthStatus.UNKNOWN,
+        reason=HealthReason.MALFORMED_OBSERVATION,
+        evidence=[
+            "Observation could not be normalized"
+        ],
+        confidence=0,
+        freshness="unknown",
+        confidence_basis="malformed/unnormalizable observation",
+        impact=HealthImpact.MEDIUM,
+        recommendation="Check the observation payload/source contract",
+        message="Observation malformed",
+    )
+
+
+def create_unknown_state_evaluation(observation, context=None):
+
+    age = observation_age(observation)
+
+    evidence = [
+        f"State '{observation.state}' is not resolvable",
+        f"Observation age: {age:.1f} seconds",
+    ]
+
+    if context:
+
+        evidence.append(
+            f"Role: {context.role}"
+        )
+
+        evidence.append(
+            f"Criticality: {context.criticality}"
+        )
+
+    return HealthEvaluation(
+        component=observation.component,
+        status=HealthStatus.UNKNOWN,
+        reason=HealthReason.UNKNOWN_STATE,
+        evidence=evidence,
+        confidence=10,
+        age_seconds=round(age, 1),
+        freshness=freshness_for_age(age),
+        confidence_basis="unresolved state; low evidence",
+        impact=HealthImpact.MEDIUM,
+        recommendation="Determine the component state before acting",
+        message="Component state unknown",
+    )
+
+
+def create_insufficient_evidence_evaluation(observation, context=None):
+
+    age = observation_age(observation)
+
+    evidence = [
+        "Component reports running but no signals were provided",
+        f"Observation age: {age:.1f} seconds",
+    ]
+
+    if context:
+
+        evidence.append(
+            f"Role: {context.role}"
+        )
+
+        evidence.append(
+            f"Criticality: {context.criticality}"
+        )
+
+    return HealthEvaluation(
+        component=observation.component,
+        status=HealthStatus.UNKNOWN,
+        reason=HealthReason.INSUFFICIENT_EVIDENCE,
+        evidence=evidence,
+        confidence=20,
+        age_seconds=round(age, 1),
+        freshness=freshness_for_age(age),
+        confidence_basis="state only; no signals",
+        impact=HealthImpact.MEDIUM,
+        recommendation="Collect signals for the component before judging health",
+        message="Insufficient evidence to judge component health",
+    )
+
+
+def create_healthy_evaluation(observation, context=None):
+
+    age = observation_age(observation)
+
+    confidence, basis = _derive_confidence(observation, age)
+
+    evidence = [
+        "Component is running",
+        f"Observation age: {age:.1f} seconds",
+        f"Signals: {', '.join(sorted(observation.signals.keys()))}",
+    ]
+
+    if context:
+
+        evidence.append(
+            f"Role: {context.role}"
+        )
+
+        evidence.append(
+            f"Criticality: {context.criticality}"
+        )
+
+    return HealthEvaluation(
+        component=observation.component,
+        status=HealthStatus.HEALTHY,
+        reason=HealthReason.HEALTHY,
+        evidence=evidence,
+        confidence=confidence,
+        age_seconds=round(age, 1),
+        freshness=freshness_for_age(age),
+        confidence_basis=basis,
+        impact=HealthImpact.LOW,
+        recommendation=None,
+        message="Component is healthy",
     )
 
 
 def create_container_failure_evaluation(observation, context=None):
+
+    age = observation_age(observation)
+
+    confidence, basis = _derive_confidence(observation, age)
 
     evidence = [
         "Component is not running"
@@ -222,7 +433,10 @@ def create_container_failure_evaluation(observation, context=None):
         status=HealthStatus.CRITICAL,
         reason=HealthReason.COLLECTOR_FAILURE,
         evidence=evidence,
-        confidence=95,
+        confidence=confidence,
+        age_seconds=round(age, 1),
+        freshness=freshness_for_age(age),
+        confidence_basis=basis,
         impact=HealthImpact.MEDIUM,
         recommendation=f"Restart {observation.component}",
         message="Component unavailable",
@@ -231,29 +445,19 @@ def create_container_failure_evaluation(observation, context=None):
 
 def is_metric_stale(observation):
 
-    now = datetime.now(timezone.utc)
+    age = observation_age(observation)
 
-    age = (
-        now - observation.timestamp.replace(
-            tzinfo=timezone.utc
-        )
-    ).total_seconds()
-
-    return age > 600
+    return age > STALE_THRESHOLD_SECONDS
 
 
 def create_stale_data_evaluation(observation, context=None):
 
-    now = datetime.now(timezone.utc)
+    age = observation_age(observation)
 
-    age = (
-        now - observation.timestamp.replace(
-            tzinfo=timezone.utc
-        )
-    ).total_seconds()
+    confidence, basis = _derive_confidence(observation, age)
 
     evidence = [
-        f"Metric age: {age} seconds"
+        f"Metric age: {age:.1f} seconds"
     ]
 
     if context:
@@ -271,7 +475,10 @@ def create_stale_data_evaluation(observation, context=None):
         status=HealthStatus.WARNING,
         reason=HealthReason.STALE_DATA,
         evidence=evidence,
-        confidence=90,
+        confidence=confidence,
+        age_seconds=round(age, 1),
+        freshness=freshness_for_age(age),
+        confidence_basis=basis,
         impact=HealthImpact.MEDIUM,
         recommendation="Check metric collector freshness",
         message="Metric data is old",

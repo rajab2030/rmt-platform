@@ -16,6 +16,16 @@ class ActionPolicyResult:
         self.requires_approval = requires_approval
 
 
+ALLOWED_ACTION_TYPES = {
+    "restart_component",
+    "start",
+    "stop",
+    "restart",
+    "create",
+    "remove",
+}
+
+
 def evaluate_action_policy(
     action: ActionRequest,
     context=None,
@@ -50,11 +60,11 @@ def evaluate_action_policy(
             requires_approval=True,
         )
 
-    if action.action_type.value == "restart_component":
+    if action.action_type.value in ALLOWED_ACTION_TYPES:
 
         return ActionPolicyResult(
             allowed=True,
-            reason="Restart action allowed",
+            reason="Action type allowed by policy",
             requires_approval=action.requires_approval,
         )
 

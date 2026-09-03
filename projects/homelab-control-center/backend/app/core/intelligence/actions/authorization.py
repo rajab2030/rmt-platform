@@ -3,6 +3,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
+from app.core.intelligence.verification.models import ExpectedOutcome
+
 
 class AuthorizationStatus(str):
     PENDING = "pending"
@@ -24,6 +26,10 @@ class ExecutionAuthorization(BaseModel):
 
     authorization_type: str = "manual"
 
+    decision_id: str | None = None
+
+    approval_id: str | None = None
+
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
@@ -31,3 +37,9 @@ class ExecutionAuthorization(BaseModel):
     expires_at: datetime | None = None
 
     reason: str = ""
+
+    target: str = ""
+
+    operation: str = ""
+
+    expected_outcome: ExpectedOutcome | None = None

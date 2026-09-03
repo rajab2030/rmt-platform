@@ -19,6 +19,10 @@ class ExecutionPolicy:
     """
     Evaluates whether an execution request is allowed.
 
+    This is a final deny-only safety gate. It can only block execution; it
+    cannot grant permission or require approval. Approval is handled in the
+    governance layer (action policy + approval policy) before execution.
+
     This layer does not execute actions.
     It only evaluates policy rules.
     """
@@ -29,13 +33,6 @@ class ExecutionPolicy:
     ) -> PolicyDecision:
 
         operation = request.operation.lower()
-
-        if operation in {
-            "delete",
-            "destroy",
-            "remove",
-        }:
-            return PolicyDecision.REQUIRES_APPROVAL
 
         if operation in {
             "format",

@@ -4,6 +4,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
+from app.core.intelligence.verification.models import ExpectedOutcome
+
 
 class ActionType(str, Enum):
 
@@ -14,6 +16,16 @@ class ActionType(str, Enum):
     SCALE_DOWN = "scale_down"
 
     ISOLATE_COMPONENT = "isolate_component"
+
+    START = "start"
+
+    STOP = "stop"
+
+    RESTART = "restart"
+
+    CREATE = "create"
+
+    REMOVE = "remove"
 
 
 class ActionStatus(str, Enum):
@@ -56,3 +68,7 @@ class ActionRequest(BaseModel):
     requires_approval: bool = True
 
     rollback_required: bool = True
+
+    parameters: dict = Field(default_factory=dict)
+
+    expected_outcome: ExpectedOutcome | None = None

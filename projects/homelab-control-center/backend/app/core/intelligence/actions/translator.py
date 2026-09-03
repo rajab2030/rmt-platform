@@ -39,4 +39,7 @@ def decision_to_action(
         action_type=action_type,
         reason=decision.reason,
         confidence=decision.confidence,
+        # D4: propagate the decision's declared intended outcome as DATA into
+        # the C03 expected_outcome field. This does not execute or authorize.
+        expected_outcome=decision.intended_outcome,
     )

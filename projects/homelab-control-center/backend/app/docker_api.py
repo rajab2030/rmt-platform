@@ -1,11 +1,36 @@
 import docker
 
 
-client = docker.from_env()
+_client = None
+
+
+def _get_client():
+    """
+    Lazily create the docker client on first use.
+
+    The platform must not depend on docker at import time. Docker is an
+    optional execution/observation adapter; the Core must be able to start
+    and operate without it.
+    """
+    global _client
+    if _client is None:
+        _client = docker.from_env()
+    return _client
+
+
+def docker_available() -> bool:
+    """
+    Return True if the docker daemon is reachable.
+    """
+    try:
+        _get_client().ping()
+        return True
+    except Exception:
+        return False
 
 
 def get_containers():
-    containers = client.containers.list(all=True)
+    containers = _get_client().containers.list(all=True)
 
     result = []
 
@@ -24,7 +49,7 @@ def get_containers():
 
 
 def get_container_stats(name: str):
-    container = client.containers.get(name)
+    container = _get_client().containers.get(name)
 
     stats = container.stats(stream=False)
 
@@ -104,7 +129,7 @@ def get_container_stats(name: str):
     }
 
 def start_container(name: str):
-    container = client.containers.get(name)
+    container = _get_client().containers.get(name)
     container.start()
 
     return {
@@ -115,7 +140,7 @@ def start_container(name: str):
 
 
 def stop_container(name: str):
-    container = client.containers.get(name)
+    container = _get_client().containers.get(name)
     container.stop()
 
     return {
@@ -126,7 +151,7 @@ def stop_container(name: str):
 
 
 def restart_container(name: str):
-    container = client.containers.get(name)
+    container = _get_client().containers.get(name)
     container.restart()
 
     return {
@@ -140,7 +165,7 @@ def create_container(
     name: str,
     image: str
 ):
-    container = client.containers.run(
+    container = _get_client().containers.run(
         image,
         name=name,
         detach=True
@@ -154,7 +179,7 @@ def create_container(
 
 
 def remove_container(name: str):
-    container = client.containers.get(name)
+    container = _get_client().containers.get(name)
 
     container.remove(
         force=True

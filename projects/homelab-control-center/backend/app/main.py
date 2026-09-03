@@ -3,16 +3,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.docker_api import (
-    get_containers,
-    get_container_stats,
-    start_container,
-    stop_container,
-    restart_container,
-    create_container,
-    remove_container,
-)
-
 from app.schemas.container import Container
 
 from app.monitor import get_history
@@ -20,7 +10,6 @@ from app.collector import collect_metrics
 
 from app.core.module_registry.registry import get_modules
 from app.core.configuration.settings import load_settings
-
 from app.core.configuration.public import create_public_config
 from app.core.platform_state.service import get_platform_state
 
@@ -31,8 +20,54 @@ from app.core.intelligence.execution.adapters.bootstrap import (
     register_default_adapters,
 )
 
+from app.core.intelligence.actions.models import (
+    ActionRequest,
+    ActionType,
+)
+
+from app.core.intelligence.actions.service import (
+    execute_governed_action,
+)
+
+from app.core.intelligence.actions.approval_service import (
+    approve_held_action,
+)
+
+from app.core.configuration.settings import (
+    load_settings,
+)
+
+from app.core.intelligence.execution.adapters.registry import (
+    adapter_registry,
+)
+
 import asyncio
 
+
+OPERATION_TO_ACTION_TYPE = {
+    "start": ActionType.START,
+    "stop": ActionType.STOP,
+    "restart": ActionType.RESTART,
+    "create": ActionType.CREATE,
+    "remove": ActionType.REMOVE,
+}
+
+
+def _resolve_adapter_name() -> str:
+    """
+    Resolve the execution adapter from configuration.
+
+    Uses the configured runtime engine when that adapter is registered.
+    Falls back to the safe simulation adapter otherwise, so the platform
+    never hard-depends on a specific provider (e.g. docker).
+    """
+    settings = load_settings()
+    engine = settings.runtime.engine
+
+    if adapter_registry.get(engine) is not None:
+        return engine
+
+    return "simulation"
 
 collector_task = None
 
@@ -56,7 +91,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="RMT Platform Center",
     version="0.1",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 
@@ -64,7 +99,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://192.168.235.128:5173",
-        "http://localhost:5173"
+        "http://localhost:5173",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -87,6 +122,7 @@ def root():
 
 @app.get("/containers", response_model=list[Container])
 def containers():
+    from app.docker_api import get_containers
     return get_containers()
 
 
@@ -112,6 +148,7 @@ def platform_state():
 
 @app.get("/containers/{name}/stats")
 def container_stats(name: str):
+    from app.docker_api import get_container_stats
     return get_container_stats(name)
 
 
@@ -120,32 +157,61 @@ def history():
     return get_history()
 
 
-@app.post("/containers/{name}/start")
-def start(name: str):
-    return start_container(name)
-
-
-@app.post("/containers/{name}/stop")
-def stop(name: str):
-    return stop_container(name)
-
-
-@app.post("/containers/{name}/restart")
-def restart(name: str):
-    return restart_container(name)
-
-
-@app.post("/containers/create")
-def create(
-    name: str,
-    image: str
+@app.post("/execute")
+def execute(
+    operation: str,
+    target: str,
+    image: str | None = None,
 ):
-    return create_container(
-        name,
-        image
+    """
+    Route container mutations through the single authoritative governed
+    lifecycle.
+
+    Pipeline: Action -> Policy -> Risk(Simulation) -> Approval ->
+    Authorization -> Execution Translation -> ExecutionEngine.
+
+    Authorization is never fabricated here; it is created only from a
+    legitimate approval result inside the governed lifecycle.
+    """
+    action_type = OPERATION_TO_ACTION_TYPE.get(operation)
+
+    if action_type is None:
+        return {
+            "status": "unsupported_operation",
+            "reason": f"Operation '{operation}' is not supported",
+        }
+
+    action = ActionRequest(
+        decision_id=f"operator-request-{operation}",
+        component=target,
+        action_type=action_type,
+        reason=f"Operator requested {operation} on {target}",
+        confidence=100,
+        requires_approval=False,
+        parameters={"image": image} if image else {},
+    )
+
+    return execute_governed_action(
+        action,
+        adapter_name=_resolve_adapter_name(),
     )
 
 
-@app.delete("/containers/{name}")
-def remove(name: str):
-    return remove_container(name)
+@app.post("/approve")
+def approve(
+    approval_id: str,
+    approved_by: str,
+    approved: bool = True,
+):
+    """
+    Legitimate continuation for a manually held governed action.
+
+    Resumes the previously governed action only after the required approval
+    has been granted. It does not create a new action, skip policy/risk, or
+    manufacture authorization independently.
+    """
+    return approve_held_action(
+        approval_id,
+        approved_by=approved_by,
+        approved=approved,
+    )

@@ -1,31 +1,21 @@
-from typing import List
+from pathlib import Path
 
-from app.core.intelligence.execution.audit import (
-    ExecutionAuditRecord,
+from app.core.intelligence.execution.audit import ExecutionAuditRecord
+from app.core.intelligence.durable_store import DurableStore
+
+
+class ExecutionAuditStorage(DurableStore):
+    """
+    Stores execution audit records, durably backed by JSON.
+    """
+
+    def __init__(self, file_path=None):
+        super().__init__(
+            file_path=file_path,
+            model=ExecutionAuditRecord,
+        )
+
+
+execution_audit_storage = ExecutionAuditStorage(
+    file_path=Path(__file__).parent / "audit.json"
 )
-
-
-class ExecutionAuditStorage:
-    """
-    Stores execution audit records.
-
-    Initial implementation is memory-based.
-    Persistence backend can be replaced later.
-    """
-
-    def __init__(self):
-        self._records: List[ExecutionAuditRecord] = []
-
-    def save(
-        self,
-        record: ExecutionAuditRecord,
-    ) -> None:
-        self._records.append(record)
-
-    def get_all(
-        self,
-    ) -> List[ExecutionAuditRecord]:
-        return self._records
-
-
-execution_audit_storage = ExecutionAuditStorage()

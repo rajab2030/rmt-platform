@@ -49,7 +49,6 @@ from app.core.intelligence.rules import (
     create_health_evaluation,
 )
 
-
 def calculate_platform_health():
 
     metrics = get_current_container_metrics()
@@ -126,8 +125,8 @@ def calculate_platform_health():
 
             deviation = calculate_deviation(
                 component=evaluation.component,
-                current_cpu=observation.cpu_usage,
-                current_memory=observation.memory_usage,
+                current_cpu=observation.signals.get("cpu_usage", 0),
+                current_memory=observation.signals.get("memory_usage", 0),
                 baseline_cpu=baseline.avg_cpu,
                 baseline_memory=baseline.avg_memory,
             )
@@ -170,6 +169,11 @@ def calculate_platform_health():
 
         elif evaluation.status == HealthStatus.WARNING:
             total_score += 70
+
+        elif evaluation.status == HealthStatus.UNKNOWN:
+            # UNKNOWN is neither healthy nor safe (D2): it contributes no
+            # health credit and must not inflate the platform score.
+            pass
 
         else:
             total_score += 100

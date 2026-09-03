@@ -29,12 +29,17 @@ class HealthIssue(BaseModel):
 
 class HealthReason(str, Enum):
 
+    HEALTHY = "healthy"
     NEW_COMPONENT = "new_component"
     NO_METRICS = "no_metrics"
     STALE_DATA = "stale_data"
     BASELINE_NOT_READY = "baseline_not_ready"
     COLLECTOR_FAILURE = "collector_failure"
     CONFIGURATION_MISSING = "configuration_missing"
+    MALFORMED_OBSERVATION = "malformed_observation"
+    MISSING_OBSERVATION = "missing_observation"
+    INSUFFICIENT_EVIDENCE = "insufficient_evidence"
+    UNKNOWN_STATE = "unknown_state"
 
 
 
@@ -62,6 +67,13 @@ class HealthEvaluation(BaseModel):
 
     recommendation: str | None = None
     message: str
+
+    # Freshness metadata (D2): explicit age and agreed freshness semantics.
+    age_seconds: float | None = None
+    freshness: str = "unknown"
+
+    # Evidence basis for the confidence score (inspectable, not manufactured).
+    confidence_basis: str = ""
 
 
 

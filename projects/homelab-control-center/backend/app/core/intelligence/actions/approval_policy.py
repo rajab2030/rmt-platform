@@ -1,4 +1,5 @@
 from enum import Enum
+from uuid import uuid4
 
 from app.core.intelligence.actions.models import (
     ActionRequest,
@@ -19,6 +20,7 @@ class ApprovalDecision:
         approved: bool,
         reason: str,
     ):
+        self.approval_id = str(uuid4())
         self.action_id = action_id
         self.mode = mode
         self.approved = approved
@@ -97,7 +99,7 @@ def evaluate_approval(
             reason="Rollback is not available",
         )
 
-    if risk_level == "low":
+    if risk_level in {"low", "medium"}:
         return ApprovalDecision(
             action_id=action.action_id,
             mode=ApprovalMode.AUTO,

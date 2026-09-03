@@ -1,31 +1,21 @@
-from typing import List
+from pathlib import Path
 
-from app.core.intelligence.execution.trace import (
-    ExecutionTrace,
+from app.core.intelligence.execution.trace import ExecutionTrace
+from app.core.intelligence.durable_store import DurableStore
+
+
+class ExecutionTraceStorage(DurableStore):
+    """
+    Stores execution decision traces, durably backed by JSON.
+    """
+
+    def __init__(self, file_path=None):
+        super().__init__(
+            file_path=file_path,
+            model=ExecutionTrace,
+        )
+
+
+execution_trace_storage = ExecutionTraceStorage(
+    file_path=Path(__file__).parent / "traces.json"
 )
-
-
-class ExecutionTraceStorage:
-    """
-    Stores execution decision traces.
-
-    Initial implementation is memory-based.
-    Persistence backend can be replaced later.
-    """
-
-    def __init__(self):
-        self._traces: List[ExecutionTrace] = []
-
-    def save(
-        self,
-        trace: ExecutionTrace,
-    ) -> None:
-        self._traces.append(trace)
-
-    def get_all(
-        self,
-    ) -> List[ExecutionTrace]:
-        return self._traces
-
-
-execution_trace_storage = ExecutionTraceStorage()

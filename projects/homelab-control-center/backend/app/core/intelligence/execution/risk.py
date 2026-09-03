@@ -21,6 +21,9 @@ class ExecutionRiskAnalyzer:
 
     This layer does not block execution.
     It only provides risk information.
+
+    Risk is reconciled with governance (simulation) risk so that the same
+    operation is not classified inconsistently across the lifecycle.
     """
 
     def evaluate(
@@ -41,6 +44,7 @@ class ExecutionRiskAnalyzer:
 
         if operation in {
             "restart",
+            "create",
             "rebuild",
             "update",
         }:
