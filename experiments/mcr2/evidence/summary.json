@@ -1,0 +1,21 @@
+{
+  "experiment_id": "MCR-EXP-2",
+  "results": {
+    "T1": {
+      "pass": true
+    },
+    "T2": {
+      "pass": true
+    },
+    "T3": {
+      "pass": true
+    },
+    "T4": {
+      "pass": true
+    },
+    "T5": {
+      "pass": true
+    }
+  },
+  "timestamp": 1788658181.9476044
+}

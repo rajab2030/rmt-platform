@@ -1,0 +1,64 @@
+{
+  "critical_bypass_detail": null,
+  "critical_bypass_found": false,
+  "experiment_id": "MCR-EXP-3",
+  "results": {
+    "T1": {
+      "bypass": false,
+      "pass": true
+    },
+    "T10": {
+      "bypass": false,
+      "pass": true
+    },
+    "T11": {
+      "bypass": false,
+      "pass": true
+    },
+    "T12": {
+      "bypass": false,
+      "pass": true
+    },
+    "T13": {
+      "bypass": false,
+      "pass": true
+    },
+    "T14": {
+      "bypass": false,
+      "pass": true
+    },
+    "T2": {
+      "bypass": false,
+      "pass": true
+    },
+    "T3": {
+      "bypass": false,
+      "pass": true
+    },
+    "T4": {
+      "bypass": false,
+      "pass": true
+    },
+    "T5": {
+      "bypass": false,
+      "pass": true
+    },
+    "T6": {
+      "bypass": false,
+      "pass": true
+    },
+    "T7": {
+      "bypass": false,
+      "pass": true
+    },
+    "T8": {
+      "bypass": false,
+      "pass": true
+    },
+    "T9": {
+      "bypass": false,
+      "pass": true
+    }
+  },
+  "timestamp": 1788727475.8907127
+}

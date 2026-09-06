@@ -1,0 +1,337 @@
+{
+  "findings": [
+    {
+      "category": "state_write",
+      "detail": "call to ProtectedState.write()",
+      "file": "sim_world.py",
+      "line": 421
+    },
+    {
+      "category": "state_write",
+      "detail": "call to ProtectedState.write()",
+      "file": "sim_world.py",
+      "line": 433
+    },
+    {
+      "category": "state_write",
+      "detail": "call to ProtectedState.write()",
+      "file": "sim_world.py",
+      "line": 443
+    },
+    {
+      "category": "state_write",
+      "detail": "call to ProtectedState.write()",
+      "file": "sim_world.py",
+      "line": 467
+    },
+    {
+      "category": "state_write",
+      "detail": "call to ProtectedState.write()",
+      "file": "sim_world.py",
+      "line": 472
+    },
+    {
+      "category": "state_write",
+      "detail": "call to ProtectedState.write()",
+      "file": "sim_world.py",
+      "line": 477
+    },
+    {
+      "category": "state_write",
+      "detail": "call to ProtectedState.write()",
+      "file": "tools.py",
+      "line": 177
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._data",
+      "file": "sim_world.py",
+      "line": 51
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._token",
+      "file": "sim_world.py",
+      "line": 52
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._data",
+      "file": "sim_world.py",
+      "line": 55
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._token",
+      "file": "sim_world.py",
+      "line": 58
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._data",
+      "file": "sim_world.py",
+      "line": 60
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._token",
+      "file": "sim_world.py",
+      "line": 135
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._token",
+      "file": "sim_world.py",
+      "line": 136
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._token",
+      "file": "sim_world.py",
+      "line": 136
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._token",
+      "file": "sim_world.py",
+      "line": 137
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._token",
+      "file": "sim_world.py",
+      "line": 137
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._token",
+      "file": "sim_world.py",
+      "line": 138
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._token",
+      "file": "sim_world.py",
+      "line": 138
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._token",
+      "file": "sim_world.py",
+      "line": 421
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._token",
+      "file": "sim_world.py",
+      "line": 433
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._token",
+      "file": "sim_world.py",
+      "line": 443
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._token",
+      "file": "sim_world.py",
+      "line": 467
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._token",
+      "file": "sim_world.py",
+      "line": 472
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._token",
+      "file": "sim_world.py",
+      "line": 477
+    },
+    {
+      "category": "private_attr_access",
+      "detail": "._token",
+      "file": "tools.py",
+      "line": 195
+    },
+    {
+      "category": "mutator",
+      "detail": "mutate",
+      "file": "sim_world.py",
+      "line": 201
+    },
+    {
+      "category": "mutator",
+      "detail": "_preview",
+      "file": "sim_world.py",
+      "line": 273
+    },
+    {
+      "category": "mutator",
+      "detail": "_apply",
+      "file": "sim_world.py",
+      "line": 352
+    },
+    {
+      "category": "mutator",
+      "detail": "_apply_resource",
+      "file": "sim_world.py",
+      "line": 425
+    },
+    {
+      "category": "mutator",
+      "detail": "_apply_flag",
+      "file": "sim_world.py",
+      "line": 435
+    },
+    {
+      "category": "mutator",
+      "detail": "set_service",
+      "file": "sim_world.py",
+      "line": 461
+    },
+    {
+      "category": "mutator",
+      "detail": "set_resource",
+      "file": "sim_world.py",
+      "line": 469
+    },
+    {
+      "category": "mutator",
+      "detail": "set_flag",
+      "file": "sim_world.py",
+      "line": 474
+    },
+    {
+      "category": "world_methods",
+      "detail": [
+        "__init__",
+        "_apply",
+        "_apply_flag",
+        "_apply_resource",
+        "_compute_health",
+        "_describe_transition",
+        "_is_consequential",
+        "_preview",
+        "_recompute_health",
+        "_record",
+        "bind_mcr",
+        "get_flags",
+        "get_resource",
+        "get_service",
+        "mutate",
+        "operational_health",
+        "set_flag",
+        "set_resource",
+        "set_service",
+        "snapshot",
+        "to_json"
+      ]
+    },
+    {
+      "category": "tool_mutation_routing",
+      "direct_private_calls_in_tools": [],
+      "world_mutate_calls_in_tools": 2
+    },
+    {
+      "category": "serialization",
+      "detail": "deepcopy",
+      "file": "sim_world.py",
+      "line": 51
+    },
+    {
+      "category": "serialization",
+      "detail": "deepcopy",
+      "file": "sim_world.py",
+      "line": 55
+    },
+    {
+      "category": "serialization",
+      "detail": "deepcopy",
+      "file": "sim_world.py",
+      "line": 154
+    },
+    {
+      "category": "serialization",
+      "detail": "json.dumps",
+      "file": "sim_world.py",
+      "line": 480
+    },
+    {
+      "category": "background/callback",
+      "detail": "thread",
+      "file": "sim_world.py",
+      "line": 75
+    },
+    {
+      "category": "background/callback",
+      "detail": "thread",
+      "file": "sim_world.py",
+      "line": 83
+    },
+    {
+      "category": "background/callback",
+      "detail": "thread",
+      "file": "sim_world.py",
+      "line": 91
+    },
+    {
+      "category": "background/callback",
+      "detail": "thread",
+      "file": "sim_world.py",
+      "line": 99
+    },
+    {
+      "category": "background/callback",
+      "detail": "thread",
+      "file": "sim_world.py",
+      "line": 363
+    },
+    {
+      "category": "background/callback",
+      "detail": "thread",
+      "file": "sim_world.py",
+      "line": 363
+    },
+    {
+      "category": "background/callback",
+      "detail": "thread",
+      "file": "sim_world.py",
+      "line": 370
+    },
+    {
+      "category": "background/callback",
+      "detail": "thread",
+      "file": "sim_world.py",
+      "line": 378
+    },
+    {
+      "category": "background/callback",
+      "detail": "thread",
+      "file": "sim_world.py",
+      "line": 378
+    },
+    {
+      "category": "exception_path",
+      "detail": "PermissionError",
+      "file": "sim_world.py",
+      "line": 24
+    },
+    {
+      "category": "exception_path",
+      "detail": "PermissionError",
+      "file": "sim_world.py",
+      "line": 59
+    },
+    {
+      "category": "fixture_setup_writes",
+      "detail": [
+        "set_service",
+        "set_resource",
+        "set_flag"
+      ]
+    }
+  ]
+}
