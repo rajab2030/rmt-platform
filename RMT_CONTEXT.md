@@ -108,9 +108,11 @@ Closed milestones must not be reopened without evidence.
 
 ## 9. Current milestone / status
 
-**C07 — Platform Validation and Freeze: CLOSED.** The RMT Core has reached
-**Platform Freeze**. There is intentionally **no C08**. Future work is
-above-Core/domain/product/integration/adapter/application.
+**C01–C07: CLOSED.** **RMT Core Target State: ACHIEVED.** **RMT Core Platform
+Freeze: REACHED** (freeze commit `46a4441` — "RMT Core Platform Freeze"). Core
+validation: **122 tests passed**; no reachable production-equivalent governance
+bypass; no remaining required Core capability. There is intentionally **no C08**.
+The RMT Core is now considered frozen.
 
 ## 10. Current verified implementation state
 
@@ -129,22 +131,47 @@ above-Core/domain/product/integration/adapter/application.
 
 - No remaining Core work. The finite Core Target State is validated and the RMT
   Core is frozen.
-- Future work is above-Core/domain/product/integration/adapter/application.
+- The next phase is **not Core development** and must not reopen C01–C07.
 - Any Core change requires evidence that the finite Target State or an existing
   Core contract is insufficient.
 
 ## 12. Current immediate next action
 
-Post-freeze: pursue above-Core/domain/product/integration/adapter/application
-work. Do not begin new Core work. Do not invent a new Core milestone (no C08).
+**Above-Core capabilities (completed):**
+- **RMT-CAP-01 — Homelab Operations (Learn closure):** COMPLETED & VERIFIED.
+  Closed the missing Learn stage in the Homelab operational loop; full lifecycle
+  `Understand → Decide → Govern → Authorize → Execute → Verify → Learn`.
+- **RMT-CAP-02 — Engineering Change-Impact & Risk Analysis:** COMPLETED &
+  VERIFIED. Read-only, deterministic, evidence-backed engineering analysis
+  (component resolution, impact, engineering-change risk, recommendation).
+  See `docs/RMT_CAPABILITIES_EVIDENCE.md`.
+
+**Next action:** the next above-Core capability is to be selected by the owner
+from the candidate directions (continuous operational loop, engineering
+intelligence expansion, frontend governed-evidence/productization, real Docker
+demonstration). Do not begin implementation until the owner selects and
+authorizes the next capability. Do not reopen C01–C07; do not invent a new Core
+milestone (no C08).
 
 ## 13. Environment limitations vs genuine implementation gaps
 
-- **Git is NOT installed** — a tooling/environment limitation, **not** a new
-  RMT milestone. The user handles git separately.
-- **Docker is NOT accessible** (socket permission denied) — an environment
-  limitation; Docker is an above-Core adapter concern.
+- **Shell-dependent tooling.** Git and Docker availability depend on which shell
+  the session runs in. A prior session ran inside an Ollama Snap confinement
+  where the Docker socket returned `PermissionError(13)` and git was unavailable;
+  in that context the RMT FastAPI backend (a normal host process) was the way to
+  reach Docker. As of 2026-09-06 the working shell has **git functional** (HEAD =
+  freeze commit `46a4441`) and **Docker reachable** (`docker_available()` → True;
+  `get_containers()` → `portainer, dozzle, uptime-kuma`). Verify in the current
+  shell rather than assuming either state.
+- Docker is an above-Core adapter concern regardless of reachability; the Core
+  must not hard-depend on it.
 - **`httpx2` is installed** (test dependency) — HTTP route tests are possible.
+- **Adapter selection is environment-sensitive:** `config/config.yaml` sets
+  `runtime.engine: docker`, and `_resolve_adapter_name()` returns `"docker"` only
+  when the Docker adapter is registered (i.e. `docker_available()` is True),
+  otherwise the safe `simulation` adapter. Tests that exercise an executed path
+  must mock the execution adapter rather than depend on ambient Docker (see the
+  C07 `test_http_entrypoints.py` correction, 2026-09-06).
 - Environment limitations must **not** automatically be classified as
   implementation defects.
 
@@ -155,6 +182,12 @@ work. Do not begin new Core work. Do not invent a new Core milestone (no C08).
 - **`execution/service.py::execute_action()`** — **unreachable dead-code
   housekeeping**, no C07 impact.
 - Committed HTTP-route test evidence (existing public routes only) — recorded.
+- **C07 freeze deviation #1 (COMPLETED, verified):** `platform_state` provider
+  extraction removed the Core's direct `app.docker_api` dependency via a generic
+  `PlatformStateProvider` protocol; Docker implementation moved outside Core
+  (`app/docker_provider.py`). `/platform/state` contract preserved; 122 tests
+  green. Adapter-decoupling #2–#18 remain DEFERRED under the owner REDUCE-SCOPE
+  decision (see `docs/RMT_CORE_ADAPTER_DECOUPING.md`).
 - G2 Core-boundary review record — recorded (PASS).
 
 ## 15. Rules for distinguishing FACT / DECISION / PROPOSAL / UNKNOWN
@@ -185,16 +218,17 @@ C07 the Core is complete or frozen.
 
 1. Read `RMT_CONTEXT.md` first.
 2. Read `HANDOFF.md` second.
-3. Read the relevant governing documents.
-4. Verify consequential claims against the repository.
-5. Do NOT ask the user to reconstruct project status if the documents already
+3. Read `STEWARD.md` (session opener) and follow it.
+4. Read the relevant governing documents.
+5. Verify consequential claims against the repository.
+6. Do NOT ask the user to reconstruct project status if the documents already
    establish it.
-6. Do NOT ask "where are we?" or "what is next?" as the default.
-7. State the verified understanding briefly.
-8. Continue from the established next action.
-9. If evidence conflicts with context, identify the conflict and resolve it
-   using the governing documents/repository evidence.
-10. Never silently convert assumptions into facts.
+7. Do NOT ask "where are we?" or "what is next?" as the default.
+8. State the verified understanding briefly.
+9. Continue from the established next action.
+10. If evidence conflicts with context, identify the conflict and resolve it
+    using the governing documents/repository evidence.
+11. Never silently convert assumptions into facts.
 
 ---
 
@@ -205,6 +239,9 @@ C07 the Core is complete or frozen.
 - **Platform Freeze** occurs only after the Target State has been validated.
 - Future work after Core Freeze is primarily above-Core/domain/product/
   integration/adapter/application work.
+- The next phase is **not Core development** and must not reopen C01–C07. The
+  next objective is the **First Real RMT Capability — Homelab Operations**: use
+  the frozen Core as the intelligent control plane for the real homelab.
 - Closed milestones must not be reopened without evidence.
 - A useful capability is not automatically a Core requirement.
 - Environment limitations must not automatically be classified as
