@@ -16,9 +16,13 @@ the duration of each test (mirrors test_evolution.py::_setup_isolation), so the
 real JSON stores (traces.json, audit.json, verifications.json, authorizations.json,
 approval_records.json, approval_holds.json) are never written. Observability metric
 sources and calculate_platform_health inputs are monkeypatched so tests are
-deterministic and do not depend on the sqlite DB.
+deterministic and do not depend on the sqlite DB. The execution adapter registry
+is swapped to a safe in-memory adapter (mirrors test_integrated.py) so the
+executed-path transport tests do not depend on whether a Docker daemon happens to
+be reachable in the environment.
 """
 from datetime import datetime, timezone, timedelta
+from unittest.mock import Mock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -28,6 +32,7 @@ from app.core.intelligence.actions.approval_storage import (
     ApprovalRecordStorage,
 )
 from app.core.intelligence.actions.authorization_storage import AuthorizationStorage
+from app.core.intelligence.execution.models import ExecutionResult
 from app.core.intelligence.execution.storage import ExecutionAuditStorage
 from app.core.intelligence.execution.trace_storage import ExecutionTraceStorage
 from app.core.intelligence.verification.storage import VerificationStorage
@@ -75,6 +80,23 @@ def _isolate_evidence_stores(monkeypatch):
     monkeypatch.setattr(
         verification_service_module, "verification_storage", verification_storage
     )
+
+    # Swap the execution adapter registry to a safe in-memory adapter so the
+    # executed-path tests do not depend on whether a Docker daemon is reachable
+    # in the environment. Blocked / held / unsupported paths never call the
+    # registry, so their assertions ("adapter not invoked") are unaffected.
+    adapter = Mock()
+    adapter.supports.return_value = True
+    adapter.execute.side_effect = lambda request: ExecutionResult(
+        execution_id=request.execution_id,
+        status="completed",
+        success=True,
+        message="Simulation execution completed",
+    )
+    adapter_registry = Mock()
+    adapter_registry.get.return_value = adapter
+    monkeypatch.setattr(engine_module, "adapter_registry", adapter_registry)
+
     return {
         "auth": auth_storage,
         "trace": trace_storage,
@@ -82,6 +104,7 @@ def _isolate_evidence_stores(monkeypatch):
         "hold": hold_storage,
         "approval_record": approval_record_storage,
         "verification": verification_storage,
+        "adapter_registry": adapter_registry,
     }
 
 
