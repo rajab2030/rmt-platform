@@ -281,13 +281,23 @@ correction. C01–C07 remain closed/frozen; no C08; no frozen Core code modified
   standing "Docker/Git not accessible" caveats are shell-specific, not universal.
 - A `STEWARD.md` session-opener file is present at repo root (not created by this
   session).
-- The MCR experiments (`experiments/mcr/`, `mcr2/`, `mcr3/`) and
-  `docs/MCR_SUPERVISORY_CONTRACT.md` (v0.1) are present and untracked, dated
-  2026-09-06. Above-Core architectural-pattern exploration; `MCR-EXP-3` = 14/14
-  adversarial tests, no boundary bypass, one recorded **T13 policy-level finding**
-  (effect-based governance at the mutation boundary does not catch a restricted
-  effect reached indirectly via an allowed dependency operation). Not yet folded
-  into the governing docs; owner disposition pending.
+- **MCR = Master Control Room** (owner-confirmed 2026-09-06). A supervisory
+  *architectural pattern*: one supervisor governs the consequential actions of
+  many independent, internally-autonomous "child" systems (apps, infra, AI
+  agents, other platforms) via a single authoritative consequential-mutation
+  boundary. It is a lens on RMT's existing role, **not** a new subsystem or
+  milestone; subordinate to RMT's governing architecture.
+- Two above-Core MCR docs in `docs/` (v0.1, not RMT authority docs):
+  - `MCR_ARCHITECTURAL_PRINCIPLE.md` — the principle (intent / what & why).
+  - `MCR_SUPERVISORY_CONTRACT.md` — the compliance spec (C1–C10, fail-closed,
+    replay, evidence standard). The two cross-reference each other.
+- The MCR experiments (`experiments/mcr/`, `mcr2/`, `mcr3/`), dated 2026-09-06:
+  `MCR-EXP-3` = 14/14 adversarial tests, no boundary bypass (Claim A + B for the
+  tested tool surface; Claim C not claimed), one recorded **T13 policy-level
+  finding** — effect-based governance at the mutation boundary does not catch a
+  restricted effect reached indirectly via an *allowed* dependency operation.
+  Boundary integrity ≠ policy completeness. **T13 is an open above-Core work
+  item**; owner disposition pending.
 
 ### RMT-CAP-03 — COMPLETED & VERIFIED
 Closes the Learn-stage gap identified in the 2026-09-04 fault-injection note: the
@@ -333,5 +343,8 @@ evidence. Recorded for owner consideration only.
 ### Next
 - Continuous Homelab operational loop (observe → remediate) remains a candidate
   **CAP-04** — separate proposal, not started.
-- Owner disposition still pending on: the MCR/T13 policy finding; whether to fold
-  the MCR supervisory pattern into the governing docs.
+- Owner disposition still pending on: the MCR/T13 dependency-cascade policy
+  finding (open above-Core work item); whether the MCR pattern informs a future
+  above-Core capability (e.g. AI Agent Governance — governing a reasoning agent
+  as an MCR "child"). MCR docs are recorded in `docs/` but are **not** RMT
+  authority documents and do not change C01–C07.

@@ -3,6 +3,7 @@
 **Status:** Evidence-backed architectural contract
 **Version:** 0.1
 **Scope:** MCR ↔ governed child-system relationship
+**Companion:** `MCR_ARCHITECTURAL_PRINCIPLE.md` — that document is the *principle* (intent / what & why); this document is the *compliance spec* (how a governed child demonstrates compliance).
 
 ---
 
