@@ -236,3 +236,28 @@ def homelab_remediate(component: str):
     """
     from app.homelab.remediation import remediate_component
     return remediate_component(component)
+
+
+@app.post("/homelab/approve")
+def homelab_approve(
+    approval_id: str,
+    approved_by: str,
+    approved: bool = True,
+):
+    """
+    Above-Core Homelab remediation approval-continuation entrypoint.
+
+    Continues a manually held Homelab remediation through the frozen Core
+    approve_held_action(), then closes the Learn stage: runs the above-Core
+    Docker verification and records the executed outcome as a learning
+    record, correlated by approval_id / execution_id. The frozen Core
+    continuation is called unchanged; this layer only records evidence after
+    the Core has executed. A non-Homelab held action is continued exactly as
+    the generic POST /approve would.
+    """
+    from app.homelab.continuation import continue_remediation
+    return continue_remediation(
+        approval_id,
+        approved_by=approved_by,
+        approved=approved,
+    )
