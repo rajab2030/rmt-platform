@@ -12,9 +12,11 @@ from app.core.module_registry.registry import get_modules
 from app.core.configuration.settings import load_settings
 from app.core.configuration.public import create_public_config
 from app.core.platform_state.service import get_platform_state
+from app.docker_provider import DockerPlatformStateProvider
 
 from app.core.observability.api import router as observability_router
 from app.core.intelligence.api import router as intelligence_router
+from app.engineering.api import router as engineering_router
 
 from app.core.intelligence.execution.adapters.bootstrap import (
     register_default_adapters,
@@ -111,6 +113,8 @@ app.include_router(observability_router)
 
 app.include_router(intelligence_router)
 
+app.include_router(engineering_router)
+
 
 @app.get("/")
 def root():
@@ -143,7 +147,9 @@ def config():
 
 @app.get("/platform/state")
 def platform_state():
-    return get_platform_state()
+    return get_platform_state(
+        DockerPlatformStateProvider()
+    )
 
 
 @app.get("/containers/{name}/stats")
@@ -215,3 +221,18 @@ def approve(
         approved_by=approved_by,
         approved=approved,
     )
+
+
+@app.post("/homelab/remediate")
+def homelab_remediate(component: str):
+    """
+    Above-Core Homelab remediation entrypoint.
+
+    Runs the full governed capability for a Homelab component from its current
+    observation: Understand -> Decide -> ActionRequest -> Govern -> Authorize
+    -> Execute -> Verify. Routes through the single governed execution boundary
+    (execute_governed_action) and the existing verification boundary. Never
+    bypasses policy, risk, approval, authorization, or execution validation.
+    """
+    from app.homelab.remediation import remediate_component
+    return remediate_component(component)
