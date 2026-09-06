@@ -1,0 +1,18 @@
+{
+  "experiment": "MCR supervisory experiment",
+  "results": {
+    "T1": {
+      "pass": true
+    },
+    "T2": {
+      "pass": true
+    },
+    "T3": {
+      "pass": true
+    },
+    "T4": {
+      "pass": false
+    }
+  },
+  "timestamp": 1788657543.8987505
+}
