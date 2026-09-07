@@ -670,3 +670,47 @@ background task).
   — a separate explicit change.
 - Not deployed to the live server (this is a new package; a redeploy would pick
   it up, still disabled by default).
+
+### CAP-05 (5A) — deployed to live + controlled exercise (2026-09-07)
+
+**Deploy:** `sudo systemctl restart rmt-control-center.service` (owner). Live
+:8000 now carries the `/agent/*` routes; `GET /agent/status` → `enabled: false`
+(agent OFF, as intended). CAP-04 loop unaffected (still enabled, `no_remediation`).
+
+**Exercise:** owner-authorized ("1 then 2 later 5B"). Temp instance on :8001 with
+`RMT_AGENT_ENABLED=true` (live :8000 left OFF). Live CAP-04 loop paused for the
+window (`POST /homelab/loop/stop`) then resumed. Sequence:
+
+1. `POST /agent/act` with **no grant** → `decision: no_authority`,
+   `detail: no_grant`; governed boundary never reached.
+2. `POST /agent/authority/grant` {restart, uptime-kuma, exercise-operator} →
+   grant `c93a42edc87c` (5-min TTL, single-use).
+3. `POST /agent/act` {reference-agent, restore uptime-kuma, restart, conf 80,
+   grant} → `decision: hold`, `governed_status: manual_approval_required`,
+   `approval_id 0c774a8d…`, `learn_recorded: true`, `escalated: false`. No
+   execution.
+4. `POST /agent/act` **replay same grant** → `no_authority` /
+   `grant_consumed` (single-use enforced).
+5. `POST /homelab/approve` (`approved_by=cap05-exercise-operator`) → **executed**
+   via the `docker` adapter: execution `e3f3de2d…`, action `cba279ae…`,
+   Core verify `observation_unavailable` (fail-safe) + above-Core Docker verify
+   **`verified_success`**.
+
+**Evidence bundle** (all correlated by `action cba279ae…` / `exec e3f3de2d…` /
+`approval 0c774a8d…`):
+- authorization `c4095d71…` — type `manual`, `authorized_by cap05-exercise-operator`,
+  **`decision_id agent-reference-agent-3afbb8fe`** (proves agent-surface origin),
+  target uptime-kuma/restart, expected_state running, 5-min TTL.
+- trace `49e25830…` — policy `allow`, risk `medium`, outcome `completed`.
+- audit — adapter `docker`, `completed`, risk `medium`.
+- verification — `observation_unavailable` (Core) + **`verified_success`** (above-Core).
+- Learn (`intelligence_memory` ids 309, 310) — `manual_approval_required` (held)
+  → **`executed`** with `docker_verification_status=verified_success`.
+
+**Result:** PASS. Agent-proposed → authority-checked → held for human approval →
+approved → governed docker restart → verified → learned. Single-use authority
+and capability≠authority both enforced. `uptime-kuma` healthy after; no
+portainer/dozzle impact; systemd service unaffected.
+
+**Restore:** live CAP-04 loop resumed (`no_remediation`, not quarantined); temp
+:8001 killed; live agent surface confirmed `enabled: false`, 0 grants.

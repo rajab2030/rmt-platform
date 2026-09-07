@@ -187,7 +187,11 @@ dependency-cascade escalation fix is delivered by **CAP-05 (5A)**
   `GET /agent/{status,authority}`. Disabled by default (`RMT_AGENT_ENABLED`).
   Diff confined to `app/agent/**` + `app/main.py`; no `app/core/**` change; no
   new mutation path; held proposals never auto-continued. 13 focused + 122 Core
-  (unchanged) + 190 full, all passed. **5B (LLM agent) deferred** — separate
+  (unchanged) + 190 full, all passed. **Deployed to the live server 2026-09-07
+  with the agent OFF** (`/agent/*` routes present, `enabled: false`) and
+  exercised once on a temp enabled instance (grant → propose → held → approve →
+  governed docker restart → Docker `verified_success`; single-use +
+  capability≠authority enforced; PASS). **5B (LLM agent) deferred** — separate
   owner decision, nothing built. See `docs/RMT_CAP_05_PROPOSAL.md` +
   `docs/RMT_CAPABILITIES_EVIDENCE.md` §CAP-05.
 
