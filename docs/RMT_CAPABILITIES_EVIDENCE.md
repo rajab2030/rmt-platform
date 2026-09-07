@@ -105,6 +105,78 @@ Core intelligence suite restored to **122 passed**.
 
 ---
 
+## RMT-CAP-04 — Continuous Homelab Operational Loop
+
+**Date:** 2026-09-07. Above-Core capability. C01–C07 remain closed/frozen; no
+C08; no frozen Core code modified. Approved scope: `docs/RMT_CAP_04_PROPOSAL.md`.
+
+- **Objective:** run the existing single-shot Homelab governed lifecycle
+  (`Understand → Decide → Govern → Authorize → Execute → Verify → Learn`) on a
+  cadence, under supervision — the frozen Core as a continuous homelab control
+  plane. Adds **cadence + guardrails only**, no new mutation path.
+- **Implementation:** above-Core only.
+  - **New** `app/homelab/operational_loop.py` — `HomelabOperationalLoop`
+    (module singleton `operational_loop`). Each cycle iterates
+    `REMEDIATION_POLICY` components and calls the existing
+    `remediate_component(component)` entrypoint; classifies the governed
+    outcome; updates per-component loop state; appends a bounded cycle record.
+    Guardrails: **approval retained** (a `manual_approval_required` outcome is
+    recorded, never continued — `continue_remediation` is not imported here);
+    **flap guard** (N held/failed attempts within a window → component
+    quarantined, read-only recovery checks only until healthy streak or manual
+    clear); **cooldown** after every attempt; **single-flight** (cycles never
+    overlap); **fail-safe** (per-component and per-cycle `try/except`; the task
+    never raises into the app). State transitions (quarantine / recovery /
+    manual clear) are recorded append-only through the existing Core memory
+    capability (`remember` + `MemoryRecord`) with distinct `event_type`s
+    (`homelab_loop_quarantine`, `homelab_loop_recovery`,
+    `homelab_loop_quarantine_cleared`).
+  - **New** `app/homelab/loop_config.py` — env-overridable constants
+    (`LOOP_ENABLED` default **False**, interval 120s, flap window/threshold,
+    cooldown, recovery streak, history cap). No `app/core/configuration/**`
+    change.
+  - **Modified** `app/main.py` (+52) — `lifespan` starts the loop task only
+    when `LOOP_ENABLED`, and stops it on shutdown; new routes
+    `GET /homelab/loop/status` (read-only), `POST /homelab/loop/start`,
+    `POST /homelab/loop/stop`, `POST /homelab/loop/clear?component=`.
+  - **New** `app/homelab/testing/test_operational_loop.py` — 11 run-safe tests
+    (`remediate_component`, `observe_container_state`, `remember` all mocked;
+    asyncio task never started).
+- **Validation:** **12 focused tests passed** (11 loop behaviour + 1 T13
+  safe-envelope guard); full Homelab suite **33 passed** (21 baseline + 12);
+  full C07/Core intelligence suite **122 passed** (unchanged); full app suite
+  **172 passed** (160 baseline + 12). `import app.main` clean; loop confirmed
+  **disabled by default**.
+- **Live demonstration (real homelab, 2026-09-07):** owner-authorized. Isolated
+  second instance on :8001 (systemd :8000 untouched). Fault-injected
+  `uptime-kuma` (governed stop) → loop cycle held for approval
+  (`manual_approval_required`, no mutation) → cooldown/flap guard fired →
+  `POST /homelab/approve` → **executed** via the `docker` adapter
+  (execution `40b3dce9…`) → above-Core Docker verification **`verified_success`**
+  → loop observed recovery and stood down (`no_remediation`). Full correlated
+  evidence bundle (approval / authorization / trace / audit / verification /
+  Learn ids 275–278) recorded in `HANDOFF.md` (session note — CAP-04 first live
+  demonstration). Result: **PASS**; approval retained throughout; no
+  portainer/dozzle impact; no code change.
+- **Core integrity:** diff confined to `app/homelab/**` + `app/main.py`; no
+  `app/core/**` file modified; no second mutation boundary (routes through
+  `execute_governed_action` via the existing entrypoint only); approval
+  enforcement unchanged; learning append-only / read-only.
+- **MCR / T13 — disposition recorded 2026-09-07** (`docs/RMT_T13_DISPOSITION.md`):
+  **ACCEPT (with constraint) + BOUND + DEFER.** T13 is a policy-completeness
+  gap in the MCR-EXP-3 simulation, not a live defect in RMT Core or CAP-01..04
+  (verified: no Core dependency graph / no composition; CAP-04 ships one
+  independent RESTART-only, approval-gated component). CAP-04 may be **enabled**
+  only inside the *safe-enablement envelope* — every `REMEDIATION_POLICY` entry
+  independent (no dependency edge) and `requires_approval=True` — enforced by
+  `test_remediation_policy_within_cap04_safe_envelope`. The full fix (an
+  above-Core dependency-cascade escalation pre-check that forces human approval
+  when an allowed op would achieve a restricted effect via dependencies) is
+  **assigned to CAP-05** and is **not** required to enable CAP-04 within the
+  envelope.
+
+---
+
 ## Index
 
 | Capability | Status | Validation | Core integrity |
@@ -112,6 +184,7 @@ Core intelligence suite restored to **122 passed**.
 | RMT-CAP-01 — Homelab Operations (Learn closure) | COMPLETED & VERIFIED | 122 Core + 141 full | C01–C07 untouched |
 | RMT-CAP-02 — Engineering Change-Impact & Risk Analysis | COMPLETED & VERIFIED | 14 focused + 155 full | C01–C07 untouched |
 | RMT-CAP-03 — Homelab Remediation Approval-Continuation Learn Closure | COMPLETED & VERIFIED | 5 focused + 122 Core + 160 full | C01–C07 untouched; no frozen Core code modified |
+| RMT-CAP-04 — Continuous Homelab Operational Loop | COMPLETED & VERIFIED; live-demonstrated 2026-09-07 | 12 focused + 33 Homelab + 122 Core + 172 full; live run PASS | C01–C07 untouched; no `app/core/**` modified; loop disabled by default; T13 disposition recorded |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.

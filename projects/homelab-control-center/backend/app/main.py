@@ -18,6 +18,9 @@ from app.core.observability.api import router as observability_router
 from app.core.intelligence.api import router as intelligence_router
 from app.engineering.api import router as engineering_router
 
+from app.homelab import loop_config
+from app.homelab.operational_loop import operational_loop
+
 from app.core.intelligence.execution.adapters.bootstrap import (
     register_default_adapters,
 )
@@ -84,10 +87,18 @@ async def lifespan(app: FastAPI):
         collect_metrics()
     )
 
+    # RMT-CAP-04: the continuous Homelab operational loop is opt-in and
+    # disabled by default. It only starts when explicitly enabled
+    # (RMT_HOMELAB_LOOP_ENABLED) or via POST /homelab/loop/start.
+    if loop_config.LOOP_ENABLED:
+        operational_loop.start()
+
     yield
 
     if collector_task:
         collector_task.cancel()
+
+    operational_loop.stop()
 
 
 app = FastAPI(
@@ -261,3 +272,44 @@ def homelab_approve(
         approved_by=approved_by,
         approved=approved,
     )
+
+
+@app.get("/homelab/loop/status")
+def homelab_loop_status():
+    """
+    Above-Core RMT-CAP-04 read-only status of the continuous Homelab
+    operational loop: enabled/running flags, per-component loop state
+    (cooldown, flap-window attempts, quarantine), and recent cycle history.
+    Mutates nothing.
+    """
+    return operational_loop.get_status()
+
+
+@app.post("/homelab/loop/start")
+async def homelab_loop_start():
+    """
+    Above-Core RMT-CAP-04 control: enable the continuous Homelab operational
+    loop and start its driving task. Idempotent. The loop only ever calls the
+    existing governed entrypoint (remediate_component); it never continues a
+    manual approval hold.
+    """
+    return operational_loop.start()
+
+
+@app.post("/homelab/loop/stop")
+async def homelab_loop_stop():
+    """
+    Above-Core RMT-CAP-04 control: disable the continuous Homelab operational
+    loop and cancel its driving task. Idempotent.
+    """
+    return operational_loop.stop()
+
+
+@app.post("/homelab/loop/clear")
+def homelab_loop_clear(component: str):
+    """
+    Above-Core RMT-CAP-04 control: manually clear a component's loop
+    quarantine so the loop resumes attempting remediation for it. Records the
+    transition through the existing Core learning/memory capability.
+    """
+    return operational_loop.clear_quarantine(component)

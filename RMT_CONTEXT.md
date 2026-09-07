@@ -145,13 +145,44 @@ The RMT Core is now considered frozen.
   VERIFIED. Read-only, deterministic, evidence-backed engineering analysis
   (component resolution, impact, engineering-change risk, recommendation).
   See `docs/RMT_CAPABILITIES_EVIDENCE.md`.
+- **RMT-CAP-03 — Homelab Remediation Approval-Continuation Learn Closure:**
+  COMPLETED & VERIFIED. The executed outcome of an approval-continuation
+  remediation is now recorded as a learning record with above-Core Docker
+  verification (`app/homelab/continuation.py`, `POST /homelab/approve`).
+- **RMT-CAP-04 — Continuous Homelab Operational Loop:** COMPLETED & VERIFIED
+  (2026-09-07). Runs the existing single-shot Homelab governed lifecycle on a
+  cadence under supervision — cadence + guardrails only, no new mutation path.
+  `app/homelab/operational_loop.py` + `loop_config.py`; routes
+  `GET/POST /homelab/loop/{status,start,stop,clear}`. **Disabled by default**
+  (`LOOP_ENABLED=False`). Guardrails: approval retained (holds never
+  auto-continued), flap-guard/quarantine, cooldown, single-flight, fail-safe.
+  Diff confined to `app/homelab/**` + `app/main.py`; no `app/core/**` change.
+  Validation: 12 focused + 33 Homelab + 122 Core + 172 full, all passed.
+  **Live-demonstrated on the real homelab 2026-09-07** (owner-authorized;
+  isolated :8001 instance; fault-inject → held → approve → governed restart →
+  Docker `verified_success` → loop stood down; PASS). See
+  `docs/RMT_CAP_04_PROPOSAL.md`, `docs/RMT_CAPABILITIES_EVIDENCE.md`, and the
+  `HANDOFF.md` live-demonstration session note.
+
+**MCR/T13 disposition — RECORDED 2026-09-07** (`docs/RMT_T13_DISPOSITION.md`):
+ACCEPT (with constraint) + BOUND + DEFER. T13 is a policy-completeness gap in the
+MCR-EXP-3 simulation, not a live defect in RMT Core or CAP-01..04. CAP-04 may be
+*enabled* only inside its safe-enablement envelope (every `REMEDIATION_POLICY`
+entry independent + `requires_approval=True`; guard test
+`test_remediation_policy_within_cap04_safe_envelope`). The full
+dependency-cascade escalation fix is assigned to **CAP-05**
+(`docs/RMT_CAP_05_PROPOSAL.md`, draft — not yet approved).
 
 **Next action:** the next above-Core capability is to be selected by the owner
-from the candidate directions (continuous operational loop, engineering
-intelligence expansion, frontend governed-evidence/productization, real Docker
-demonstration). Do not begin implementation until the owner selects and
-authorizes the next capability. Do not reopen C01–C07; do not invent a new Core
-milestone (no C08).
+from the candidate directions (engineering intelligence expansion, frontend
+governed-evidence/productization, real Docker demonstration, AI Agent Governance
+via the MCR pattern / draft CAP-05). One recorded item still awaits owner
+disposition: the frozen-Core evidence note that a *failed* adapter execution
+produces no verification evidence. Enabling the CAP-04 loop in the real homelab
+and running a live demonstration is an owner-authorized operational step
+(**authorized 2026-09-07**). Do not begin implementation of a new capability
+until the owner selects and authorizes it. Do not reopen C01–C07; do not invent
+a new Core milestone (no C08).
 
 ## 13. Environment limitations vs genuine implementation gaps
 

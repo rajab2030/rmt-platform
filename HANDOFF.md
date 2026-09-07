@@ -81,11 +81,25 @@ Work performed and evidence:
 Freeze: REACHED** (freeze commit `46a4441`). There is no C08.
 
 **Immediate next action:** the next phase is **not Core development** and must not
-reopen C01–C07. The next objective is the **First Real RMT Capability — Homelab
-Operations**: use the frozen RMT Core as the intelligent control plane for the
-real homelab and demonstrate a genuine end-to-end operational capability through
-**Understand → Decide → Govern → Authorize → Execute → Verify → Learn**. Do not
-start implementation of this capability yet.
+reopen C01–C07. The **First Real RMT Capability — Homelab Operations** is now
+realized: the frozen RMT Core acts as the intelligent control plane for the real
+homelab through the full governed lifecycle
+**Understand → Decide → Govern → Authorize → Execute → Verify → Learn**.
+
+**RMT-CAP-04 — Continuous Homelab Operational Loop: COMPLETED & VERIFIED
+(2026-09-07).** The single-shot Homelab lifecycle now runs on a supervised,
+periodic cadence (disabled by default; opt-in via env var or
+`POST /homelab/loop/start`). Implementation confined to `app/homelab/**` +
+`app/main.py`; no `app/core/**` change; no C08; C01–C07 remain closed/frozen.
+Validation: 12 focused tests; Homelab suite 33 passed; Core suite 122 passed;
+full app suite 172 passed. T13 disposition recorded
+(`docs/RMT_T13_DISPOSITION.md`). See `docs/RMT_CAPABILITIES_EVIDENCE.md` §CAP-04.
+
+**Next:** the next above-Core capability is to be selected by the owner from the
+candidate directions (engineering intelligence expansion, frontend
+governed-evidence/productization, real Docker demonstration, AI Agent
+Governance). Do not begin implementation until the owner selects and authorizes
+it. Do not reopen C01–C07; do not invent a new Core milestone (no C08).
 
 ## Important boundary
 
@@ -296,8 +310,13 @@ correction. C01–C07 remain closed/frozen; no C08; no frozen Core code modified
   tested tool surface; Claim C not claimed), one recorded **T13 policy-level
   finding** — effect-based governance at the mutation boundary does not catch a
   restricted effect reached indirectly via an *allowed* dependency operation.
-  Boundary integrity ≠ policy completeness. **T13 is an open above-Core work
-  item**; owner disposition pending.
+  Boundary integrity ≠ policy completeness. **T13 disposition recorded
+  2026-09-07** (`docs/RMT_T13_DISPOSITION.md`): ACCEPT (with constraint) + BOUND
+  + DEFER. Not a live defect in Core or CAP-01..04. CAP-04 may be enabled only
+  inside its *safe-enablement envelope* (every `REMEDIATION_POLICY` entry
+  independent + `requires_approval=True`, guard test
+  `test_remediation_policy_within_cap04_safe_envelope`); the full
+  dependency-cascade escalation fix is assigned to CAP-05.
 
 ### RMT-CAP-03 — COMPLETED & VERIFIED
 Closes the Learn-stage gap identified in the 2026-09-04 fault-injection note: the
@@ -341,10 +360,166 @@ even `verification_failure` / `state_mismatch`. AGENTS.md §11 lists
 evidence. Recorded for owner consideration only.
 
 ### Next
-- Continuous Homelab operational loop (observe → remediate) remains a candidate
-  **CAP-04** — separate proposal, not started.
+- **CAP-04 — Continuous Homelab Operational Loop: COMPLETED & VERIFIED
+  (2026-09-07).** See the session note below and
+  `docs/RMT_CAPABILITIES_EVIDENCE.md` §CAP-04.
 - Owner disposition still pending on: the MCR/T13 dependency-cascade policy
   finding (open above-Core work item); whether the MCR pattern informs a future
   above-Core capability (e.g. AI Agent Governance — governing a reasoning agent
   as an MCR "child"). MCR docs are recorded in `docs/` but are **not** RMT
   authority documents and do not change C01–C07.
+
+---
+
+## Session note — RMT-CAP-04 (Continuous Homelab Operational Loop)
+
+**Date:** 2026-09-07. Above-Core capability. C01–C07 remain closed/frozen; no
+C08; **no `app/core/**` file modified**. Owner-approved scope:
+`docs/RMT_CAP_04_PROPOSAL.md`.
+
+### Housekeeping (start of session)
+- Removed two stale untracked files: `_validate_docker_adapter.py` (superseded
+  one-off Docker-adapter validation script — the adapter is committed in freeze
+  commit `46a4441`) and a 6-line empty root `package-lock.json` (accidental
+  `npm` run; no root `package.json`).
+
+### CAP-04 — COMPLETED & VERIFIED
+Runs the existing single-shot Homelab governed lifecycle on a cadence, under
+supervision. **Cadence + guardrails only — no new mutation path.**
+
+- **New** `app/homelab/operational_loop.py` — `HomelabOperationalLoop`
+  (singleton `operational_loop`). Each cycle iterates `REMEDIATION_POLICY`
+  components → calls the existing `remediate_component(component)` → classifies
+  the governed outcome → updates per-component loop state → appends a bounded
+  cycle record. Guardrails: **approval retained** (`manual_approval_required`
+  recorded, never continued — `continue_remediation` not imported here);
+  **flap guard** → quarantine after N held/failed attempts in a window (then
+  read-only recovery checks only, via `observe_container_state`, until a healthy
+  streak or a manual clear); **cooldown** after every attempt; **single-flight**
+  (`_cycle_in_progress` guard); **fail-safe** (per-component + per-cycle
+  `try/except`; the task never raises into the app). State transitions recorded
+  append-only via the existing Core memory capability (`remember` +
+  `MemoryRecord`) with distinct `event_type`s (`homelab_loop_quarantine`,
+  `homelab_loop_recovery`, `homelab_loop_quarantine_cleared`) — kept out of the
+  remediation-outcome record stream.
+- **New** `app/homelab/loop_config.py` — env-overridable constants read
+  dynamically each cycle. `LOOP_ENABLED` default **False** (opt-in). Interval
+  120s; flap window 900s / threshold 3; cooldown 300s; recovery streak 2;
+  history cap 50. No `app/core/configuration/**` change.
+- **Modified** `app/main.py` (+52) — `lifespan` starts the loop task only when
+  `LOOP_ENABLED`, stops it on shutdown; new routes
+  `GET /homelab/loop/status` (read-only), `POST /homelab/loop/start`,
+  `POST /homelab/loop/stop`, `POST /homelab/loop/clear?component=`
+  (`start`/`stop` are `async def` so they run on the event loop).
+- **New** `app/homelab/testing/test_operational_loop.py` — 12 run-safe tests
+  (11 loop behaviour + 1 T13 safe-envelope guard;
+  `remediate_component`, `observe_container_state`, `remember` mocked; asyncio
+  task never started).
+
+### Validation
+- New focused: **12 passed** (11 loop + 1 T13 envelope guard).
+- Full Homelab suite: **33 passed** (21 baseline + 12).
+- Full C07/Core intelligence suite: **122 passed** (unchanged — frozen Core
+  intact).
+- Full app suite: **172 passed** (160 baseline + 12).
+- `import app.main` clean; loop confirmed **disabled by default**.
+
+### Core integrity
+Diff confined to `app/homelab/**` + `app/main.py` (+52). No second mutation
+boundary — routes through `execute_governed_action` via the existing entrypoint
+only. Approval enforcement unchanged. Learning append-only / read-only.
+
+### Deviations from the approved proposal
+- State-transition Learn records use `remember()` + `MemoryRecord` **directly**
+  with a distinct `event_type`, rather than `record_learning()` (which is
+  remediation-specific and hardcodes `event_type="remediation"`). Still the
+  Core memory boundary, still append-only. Minor, keeps loop-transition records
+  distinct from remediation-outcome records.
+
+### Open / next
+- **T13 disposition — RECORDED 2026-09-07** (`docs/RMT_T13_DISPOSITION.md`):
+  ACCEPT (with constraint) + BOUND + DEFER. CAP-04 as shipped is inside the
+  *safe-enablement envelope* (one independent RESTART-only, approval-gated
+  component), enforced by `test_remediation_policy_within_cap04_safe_envelope`.
+  Full dependency-cascade escalation fix assigned to CAP-05. Enabling CAP-04
+  within the envelope no longer waits on a separate T13 decision.
+- Enabling in the real homelab (`RMT_HOMELAB_LOOP_ENABLED=true` or
+  `POST /homelab/loop/start`) and a live demonstration run remain a separate,
+  owner-authorized step. **Owner authorized 2026-09-07** ("do 1 then 2");
+  **live demonstration performed 2026-09-07** — see the operational note below.
+- The frozen-Core evidence note (a *failed* adapter execution produces no
+  verification evidence) is still recorded for owner consideration only.
+
+---
+
+## Session note — CAP-04 first live demonstration (real homelab)
+
+**Date:** 2026-09-07. OPERATIONAL EVENT + evidence, not a code change. Owner
+authorized ("go run it").
+
+### Method
+The systemd-managed backend (`rmt-control-center.service`, PID 1261, :8000) is
+pre-CAP-04 and could not be restarted from this shell (no sudo). Ran an
+**isolated second instance** of the same tree on **:8001** (my process, loop
+initially OFF, demo cadence `RMT_HOMELAB_LOOP_INTERVAL_SECONDS=20` /
+`LOOP_COOLDOWN_SECONDS=30`). The :8000 service was left untouched and stayed
+`active` throughout. Same code, same real Docker adapter, same real containers,
+same durable evidence stores.
+
+### Sequence (all on `uptime-kuma` only; portainer/dozzle untouched)
+1. **Pre-state:** `uptime-kuma` running/healthy.
+2. **Fault injection:** governed `POST /execute?operation=stop&target=uptime-kuma`
+   (:8001) → execution `9db08379…` completed → container `exited` / `unhealthy`.
+3. **`POST /homelab/loop/start`** → loop `enabled=true, running=true`.
+4. **Cycle 1** (09:23:37): health eval CRITICAL (collector_failure, conf 80) →
+   remediation **`manual_approval_required`** — held, no mutation
+   (approval `5c7085a5…`).
+5. **Cycle 2**: `skipped_cooldown` (flap guard working).
+6. **Cycle 3** (09:24:17): still-stale observation → a second held remediation
+   (approval `79d6383a…`); `attempts_in_window=2`, still not quarantined.
+7. **`POST /homelab/approve`** (CAP-03 endpoint) for `5c7085a5…`,
+   `approved_by=demo-operator-2026-09-07` → **executed** via the `docker`
+   adapter: execution `40b3dce9…`, success true, "restart on uptime-kuma".
+   Core verifier `observation_unavailable` (fail-safe); above-Core Docker
+   verifier **`verified_success`** ("Observed state matches expected outcome").
+8. **Cycle 5** (09:25:00): observation refreshed → **`no_remediation`**;
+   `attempts_in_window=0`, `consecutive_failures=0`, `healthy_streak=1` — loop
+   stood down on its own.
+9. **`POST /homelab/loop/stop`**; rejected the cycle-3 orphan hold
+   `79d6383a…` (`approved=false`); killed the :8001 instance.
+10. **Final:** `uptime-kuma` running/healthy (restarted 09:24:09);
+    portainer/dozzle running; :8000 service `active`.
+
+### Evidence bundle (all correlated by `action_id 17d573aa…` /
+`execution_id 40b3dce9…` / `approval_id 5c7085a5…`)
+- **approval_record** `5c7085a5…` → approved by `demo-operator-2026-09-07`.
+- **authorization** `e99c43a1…` → type `manual`, single-use, `expires_at`
+  09:29:09, target uptime-kuma / restart / expected_state running.
+- **trace** `635ddc2e…` → policy `allow`, risk `medium`, outcome `completed`.
+- **audit** → adapter `docker`, status `completed`, risk `medium`.
+- **verification** → `observation_unavailable` (Core) + **`verified_success`**
+  (above-Core Docker observer; observed `running` == expected `running`).
+- **Learn** (`intelligence_memory`, ids 275–278): `health_evaluation` CRITICAL →
+  `remediation manual_approval_required` (held) → **`remediation executed`**
+  with `docker_verification_status=verified_success` (the CAP-03 Learn-closure,
+  demonstrated live) → `remediation manual_approval_required` for the rejected
+  cycle-3 hold.
+
+### Result
+**PASS.** The supervised loop ran the full lifecycle
+`Understand → Decide → Govern → Authorize → Execute → Verify → Learn` on a
+cadence against the real homelab. Approval was retained (loop never
+auto-continued a hold); flap-guard cooldown fired; the loop stood down once the
+system recovered. No `portainer`/`dozzle` impact; systemd service unaffected;
+no code change.
+
+### Observations (recorded, not defects)
+- With a fast demo cadence the loop raised a **second** held remediation
+  (cycle 3) before the 60 s metric collector reflected the approved restart.
+  Bounded by cooldown; would have quarantined after 3. At the default 120 s
+  cadence this window is much smaller. If undesired, a future refinement could
+  have the loop suppress a new attempt while an unresolved hold for the same
+  component already exists.
+- Core verifier returned `observation_unavailable` while the above-Core Docker
+  verifier returned `verified_success` — same split as the 2026-09-04 run;
+  expected (the Core observer is not the Docker observer).
