@@ -163,7 +163,7 @@ C08; no frozen Core code modified. Approved scope: `docs/RMT_CAP_04_PROPOSAL.md`
   hold blocks a new remediation only while **still-actionable** — no terminal
   decision in the reliably-persisted approval **record** store, and not past its
   `APPROVAL_HOLD_TTL_SECONDS` TTL. Recorded as a frozen-Core note (owner
-  consideration only); a redeploy is pending to pick it up.
+  consideration only). Redeployed 2026-09-07; the live loop then sat at `no_remediation` (2 clean cycles, no errors).
 - **Live demonstration (real homelab, 2026-09-07):** owner-authorized. Isolated
   second instance on :8001 (systemd :8000 untouched). Fault-injected
   `uptime-kuma` (governed stop) → loop cycle held for approval
