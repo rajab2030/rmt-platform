@@ -1,22 +1,31 @@
-"""RMT-CAP-05 (5A) -- T13 dependency-cascade escalation (above-Core).
+"""RMT-CAP-05 -- T13 dependency-cascade escalation (above-Core).
 
-`docs/RMT_T13_DISPOSITION.md` sect 3c. MCR-EXP-3 T13: an *allowed* operation can
-achieve, through a dependency cascade, the same consequential effect that a
-*restricted* operation would have needed approval for. Effect-based governance
-that inspects only the direct operation misses it.
+`docs/RMT_T13_DISPOSITION.md`. MCR-EXP-3 T13: an *allowed* operation can achieve,
+through a dependency cascade, the same consequential effect a *restricted*
+operation would have needed approval for. Effect-based governance that inspects
+only the direct operation misses it.
 
 This guard runs in the agent layer BEFORE `execute_governed_action`. It changes
 no Core policy. When an allowed-class operation on ``target`` would propagate to
 a component that depends on ``target``, it forces ``requires_approval=True``.
 
-It reads ``ComponentContext.dependencies``. Today every homelab component's
-dependency list is empty, so this is a no-op -- but it is wired and tested, so
-a deliberately widened envelope (populated dependencies, a lowered
-``AGENT_DEFAULT_REQUIRES_APPROVAL``) is safe by construction.
+Dependency edges are the **union** of:
+  * the above-Core homelab map (`app/homelab/dependencies.py`) -- authoritative
+    for the homelab domain, and
+  * the frozen Core `ComponentContext.dependencies` -- future-proofing if Core
+    ever populates it.
+
+The current homelab map records all three services as independent, so this is a
+no-op today; it escalates automatically the moment any edge is added to either
+source.
 """
 from app.core.intelligence.context.registry import (
     COMPONENT_CONTEXTS,
     get_component_context,
+)
+from app.homelab.dependencies import (
+    dependents_of as _homelab_dependents_of,
+    resolved_map as _homelab_map,
 )
 from app.agent import loop_config
 
@@ -27,13 +36,27 @@ _RESTRICTED_EFFECT_OPERATIONS = {"restart", "stop", "remove"}
 
 
 def _dependents_of(target: str) -> set[str]:
-    """Components whose context lists ``target`` as a dependency."""
-    dependents = set()
+    """Components that declare ``target`` as a dependency -- above-Core map
+    unioned with the frozen Core context."""
+    dependents = set(_homelab_dependents_of(target))
     for name in list(COMPONENT_CONTEXTS.keys()):
         ctx = get_component_context(name)
         if ctx is not None and target in (ctx.dependencies or []):
             dependents.add(name)
     return dependents
+
+
+def dependency_view() -> dict:
+    """Read-only snapshot of the resolved dependency sources (for status)."""
+    core = {
+        name: list((get_component_context(name).dependencies or []))
+        for name in list(COMPONENT_CONTEXTS.keys())
+    }
+    return {
+        "escalation_enabled": loop_config.AGENT_DEPENDENCY_ESCALATION,
+        "homelab_map": _homelab_map(),
+        "core_context": core,
+    }
 
 
 def escalate_for_dependency_cascade(target: str, operation: str):

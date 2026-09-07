@@ -212,11 +212,16 @@ C08; no frozen Core code modified. Approved scope: `docs/RMT_CAP_05_PROPOSAL.md`
     (`AGENT_GRANT_TTL_SECONDS`), **single-use** grants; capability never implies
     authority (MCR §9 / MCR-EXP-3 T8+T9). Consumed only when a proposal is
     accepted into the pipeline (executed / held), never on a pre-boundary deny.
-  - `dependency_guard.py` — **T13 closure** (`docs/RMT_T13_DISPOSITION.md` §3c).
-    `escalate_for_dependency_cascade(target, op)`: an allowed-class op whose
-    target has a dependent component (per `ComponentContext.dependencies`) is
-    forced to `requires_approval=True`. All dependency lists are empty today →
-    **no-op**, but wired + tested so a widened envelope is safe by construction.
+  - `dependency_guard.py` — **T13 closure** (`docs/RMT_T13_DISPOSITION.md` §3c;
+    disposition now **CLOSED**). `escalate_for_dependency_cascade(target, op)`:
+    an allowed-class op (`start`/`create`) whose target has a dependent
+    component is forced to `requires_approval=True`. Dependency edges are the
+    **union** of the above-Core `app/homelab/dependencies.py` map (authoritative
+    for the homelab; recorded 2026-09-07 as **all-independent**) and the frozen
+    Core `ComponentContext.dependencies` (untouched, future-proofing). No edges
+    today → escalates nothing, but live: adding any edge to either source makes
+    the matching allowed op escalate automatically. Resolved map at
+    `GET /agent/status` → `dependency_map`.
   - `adapter.py` — `propose_and_govern(proposal)`: disabled gate → authority
     check → T13 escalation → translate to `ActionRequest` →
     `execute_governed_action(...)` → on `executed`: above-Core Docker
@@ -233,11 +238,16 @@ C08; no frozen Core code modified. Approved scope: `docs/RMT_CAP_05_PROPOSAL.md`
     operator action that makes the surface usable (a human grants the agent its
     scoped authority; capability ≠ authority). Still no mutation path; a granted
     proposal still passes full policy / risk / approval.
-- **Validation:** **13 focused tests passed**
-  (`app/agent/testing/test_agent_governance.py`); full C07/Core intelligence
-  suite **122 passed** (unchanged); full Homelab suite **38 passed**
-  (unchanged); full app suite **190 passed** (177 baseline + 13). `import
+- **Validation:** **20 focused tests passed** (`app/agent/testing/` —
+  13 `test_agent_governance.py` + 7 `test_dependency_guard.py`); full C07/Core
+  intelligence suite **122 passed** (unchanged); full Homelab suite **38 passed**
+  (unchanged); full app suite **197 passed** (177 baseline + 20). `import
   app.main` clean; `RMT_AGENT_ENABLED=False` confirmed by default.
+- **T13 completed 2026-09-07:** new above-Core `app/homelab/dependencies.py`
+  (`HOMELAB_DEPENDENCIES`, all three services recorded independent);
+  `dependency_guard.py` unions it with the Core context; `GET /agent/status`
+  exposes the resolved map. `docs/RMT_T13_DISPOSITION.md` verdict moved to
+  **ACCEPT + BOUND + CLOSED**.
 - **Core integrity:** diff confined to `app/agent/**` + `app/main.py` (router
   registration). No `app/core/**` change; no second mutation boundary (a
   proposal becomes an `ActionRequest` routed through `execute_governed_action`
@@ -268,7 +278,7 @@ C08; no frozen Core code modified. Approved scope: `docs/RMT_CAP_05_PROPOSAL.md`
 | RMT-CAP-02 — Engineering Change-Impact & Risk Analysis | COMPLETED & VERIFIED | 14 focused + 155 full | C01–C07 untouched |
 | RMT-CAP-03 — Homelab Remediation Approval-Continuation Learn Closure | COMPLETED & VERIFIED | 5 focused + 122 Core + 160 full | C01–C07 untouched; no frozen Core code modified |
 | RMT-CAP-04 — Continuous Homelab Operational Loop | COMPLETED & VERIFIED; live-demonstrated + enabled on live 2026-09-07 | 17 focused + 38 Homelab + 122 Core + 177 full; live run PASS | C01–C07 untouched; no `app/core/**` modified; T13 disposition recorded; duplicate-hold guard hardened against frozen-Core hold-persistence gap |
-| RMT-CAP-05 (5A) — Governed Agent Surface | COMPLETED & VERIFIED (5A); deployed to live (OFF) + exercised 2026-09-07; 5B deferred | 13 focused + 122 Core + 38 Homelab + 190 full; live exercise PASS | C01–C07 untouched; diff confined to `app/agent/**` + `app/main.py`; no new mutation path; T13 escalation rule wired (no-op today); disabled by default |
+| RMT-CAP-05 (5A) — Governed Agent Surface | COMPLETED & VERIFIED (5A); deployed to live (OFF) + exercised 2026-09-07; 5B deferred | 20 focused + 122 Core + 38 Homelab + 197 full; live exercise PASS | C01–C07 untouched; diff confined to `app/agent/**` + `app/homelab/dependencies.py` + `app/main.py`; no new mutation path; **T13 CLOSED** (guard live, homelab recorded independent); disabled by default |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.

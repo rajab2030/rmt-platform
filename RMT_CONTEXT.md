@@ -174,9 +174,11 @@ MCR-EXP-3 simulation, not a live defect in RMT Core or CAP-01..04. CAP-04 may be
 *enabled* only inside its safe-enablement envelope (every `REMEDIATION_POLICY`
 entry independent + `requires_approval=True`; guard test
 `test_remediation_policy_within_cap04_safe_envelope`). The full
-dependency-cascade escalation fix is delivered by **CAP-05 (5A)**
-(`app/agent/dependency_guard.py`) — wired + tested, no-op until
-`ComponentContext.dependencies` is deliberately populated.
+dependency-cascade escalation fix is delivered by **CAP-05 (5A)** and the
+disposition is **CLOSED** (2026-09-07): `app/agent/dependency_guard.py` is live,
+wired to the above-Core homelab dependency map `app/homelab/dependencies.py`
+(recorded all-independent) unioned with the Core context. No edges today → no
+escalation; adding any edge escalates the matching allowed op automatically.
 
 - **RMT-CAP-05 (5A) — Governed Agent Surface:** COMPLETED & VERIFIED
   (2026-09-07). MCR child-contract surface (`app/agent/`): an agent *proposes* a
@@ -186,8 +188,8 @@ dependency-cascade escalation fix is delivered by **CAP-05 (5A)**
   reference agent; routes `POST /agent/{authority/grant,act}` + read-only
   `GET /agent/{status,authority}`. Disabled by default (`RMT_AGENT_ENABLED`).
   Diff confined to `app/agent/**` + `app/main.py`; no `app/core/**` change; no
-  new mutation path; held proposals never auto-continued. 13 focused + 122 Core
-  (unchanged) + 190 full, all passed. **Deployed to the live server 2026-09-07
+  new mutation path; held proposals never auto-continued. 20 focused + 122 Core
+  (unchanged) + 197 full, all passed. **Deployed to the live server 2026-09-07
   with the agent OFF** (`/agent/*` routes present, `enabled: false`) and
   exercised once on a temp enabled instance (grant → propose → held → approve →
   governed docker restart → Docker `verified_success`; single-use +
@@ -198,7 +200,7 @@ dependency-cascade escalation fix is delivered by **CAP-05 (5A)**
 **Next action:** the next above-Core capability is to be selected by the owner
 from the candidate directions (engineering intelligence expansion, frontend
 governed-evidence/productization, **CAP-05 5B** — the LLM-backed agent adapter,
-now that 5A exists). Two recorded **frozen-Core notes** await
+owner-selected as the next work item; needs its own scoped proposal). Two recorded **frozen-Core notes** await
 owner consideration only (Core is frozen): (1) a *failed* adapter execution
 produces no verification evidence; (2) `approve_held_action` does not reliably
 persist the approval **hold** store on resolution — the approval **record**

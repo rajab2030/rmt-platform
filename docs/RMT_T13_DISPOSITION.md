@@ -3,7 +3,8 @@
 **Date:** 2026-09-07
 **Classification:** Above-Core. No C08. No frozen Core change. C01–C07 remain
 closed/frozen.
-**Disposition:** **ACCEPT (with constraint) + BOUND + DEFER full fix.**
+**Disposition:** **ACCEPT (with constraint) + BOUND + CLOSED** (full fix
+implemented 2026-09-07 in RMT-CAP-05 / 5A; see §3c).
 
 ---
 
@@ -77,19 +78,35 @@ and 2 against the live `REMEDIATION_POLICY`. Any future edit that adds a
 dependency-linked component or a non-approval-gated action will fail that test
 until the §3c fix lands.
 
-### 3c. DEFER — the full fix (dependency-cascade-aware escalation)
+### 3c. CLOSED — the full fix (dependency-cascade-aware escalation)
 
-The complete remedy is an **above-Core dependency-cascade pre-check**: before
-routing an *allowed* operation, evaluate whether its effect, propagated through
-known dependencies, would achieve a *restricted* effect on another governed
-component; if so, escalate that proposal to `requires_approval=True` (human
-approval). This needs **no Core policy/effect-model change** — it is an
-above-Core escalation rule applied before `execute_governed_action`.
+**Implemented 2026-09-07 (RMT-CAP-05 / 5A).** An **above-Core dependency-cascade
+pre-check** now runs in the agent layer before `execute_governed_action`:
+`app/agent/dependency_guard.py` `escalate_for_dependency_cascade(target,
+operation)`. For an *allowed-class* operation (`start` / `create`) whose target
+has a dependent component, it forces `requires_approval=True` — the same human
+approval a direct *restricted* operation on the dependent would have required. A
+restricted-class operation is already governed directly and is not
+double-escalated. **No Core policy/effect-model change.**
 
-This fix is **assigned to RMT-CAP-05** (`docs/RMT_CAP_05_PROPOSAL.md` §3.1 /
-§6 / decision 10.3 already specify it as the "T13 closure"). If CAP-05 is not
-taken up, the same pre-check may be delivered as a standalone above-Core work
-item. It is **not** required for CAP-04 to be enabled within the §3b envelope.
+Dependency edges are the **union** of two sources:
+- **above-Core** `app/homelab/dependencies.py` (`HOMELAB_DEPENDENCIES`) —
+  authoritative for the homelab domain. Recorded 2026-09-07 as
+  **all-independent** (`portainer`, `dozzle`, `uptime-kuma` each depend only on
+  the Docker daemon, not on one another). An explicit `[]` means "established:
+  independent", not "not established".
+- the frozen Core `ComponentContext.dependencies` (left untouched) — future-
+  proofing if Core is ever populated.
+
+Because the recorded homelab map has no edges, the guard **escalates nothing
+today** — but it is live: adding any edge to either source (e.g.
+`"web": ["db"]`) makes `start db` escalate to human approval automatically. The
+resolved map is inspectable at `GET /agent/status` → `dependency_map`.
+
+Tests: `app/agent/testing/test_dependency_guard.py` (real map → no escalation;
+seeded homelab edge → escalation; seeded Core edge → escalation via the union;
+restricted op → not escalated; global disable; end-to-end through
+`propose_and_govern`). The §3b envelope guard test remains as defence in depth.
 
 ## 4. What this unblocks
 

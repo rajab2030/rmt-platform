@@ -714,3 +714,43 @@ portainer/dozzle impact; systemd service unaffected.
 
 **Restore:** live CAP-04 loop resumed (`no_remediation`, not quarantined); temp
 :8001 killed; live agent surface confirmed `enabled: false`, 0 grants.
+
+### CAP-05 — T13 completion (2026-09-07)
+
+**Owner:** "complete the T13 implementation and then 5B".
+
+The 5A escalation rule (`app/agent/dependency_guard.py`) existed but had no
+dependency data (all `ComponentContext.dependencies` empty, and that file is
+frozen Core). Completed above-Core, no Core edit:
+
+- **New** `app/homelab/dependencies.py` — `HOMELAB_DEPENDENCIES`, the
+  authoritative above-Core homelab dependency map. All three services recorded
+  **independent** (`[]`): portainer / dozzle / uptime-kuma each need only the
+  Docker daemon, not one another. Explicit `[]` = "established: independent"
+  (vs the Core default "not established").
+- **Modified** `app/agent/dependency_guard.py` — `_dependents_of` now unions the
+  above-Core map with the frozen Core `ComponentContext.dependencies`; added
+  `dependency_view()` for read-only status.
+- **Modified** `app/agent/api.py` — `GET /agent/status` now includes
+  `dependency_map` (resolved sources).
+- **New** `app/agent/testing/test_dependency_guard.py` — 7 tests: real map → no
+  escalation; seeded homelab edge → escalation; seeded Core edge → escalation
+  (union); restricted op → not escalated; global disable; end-to-end through
+  `propose_and_govern`.
+- **Docs** — `docs/RMT_T13_DISPOSITION.md` verdict moved to
+  **ACCEPT + BOUND + CLOSED**; §3c rewritten from DEFER to the implemented fix.
+
+**Behaviour:** no edges recorded → the guard escalates nothing today. It is
+**live**: add any edge to either source (`"web": ["db"]`) and `start db`
+escalates to human approval automatically. The CAP-04 §3b envelope guard test
+stays as defence in depth.
+
+**Validation:** 20 agent focused (13 + 7) + 122 Core (unchanged) + 38 Homelab
+(unchanged) + **197 full**, all passed. No `app/core/**` change; diff confined
+to `app/agent/**`, `app/homelab/dependencies.py`. Not yet deployed to live (new
+files; a redeploy would pick them up, agent still OFF).
+
+### Next: RMT-CAP-05 (5B) — LLM-backed agent adapter
+Owner-selected as the next work item. Proposal §1/§3 (`app/agent/llm_agent.py`,
+`AGENT_LLM_ENABLED` default off, local Ollama as in `experiments/mcr3`). Not
+started — needs its own scoped proposal + approval.

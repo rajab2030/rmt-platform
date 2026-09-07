@@ -19,6 +19,7 @@ from app.agent import loop_config
 from app.agent.authority import authority_store
 from app.agent.contract import AgentIdentity, AgentIntent, AgentProposal
 from app.agent.adapter import propose_and_govern
+from app.agent.dependency_guard import dependency_view
 
 
 router = APIRouter(prefix="/agent", tags=["Agent"])
@@ -97,6 +98,7 @@ def status():
         "enabled": loop_config.AGENT_ENABLED,
         "default_requires_approval": loop_config.AGENT_DEFAULT_REQUIRES_APPROVAL,
         "dependency_escalation": loop_config.AGENT_DEPENDENCY_ESCALATION,
+        "dependency_map": dependency_view(),
         "active_grants": len(authority_store.list_active()),
         "last_outcome": _last_outcome["value"],
     }
