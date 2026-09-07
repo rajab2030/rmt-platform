@@ -155,9 +155,10 @@ The RMT Core is now considered frozen.
   `app/homelab/operational_loop.py` + `loop_config.py`; routes
   `GET/POST /homelab/loop/{status,start,stop,clear}`. **Disabled by default**
   (`LOOP_ENABLED=False`). Guardrails: approval retained (holds never
-  auto-continued), flap-guard/quarantine, cooldown, single-flight, fail-safe.
+  auto-continued), flap-guard/quarantine, cooldown, duplicate-hold guard
+  (read-only hold-store query → `awaiting_approval`), single-flight, fail-safe.
   Diff confined to `app/homelab/**` + `app/main.py`; no `app/core/**` change.
-  Validation: 12 focused + 33 Homelab + 122 Core + 172 full, all passed.
+  Validation: 15 focused + 36 Homelab + 122 Core + 175 full, all passed.
   **Live-demonstrated on the real homelab 2026-09-07** (owner-authorized;
   isolated :8001 instance; fault-inject → held → approve → governed restart →
   Docker `verified_success` → loop stood down; PASS). See
