@@ -297,11 +297,26 @@ behaviour-preserving and owner-authorized; no change to policy / risk / approval
 / authorization / verification / learning behaviour; no second mutation
 boundary; held proposals still never auto-continued.
 
-**Not done here** — S4 live cutover (operator step, `DEPLOY.md`); E2; S3
-enforcement; E3/E4/E5; P1/P2.
+**Not done here** — S4 Caddy proxy; E2; S3 enforcement; E3/E4/E5; P1/P2.
+
+### Live deployment (2026-09-07 12:36 UTC)
+
+- Drop-ins installed: `auth.conf` (mode 0600, two operator tokens `ragb`,
+  `ops2`), `bind-loopback.conf`. `daemon-reload` + `restart`; service `active`
+  on the new code.
+- **Verified on live:** `POST /homelab/loop/stop` no token → 401; with token →
+  200; `GET /` (open) → 200; `POST /agent/authority/grant` with body
+  `granted_by:"IGNORED"` → recorded `granted_by:"ragb"`; app listens
+  `127.0.0.1:8000` only, `192.168.223.128:8000` refused; 6 evidence files parse,
+  no `.tmp` residue; CAP-04 loop + agent still enabled and healthy.
+- **Not yet:** Caddy TLS proxy (RMT has no LAN entry point — loopback + auth
+  only); restart-safety hard-kill test (E1 is unit-tested); CAP-05 LLM exercise
+  re-run under auth (optional).
+- **Token values are not in the repo by design** — read them with
+  `sudo cat /etc/systemd/system/rmt-control-center.service.d/auth.conf`.
 
 ---
 
-*Approved and implemented 2026-09-07.*
+*Approved and implemented 2026-09-07; deployed to live the same day.*
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
