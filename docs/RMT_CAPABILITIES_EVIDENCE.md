@@ -243,6 +243,17 @@ C08; no frozen Core code modified. Approved scope: `docs/RMT_CAP_05_PROPOSAL.md`
   proposal becomes an `ActionRequest` routed through `execute_governed_action`
   only); approval enforcement unchanged; held proposals never auto-continued;
   learning append-only / read-only. Disabled by default.
+- **Deployed to live + controlled exercise (2026-09-07):** owner-authorized.
+  `sudo systemctl restart` deployed the `/agent/*` routes to live :8000, agent
+  **OFF** (`enabled: false`). Exercise on a temp `RMT_AGENT_ENABLED=true`
+  instance (live loop paused for the window): no-grant → `no_authority`; grant
+  issued → propose RESTART uptime-kuma → **held** for approval; replay same
+  grant → `grant_consumed`; approve → **executed** via `docker` adapter
+  (execution `e3f3de2d…`) → above-Core Docker verify **`verified_success`** →
+  Learn `manual_approval_required` then `executed`. Authorization
+  `decision_id` = `agent-reference-agent-…` (agent-surface origin). Result:
+  **PASS**; capability≠authority and single-use both enforced; no
+  portainer/dozzle impact; live loop resumed clean. Full bundle in `HANDOFF.md`.
 - **Deferred:** 5B (LLM-backed agent adapter) — a separate owner decision;
   nothing built. Populating `ComponentContext.dependencies` (which would make
   the T13 guard load-bearing) is also a separate explicit change.
@@ -257,7 +268,7 @@ C08; no frozen Core code modified. Approved scope: `docs/RMT_CAP_05_PROPOSAL.md`
 | RMT-CAP-02 — Engineering Change-Impact & Risk Analysis | COMPLETED & VERIFIED | 14 focused + 155 full | C01–C07 untouched |
 | RMT-CAP-03 — Homelab Remediation Approval-Continuation Learn Closure | COMPLETED & VERIFIED | 5 focused + 122 Core + 160 full | C01–C07 untouched; no frozen Core code modified |
 | RMT-CAP-04 — Continuous Homelab Operational Loop | COMPLETED & VERIFIED; live-demonstrated + enabled on live 2026-09-07 | 17 focused + 38 Homelab + 122 Core + 177 full; live run PASS | C01–C07 untouched; no `app/core/**` modified; T13 disposition recorded; duplicate-hold guard hardened against frozen-Core hold-persistence gap |
-| RMT-CAP-05 (5A) — Governed Agent Surface | COMPLETED & VERIFIED (5A); 5B deferred | 13 focused + 122 Core + 38 Homelab + 190 full | C01–C07 untouched; diff confined to `app/agent/**` + `app/main.py`; no new mutation path; T13 escalation rule wired (no-op today); disabled by default |
+| RMT-CAP-05 (5A) — Governed Agent Surface | COMPLETED & VERIFIED (5A); deployed to live (OFF) + exercised 2026-09-07; 5B deferred | 13 focused + 122 Core + 38 Homelab + 190 full; live exercise PASS | C01–C07 untouched; diff confined to `app/agent/**` + `app/main.py`; no new mutation path; T13 escalation rule wired (no-op today); disabled by default |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.
