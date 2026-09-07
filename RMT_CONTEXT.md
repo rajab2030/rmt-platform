@@ -186,7 +186,8 @@ escalation; adding any edge escalates the matching allowed op automatically.
   single boundary). Single-use, time-limited, scoped authority grants
   (capability ≠ authority); T13 dependency-cascade escalation; deterministic
   reference agent; routes `POST /agent/{authority/grant,act}` + read-only
-  `GET /agent/{status,authority}`. Disabled by default (`RMT_AGENT_ENABLED`).
+  `GET /agent/{status,authority}`. Ships disabled (`RMT_AGENT_ENABLED`);
+  **ENABLED on the live server 2026-09-07** (see the 5B bullet + §Next action).
   Diff confined to `app/agent/**` + `app/main.py`; no `app/core/**` change; no
   new mutation path; held proposals never auto-continued. 20 focused + 122 Core
   (unchanged) + 197 full, all passed.
@@ -198,25 +199,45 @@ escalation; adding any edge escalates the matching allowed op automatically.
   + allow-list validation; `POST /agent/act/llm`; disabled by default
   (`RMT_AGENT_LLM_ENABLED`). Diff confined to `app/agent/**`; no `app/core/**`
   change; no autonomous loop. 17 focused + 37 agent + 122 Core (unchanged) +
-  214 full, all passed. See `docs/RMT_CAP_05B_PROPOSAL.md`. **Deployed to the live server 2026-09-07
-  with the agent OFF** (`/agent/*` routes present, `enabled: false`) and
-  exercised once on a temp enabled instance (grant → propose → held → approve →
-  governed docker restart → Docker `verified_success`; single-use +
-  capability≠authority enforced; PASS). **5B (LLM agent) deferred** — separate
-  owner decision, nothing built. See `docs/RMT_CAP_05_PROPOSAL.md` +
-  `docs/RMT_CAPABILITIES_EVIDENCE.md` §CAP-05.
+  214 full, all passed. See `docs/RMT_CAP_05B_PROPOSAL.md`.
+  **5A + 5B ENABLED on the live server 2026-09-07** — systemd drop-in
+  `rmt-control-center.service.d/cap05-agent.conf`
+  (`RMT_AGENT_ENABLED=true` + `RMT_AGENT_LLM_ENABLED=true`); `GET /agent/status`
+  → `enabled: true`, `llm.enabled: true`, `active_grants: 0`. The surface is
+  request-driven only (no background task) — inert until an operator both issues
+  a grant and approves the resulting hold; every proposal is human-approval
+  gated; T13 active but a no-op (no dependency edges). **Controlled LLM exercise
+  on live :8000 (target `dozzle`) — PASS**: no-grant → `no_authority`;
+  do-nothing goal → `no_proposal`; fault-inject → grant → LLM proposes → held →
+  approve → governed `docker` start (exec `37ab18bf…`, authorization
+  `decision_id agent-llm-agent-…`); replay → `grant_consumed`; scope mismatch
+  held. One **finding** recorded (not a defect): `continue_remediation`
+  (`/homelab/approve`) runs the above-Core Docker verify + executed-Learn
+  closure only for `REMEDIATION_POLICY` components (`uptime-kuma` only), so the
+  `dozzle` run got the held-state Learn record but not `verified_success`. See
+  `docs/RMT_CAPABILITIES_EVIDENCE.md` §CAP-05 + the `HANDOFF.md` session note.
 
 **Next action:** the next above-Core capability is to be selected by the owner
-from the candidate directions (engineering intelligence expansion, frontend
-governed-evidence/productization, enabling 5A / 5B on the live server + a controlled LLM exercise; a frontend
-governed-evidence view; notifications for held remediations/proposals). Two recorded **frozen-Core notes** await
-owner consideration only (Core is frozen): (1) a *failed* adapter execution
-produces no verification evidence; (2) `approve_held_action` does not reliably
-persist the approval **hold** store on resolution — the approval **record**
-store is authoritative (CAP-04's guard uses it). CAP-04 is enabled on the live
-server (redeployed 2026-09-07 with the guard hardening; loop idle at `no_remediation`, 2 clean cycles). Do not begin
-implementation of a new capability until the owner selects and authorizes it. Do
-not reopen C01–C07; do not invent a new Core milestone (no C08).
+from the candidate directions (engineering intelligence expansion; frontend
+governed-evidence view / productization; notifications for held
+remediations/proposals; populate real `HOMELAB_DEPENDENCIES` edges if any exist,
+which activates T13 for real; widen `continue_remediation` above-Core
+Learn/verify attribution beyond `REMEDIATION_POLICY` — the 2026-09-07 5B-exercise
+finding). A **production-readiness gap matrix** now exists
+(`docs/RMT_PRODUCTION_READINESS.md`, 2026-09-07): above-Core / operational, does
+not reopen C01–C07. It records 21 GAP / 10 PARTIAL items; blocking set (P0) is
+S1 authentication, S4 transport/bind, E1 atomic evidence writes, E2 hold
+persistence, O2 held-action alerting. First step there is the owner fixing the
+deployment/threat model (§2). Several P2 candidate directions above are the same
+items (notifications = O2; frontend view relates to O-group). Two recorded **frozen-Core notes** await owner consideration only
+(Core is frozen): (1) a *failed* adapter execution produces no verification
+evidence; (2) `approve_held_action` does not reliably persist the approval
+**hold** store on resolution — the approval **record** store is authoritative
+(CAP-04's guard uses it). CAP-04, CAP-05 (5A) and CAP-05 (5B) are all enabled on
+the live server (2026-09-07); the CAP-04 loop is idle at `no_remediation` and
+the agent surface sits at `0` grants. Do not begin implementation of a new
+capability until the owner selects and authorizes it. Do not reopen C01–C07; do
+not invent a new Core milestone (no C08).
 
 ## 13. Environment limitations vs genuine implementation gaps
 
