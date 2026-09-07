@@ -10,9 +10,18 @@ task is never started.
 import pytest
 from fastapi.testclient import TestClient
 
+from datetime import datetime, timedelta, timezone
+
 import app.core.intelligence.actions.approval_service as approval_service
-from app.core.intelligence.actions.approval import ApprovalHold, ApprovalStatus
-from app.core.intelligence.actions.approval_storage import ApprovalHoldStorage
+from app.core.intelligence.actions.approval import (
+    ApprovalHold,
+    ApprovalRecord,
+    ApprovalStatus,
+)
+from app.core.intelligence.actions.approval_storage import (
+    ApprovalHoldStorage,
+    ApprovalRecordStorage,
+)
 from app.core.intelligence.actions.models import ActionRequest, ActionType
 
 import app.homelab.operational_loop as loop_mod
@@ -21,15 +30,20 @@ from app.homelab.operational_loop import HomelabOperationalLoop
 
 @pytest.fixture(autouse=True)
 def isolate_hold_store(monkeypatch):
-    """CAP-04's duplicate-hold guard reads the approval hold store. Isolate it
-    to an empty in-memory instance so tests never see real pending holds; the
-    tests that exercise the guard add holds to the returned store."""
-    store = ApprovalHoldStorage()
-    monkeypatch.setattr(approval_service, "approval_hold_storage", store)
-    return store
+    """CAP-04's duplicate-hold guard reads the approval hold + record stores.
+    Isolate both to empty in-memory instances so tests never see real data; the
+    tests that exercise the guard add rows to the returned hold store (and to
+    ``approval_service.approval_record_storage`` for resolution checks)."""
+    holds = ApprovalHoldStorage()
+    records = ApprovalRecordStorage()
+    monkeypatch.setattr(approval_service, "approval_hold_storage", holds)
+    monkeypatch.setattr(approval_service, "approval_record_storage", records)
+    return holds
 
 
-def _pending_hold(component="uptime-kuma", approval_id="hold-1"):
+def _pending_hold(
+    component="uptime-kuma", approval_id="hold-1", expires_at=None
+):
     return ApprovalHold(
         approval_id=approval_id,
         action_id="act-1",
@@ -42,6 +56,11 @@ def _pending_hold(component="uptime-kuma", approval_id="hold-1"):
         ),
         adapter_name="simulation",
         status=ApprovalStatus.PENDING,
+        expires_at=(
+            expires_at
+            if expires_at is not None
+            else datetime.now(timezone.utc) + timedelta(seconds=300)
+        ),
     )
 
 
@@ -380,6 +399,54 @@ def test_cycling_resumes_after_hold_resolved(
     assert loop.get_status()["components"]["uptime-kuma"]["last_outcome"] == (
         "no_remediation"
     )
+
+
+def test_resolved_hold_still_pending_on_disk_does_not_block(
+    loop, isolate_hold_store, single_component, monkeypatch
+):
+    """Core `approve_held_action` flips hold.status in memory but does not
+    always persist the hold store -- a resolved hold can still read PENDING on
+    disk after a restart. The guard must consult the approval RECORD store and
+    ignore such a hold."""
+    isolate_hold_store.save(_pending_hold("uptime-kuma", "appr-stale"))
+    approval_service.approval_record_storage.save(
+        ApprovalRecord(
+            approval_id="appr-stale",
+            action_id="act-1",
+            decision="approved",
+            approved_by="operator",
+        )
+    )
+    calls = _mock_remediate(
+        monkeypatch, {"uptime-kuma": {"status": "no_remediation"}}
+    )
+
+    loop.run_cycle_once()
+
+    assert calls == ["uptime-kuma"]  # not blocked
+    assert loop.get_status()["components"]["uptime-kuma"]["last_outcome"] == (
+        "no_remediation"
+    )
+
+
+def test_expired_hold_does_not_block(
+    loop, isolate_hold_store, single_component, monkeypatch
+):
+    """A PENDING hold past its resolution TTL cannot be continued by the Core,
+    so it must not block a new remediation either."""
+    stale = _pending_hold(
+        "uptime-kuma",
+        "appr-expired",
+        expires_at=datetime.now(timezone.utc) - timedelta(seconds=60),
+    )
+    isolate_hold_store.save(stale)
+    calls = _mock_remediate(
+        monkeypatch, {"uptime-kuma": {"status": "no_remediation"}}
+    )
+
+    loop.run_cycle_once()
+
+    assert calls == ["uptime-kuma"]  # not blocked
 
 
 def test_remediation_policy_within_cap04_safe_envelope():

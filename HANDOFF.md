@@ -91,8 +91,8 @@ homelab through the full governed lifecycle
 periodic cadence (disabled by default; opt-in via env var or
 `POST /homelab/loop/start`). Implementation confined to `app/homelab/**` +
 `app/main.py`; no `app/core/**` change; no C08; C01–C07 remain closed/frozen.
-Validation: 15 focused tests; Homelab suite 36 passed; Core suite 122 passed;
-full app suite 175 passed. T13 disposition recorded
+Validation: 17 focused tests; Homelab suite 38 passed; Core suite 122 passed;
+full app suite 177 passed. T13 disposition recorded
 (`docs/RMT_T13_DISPOSITION.md`). See `docs/RMT_CAPABILITIES_EVIDENCE.md` §CAP-04.
 
 **Next:** the next above-Core capability is to be selected by the owner from the
@@ -447,12 +447,16 @@ only. Approval enforcement unchanged. Learning append-only / read-only.
   component), enforced by `test_remediation_policy_within_cap04_safe_envelope`.
   Full dependency-cascade escalation fix assigned to CAP-05. Enabling CAP-04
   within the envelope no longer waits on a separate T13 decision.
-- Enabling in the real homelab (`RMT_HOMELAB_LOOP_ENABLED=true` or
-  `POST /homelab/loop/start`) and a live demonstration run remain a separate,
-  owner-authorized step. **Owner authorized 2026-09-07** ("do 1 then 2");
-  **live demonstration performed 2026-09-07** — see the operational note below.
-- The frozen-Core evidence note (a *failed* adapter execution produces no
-  verification evidence) is still recorded for owner consideration only.
+- Enabling in the real homelab: **DONE 2026-09-07** — `RMT_HOMELAB_LOOP_ENABLED=true`
+  via systemd drop-in; live demonstration performed the same day (see notes
+  below). A redeploy is pending to pick up the duplicate-hold guard hardening.
+- **Recorded frozen-Core notes** (Core is frozen; owner consideration only):
+  - a *failed* adapter execution produces no verification evidence
+    (AGENTS.md §11 lists it as a distinguishable outcome);
+  - `approve_held_action` flips `hold.status` in memory but does not reliably
+    persist the approval **hold** store — a resolved hold can read `pending` on
+    disk after a restart. The approval **record** store is the reliable source
+    of truth; CAP-04's guard now uses it (see the enablement session note).
 
 ---
 
@@ -555,3 +559,55 @@ with the store query"). Follows the live-demo observation above.
   the hold store. Diff confined to `app/homelab/**`.
 - **Validation:** 15 focused (12 + 3); Homelab **36 passed**; Core intelligence
   **122 passed** (unchanged); full app **175 passed**.
+
+---
+
+## Session note — CAP-04 enabled on the live server + duplicate-hold guard hardening
+
+**Date:** 2026-09-07. Owner-authorized ("close the CAP-04 (loop on for
+uptime-kuma) before we start 5A").
+
+### Enablement
+- Added systemd drop-in
+  `/etc/systemd/system/rmt-control-center.service.d/cap04-loop.conf`
+  (`Environment=RMT_HOMELAB_LOOP_ENABLED=true`); `daemon-reload` + restart.
+  `GET /homelab/loop/status` → `enabled: true, running: true` on live :8000.
+  Disable = delete that file + `daemon-reload` + restart.
+
+### Finding surfaced by enablement — frozen-Core hold-persistence gap
+On the first live cycle the loop reported `awaiting_approval` keyed on hold
+`316257fc…` — a **2026-09-04** uptime-kuma restart hold that was **approved and
+executed that day**. Root cause (verified): `approve_held_action`
+(`app/core/intelligence/actions/approval_service.py`) sets
+`hold.status = APPROVED/REJECTED` on the in-memory object but **only persists
+the approval RECORD store** (`approval_record_storage.update(...)`), never the
+**hold store**. The hold's status reaches disk only if some *later*
+`approval_hold_storage.save(new_hold)` in the same process flushes the list.
+After a process restart the hold reloads as `pending`. Result on disk today:
+`316257fc` hold=`pending` / record=`approved`; `79d6383a` hold=`pending` /
+record=`rejected`; the genuinely-unresolved `54f685f6` (db1) record=
+`manual_required`. **Recorded frozen-Core note — not fixed here** (Core is
+frozen; the RECORD store is the reliable source of truth).
+
+### Above-Core hardening (this session)
+- `operational_loop.py` — new `_hold_is_still_actionable(hold, now)`. A PENDING
+  hold blocks a new remediation only if **(a)** the approval **record** store
+  has no terminal decision (`approved`/`rejected`) for it, **and** **(b)** its
+  `expires_at` (Core `APPROVAL_HOLD_TTL_SECONDS = 300`) has not passed — a
+  lapsed hold cannot be continued by the Core anyway. `_pending_hold_for` now
+  uses it. Still read-only; still no `app/core/**` change.
+- `test_operational_loop.py` — autouse fixture now also isolates
+  `approval_record_storage`; `_pending_hold` sets a real `expires_at`; 2 new
+  tests (resolved-but-still-`pending`-on-disk hold does not block; expired hold
+  does not block).
+- **Validation:** 17 focused (15 + 2); Homelab **38 passed**; Core intelligence
+  **122 passed** (unchanged); full app **177 passed**.
+- **Not touched:** the stale on-disk holds (`316257fc`, `79d6383a`). Re-rejecting
+  `316257fc` via the API would overwrite its historical `approved` record — so
+  they are left as-is; the hardened guard reads them correctly (both resolved +
+  expired → ignored).
+
+### Redeploy required
+The live :8000 service is running the pre-hardening code (loop enabled but
+blocked by `316257fc`). A restart picks up the guard fix; the loop then sits at
+`no_remediation` against the healthy homelab.

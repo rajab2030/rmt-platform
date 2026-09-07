@@ -144,14 +144,26 @@ C08; no frozen Core code modified. Approved scope: `docs/RMT_CAP_04_PROPOSAL.md`
     when `LOOP_ENABLED`, and stops it on shutdown; new routes
     `GET /homelab/loop/status` (read-only), `POST /homelab/loop/start`,
     `POST /homelab/loop/stop`, `POST /homelab/loop/clear?component=`.
-  - **New** `app/homelab/testing/test_operational_loop.py` — 15 run-safe tests
+  - **New** `app/homelab/testing/test_operational_loop.py` — 17 run-safe tests
     (`remediate_component`, `observe_container_state`, `remember` and the
-    approval hold store all mocked/isolated; asyncio task never started).
-- **Validation:** **15 focused tests passed** (11 loop behaviour + 3
+    approval hold + record stores all mocked/isolated; asyncio task never
+    started).
+- **Validation:** **17 focused tests passed** (11 loop behaviour + 5
   duplicate-hold guard + 1 T13 safe-envelope guard); full Homelab suite
-  **36 passed** (21 baseline + 15); full C07/Core intelligence suite
-  **122 passed** (unchanged); full app suite **175 passed** (160 baseline + 15).
+  **38 passed** (21 baseline + 17); full C07/Core intelligence suite
+  **122 passed** (unchanged); full app suite **177 passed** (160 baseline + 17).
   `import app.main` clean; loop confirmed **disabled by default**.
+- **Enabled on the live server (2026-09-07):** owner-authorized. systemd
+  drop-in `rmt-control-center.service.d/cap04-loop.conf`
+  (`RMT_HOMELAB_LOOP_ENABLED=true`). Enablement surfaced a **frozen-Core
+  hold-persistence gap** — `approve_held_action` flips `hold.status` in memory
+  but does not reliably persist the approval **hold** store, so holds
+  approved/rejected days ago can read `pending` on disk after a restart. The
+  duplicate-hold guard was hardened (above-Core, still read-only): a PENDING
+  hold blocks a new remediation only while **still-actionable** — no terminal
+  decision in the reliably-persisted approval **record** store, and not past its
+  `APPROVAL_HOLD_TTL_SECONDS` TTL. Recorded as a frozen-Core note (owner
+  consideration only); a redeploy is pending to pick it up.
 - **Live demonstration (real homelab, 2026-09-07):** owner-authorized. Isolated
   second instance on :8001 (systemd :8000 untouched). Fault-injected
   `uptime-kuma` (governed stop) → loop cycle held for approval
@@ -189,7 +201,7 @@ C08; no frozen Core code modified. Approved scope: `docs/RMT_CAP_04_PROPOSAL.md`
 | RMT-CAP-01 — Homelab Operations (Learn closure) | COMPLETED & VERIFIED | 122 Core + 141 full | C01–C07 untouched |
 | RMT-CAP-02 — Engineering Change-Impact & Risk Analysis | COMPLETED & VERIFIED | 14 focused + 155 full | C01–C07 untouched |
 | RMT-CAP-03 — Homelab Remediation Approval-Continuation Learn Closure | COMPLETED & VERIFIED | 5 focused + 122 Core + 160 full | C01–C07 untouched; no frozen Core code modified |
-| RMT-CAP-04 — Continuous Homelab Operational Loop | COMPLETED & VERIFIED; live-demonstrated 2026-09-07 | 15 focused + 36 Homelab + 122 Core + 175 full; live run PASS | C01–C07 untouched; no `app/core/**` modified; loop disabled by default; T13 disposition recorded; duplicate-hold guard added |
+| RMT-CAP-04 — Continuous Homelab Operational Loop | COMPLETED & VERIFIED; live-demonstrated + enabled on live 2026-09-07 | 17 focused + 38 Homelab + 122 Core + 177 full; live run PASS | C01–C07 untouched; no `app/core/**` modified; T13 disposition recorded; duplicate-hold guard hardened against frozen-Core hold-persistence gap |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.
