@@ -17,6 +17,7 @@ from app.docker_provider import DockerPlatformStateProvider
 from app.core.observability.api import router as observability_router
 from app.core.intelligence.api import router as intelligence_router
 from app.engineering.api import router as engineering_router
+from app.agent.api import router as agent_router
 
 from app.homelab import loop_config
 from app.homelab.operational_loop import operational_loop
@@ -125,6 +126,8 @@ app.include_router(observability_router)
 app.include_router(intelligence_router)
 
 app.include_router(engineering_router)
+
+app.include_router(agent_router)
 
 
 @app.get("/")

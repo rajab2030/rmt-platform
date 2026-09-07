@@ -194,6 +194,61 @@ C08; no frozen Core code modified. Approved scope: `docs/RMT_CAP_04_PROPOSAL.md`
 
 ---
 
+## RMT-CAP-05 (5A) — Governed Agent Surface
+
+**Date:** 2026-09-07. Above-Core capability. C01–C07 remain closed/frozen; no
+C08; no frozen Core code modified. Approved scope: `docs/RMT_CAP_05_PROPOSAL.md`
+(**5A only** — the LLM agent 5B remains a separate deferred decision).
+
+- **Objective:** implement the MCR child-contract surface (Identity, Intent,
+  Authority, Proposed Action, Decision, Outcome) so an agent can **propose** a
+  consequential homelab operation that is routed through the frozen Core's
+  single governed boundary — the same path a Homelab remediation takes. The
+  agent never executes, authorizes, approves, or continues a hold.
+- **Implementation:** new `app/agent/` package (above-Core):
+  - `contract.py` — `AgentIdentity` / `AgentIntent` (goal kept distinct from
+    mechanism) / `AgentProposal` / `AgentOutcome`.
+  - `authority.py` — `AuthorityStore`: operation+target-scoped, time-limited
+    (`AGENT_GRANT_TTL_SECONDS`), **single-use** grants; capability never implies
+    authority (MCR §9 / MCR-EXP-3 T8+T9). Consumed only when a proposal is
+    accepted into the pipeline (executed / held), never on a pre-boundary deny.
+  - `dependency_guard.py` — **T13 closure** (`docs/RMT_T13_DISPOSITION.md` §3c).
+    `escalate_for_dependency_cascade(target, op)`: an allowed-class op whose
+    target has a dependent component (per `ComponentContext.dependencies`) is
+    forced to `requires_approval=True`. All dependency lists are empty today →
+    **no-op**, but wired + tested so a widened envelope is safe by construction.
+  - `adapter.py` — `propose_and_govern(proposal)`: disabled gate → authority
+    check → T13 escalation → translate to `ActionRequest` →
+    `execute_governed_action(...)` → on `executed`: above-Core Docker
+    verification + `record_learning`; on `manual_approval_required`:
+    `record_learning`, **never** auto-continued. Boundary exceptions are
+    contained (`decision="error"`, grant intact).
+  - `reference_agent.py` — deterministic agent: `HealthEvaluation` CRITICAL →
+    RESTART `AgentProposal`; else `None`. No model, no network.
+  - `api.py` — `POST /agent/authority/grant` (operator issues a grant),
+    `POST /agent/act` (propose → governed lifecycle), read-only
+    `GET /agent/status` and `GET /agent/authority`.
+  - `app/main.py` — register the `app/agent` router (additive only).
+  - **New route beyond the proposal's list:** `POST /agent/authority/grant` — the
+    operator action that makes the surface usable (a human grants the agent its
+    scoped authority; capability ≠ authority). Still no mutation path; a granted
+    proposal still passes full policy / risk / approval.
+- **Validation:** **13 focused tests passed**
+  (`app/agent/testing/test_agent_governance.py`); full C07/Core intelligence
+  suite **122 passed** (unchanged); full Homelab suite **38 passed**
+  (unchanged); full app suite **190 passed** (177 baseline + 13). `import
+  app.main` clean; `RMT_AGENT_ENABLED=False` confirmed by default.
+- **Core integrity:** diff confined to `app/agent/**` + `app/main.py` (router
+  registration). No `app/core/**` change; no second mutation boundary (a
+  proposal becomes an `ActionRequest` routed through `execute_governed_action`
+  only); approval enforcement unchanged; held proposals never auto-continued;
+  learning append-only / read-only. Disabled by default.
+- **Deferred:** 5B (LLM-backed agent adapter) — a separate owner decision;
+  nothing built. Populating `ComponentContext.dependencies` (which would make
+  the T13 guard load-bearing) is also a separate explicit change.
+
+---
+
 ## Index
 
 | Capability | Status | Validation | Core integrity |
@@ -202,6 +257,7 @@ C08; no frozen Core code modified. Approved scope: `docs/RMT_CAP_04_PROPOSAL.md`
 | RMT-CAP-02 — Engineering Change-Impact & Risk Analysis | COMPLETED & VERIFIED | 14 focused + 155 full | C01–C07 untouched |
 | RMT-CAP-03 — Homelab Remediation Approval-Continuation Learn Closure | COMPLETED & VERIFIED | 5 focused + 122 Core + 160 full | C01–C07 untouched; no frozen Core code modified |
 | RMT-CAP-04 — Continuous Homelab Operational Loop | COMPLETED & VERIFIED; live-demonstrated + enabled on live 2026-09-07 | 17 focused + 38 Homelab + 122 Core + 177 full; live run PASS | C01–C07 untouched; no `app/core/**` modified; T13 disposition recorded; duplicate-hold guard hardened against frozen-Core hold-persistence gap |
+| RMT-CAP-05 (5A) — Governed Agent Surface | COMPLETED & VERIFIED (5A); 5B deferred | 13 focused + 122 Core + 38 Homelab + 190 full | C01–C07 untouched; diff confined to `app/agent/**` + `app/main.py`; no new mutation path; T13 escalation rule wired (no-op today); disabled by default |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.
