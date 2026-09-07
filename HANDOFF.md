@@ -897,3 +897,58 @@ execution → Core verification → correlated durable evidence. Structural
 allow-list validation, grant scope, single-use, and capability ≠ authority all
 enforced against the live LLM path. No `portainer` / `uptime-kuma` impact;
 systemd service and CAP-04 loop unaffected. No code changed; C01–C07 frozen.
+
+---
+
+## Session note — Production-readiness gap matrix + P0 batch (S1/S2-lite/E1/O2)
+
+**Date:** 2026-09-07. Above-Core / operational. C01–C07 remain closed/frozen;
+no C08. **One frozen-Core file touched (E1)** — owner-authorized,
+behaviour-preserving.
+
+### Assessment
+- New `docs/RMT_PRODUCTION_READINESS.md` — operational gap matrix (37 criteria,
+  7 groups). Blocking set (P0): S1 auth, S2 identity, S4 transport, E1 atomic
+  evidence writes, E2 hold persistence, O2 held-action alerting.
+- Owner decisions: threat model **(b) trusted LAN, few operators**; work the P0
+  set together; authorize the E1 frozen-Core hardening; S4 = reverse proxy +
+  loopback bind; agent read-only routes behind auth; keep an
+  `RMT_AUTH_ENABLED=false` local-dev escape hatch.
+- Proposal `docs/RMT_PROD_P0_PROPOSAL.md` — APPROVED, then implemented (see its
+  §10 for the file-level record).
+
+### Implemented (code-complete, merged)
+- **S1 + S2-lite** — new `app/ops/{ops_config,auth,notifications}.py`.
+  `require_operator` (bearer / `X-API-Key` → `RMT_OPERATOR_TOKENS` = `name:token`
+  pairs) on all 10 `@app.post` routes + the `/agent/*` router. App refuses to
+  start with auth on and no tokens. `/approve`, `/homelab/approve`,
+  `/agent/authority/grant` now take the identity from the authenticated
+  operator (body `approved_by`/`granted_by` ignored); `/execute` threads the
+  operator name into `decision_id`/`reason`. Evidence `authorized_by` /
+  `approved_by` is now trustworthy.
+- **E1** — `app/core/intelligence/durable_store.py::_persist` writes `*.tmp` →
+  `flush`/`os.fsync` → `os.replace` (atomic); `_load` discards stale `*.tmp`.
+  Byte-identical committed output, no API/behaviour change.
+- **O2** — `notify_held` (stdlib `urllib` webhook, fail-open, per-hold de-dupe;
+  logs only when `RMT_NOTIFY_WEBHOOK_URL` unset) hooked at `/execute`,
+  `/homelab/remediate`, the CAP-04 loop, and the agent adapter.
+- **D1** — `requirements.txt` pinned; `requirements.lock.txt` (33-pkg freeze).
+- **D2 / D5** — `docs/operations/DEPLOY.md`, `docs/operations/CONFIG.md`.
+- **S4 artifacts** — `deploy/Caddyfile`, `deploy/systemd/bind-loopback.conf`,
+  `deploy/systemd/auth.conf.example`. **Live cutover is an operator step.**
+- `conftest.py` (backend root) defaults the suite to `RMT_AUTH_ENABLED=false`;
+  `app/ops/testing/test_auth.py` opts back in.
+
+### Validation
+Full suite **254 passed** (214 + 40 new: 25 auth incl. per-route 401/accept, 4
+notifications, 4 atomic-store, + auth unit). Core intelligence **126** (122
+unchanged + 4). `import app.main` clean.
+
+### Open / next
+- **S4 live cutover** — install the loopback drop-in + Caddy per `DEPLOY.md`,
+  issue operator tokens (`auth.conf`), redeploy, re-verify (unauth → 401),
+  re-run the CAP-05 exercise under auth, restart-safety check.
+- **E2** — resolved hold not persisted to the hold store: Core fix (breaks the
+  freeze, needs authorization) vs above-Core reconciliation on load. **Decision
+  pending.**
+- Then P1: S3 enforcement, E3/E4/E5, D3, O1/O3, V1/V2, R1/R3.

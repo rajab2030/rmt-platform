@@ -1,3 +1,19 @@
-fastapi
-uvicorn[standard]
-docker
+# RMT Control Center backend -- direct dependencies, pinned (item D1).
+#
+# Full transitive lock (reproducible install): requirements.lock.txt
+#   install exactly:   .venv/bin/pip install -r requirements.lock.txt
+#   regenerate lock:   .venv/bin/pip freeze > requirements.lock.txt
+#
+# Keep versions here in sync with the lock file.
+
+# --- runtime ---
+fastapi==0.139.2
+uvicorn[standard]==0.51.0
+docker==7.2.0
+pydantic==2.13.4
+pydantic-settings==2.14.2
+PyYAML==6.0.3
+
+# --- test only ---
+pytest==9.1.1
+httpx2==2.12.0

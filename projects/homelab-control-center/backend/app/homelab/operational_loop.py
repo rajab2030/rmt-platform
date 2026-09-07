@@ -45,6 +45,7 @@ from datetime import datetime, timezone
 from app.homelab import loop_config
 from app.homelab.remediation import REMEDIATION_POLICY, remediate_component
 from app.homelab.observer import observe_container_state
+from app.ops.notifications import notify_held
 from app.core.intelligence.memory.models import MemoryRecord
 from app.core.intelligence.memory.service import remember
 import app.core.intelligence.actions.approval_service as _approval_service
@@ -315,6 +316,16 @@ class HomelabOperationalLoop:
         outcome = remediate_component(component)
         status = str(outcome.get("status", "unknown"))
         detail = outcome.get("reason") or outcome.get("approval_id") or status
+
+        if status == "manual_approval_required":
+            # O2: a human must approve this hold -- surface it, don't just record.
+            notify_held(
+                kind="remediation",
+                component=component,
+                approval_id=outcome.get("approval_id"),
+                detail=str(detail),
+                source="operational_loop",
+            )
 
         state.last_outcome = status
         state.last_detail = str(detail)
