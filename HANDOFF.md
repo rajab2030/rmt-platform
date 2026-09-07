@@ -91,8 +91,8 @@ homelab through the full governed lifecycle
 periodic cadence (disabled by default; opt-in via env var or
 `POST /homelab/loop/start`). Implementation confined to `app/homelab/**` +
 `app/main.py`; no `app/core/**` change; no C08; C01–C07 remain closed/frozen.
-Validation: 12 focused tests; Homelab suite 33 passed; Core suite 122 passed;
-full app suite 172 passed. T13 disposition recorded
+Validation: 15 focused tests; Homelab suite 36 passed; Core suite 122 passed;
+full app suite 175 passed. T13 disposition recorded
 (`docs/RMT_T13_DISPOSITION.md`). See `docs/RMT_CAPABILITIES_EVIDENCE.md` §CAP-04.
 
 **Next:** the next above-Core capability is to be selected by the owner from the
@@ -395,7 +395,10 @@ supervision. **Cadence + guardrails only — no new mutation path.**
   recorded, never continued — `continue_remediation` not imported here);
   **flap guard** → quarantine after N held/failed attempts in a window (then
   read-only recovery checks only, via `observe_container_state`, until a healthy
-  streak or a manual clear); **cooldown** after every attempt; **single-flight**
+  streak or a manual clear); **cooldown** after every attempt;
+  **duplicate-hold guard** (read-only query of the approval hold store; a
+  `pending` hold for the component → `awaiting_approval`, no second hold, no
+  flap count); **single-flight**
   (`_cycle_in_progress` guard); **fail-safe** (per-component + per-cycle
   `try/except`; the task never raises into the app). State transitions recorded
   append-only via the existing Core memory capability (`remember` +
@@ -411,17 +414,18 @@ supervision. **Cadence + guardrails only — no new mutation path.**
   `GET /homelab/loop/status` (read-only), `POST /homelab/loop/start`,
   `POST /homelab/loop/stop`, `POST /homelab/loop/clear?component=`
   (`start`/`stop` are `async def` so they run on the event loop).
-- **New** `app/homelab/testing/test_operational_loop.py` — 12 run-safe tests
-  (11 loop behaviour + 1 T13 safe-envelope guard;
-  `remediate_component`, `observe_container_state`, `remember` mocked; asyncio
-  task never started).
+- **New** `app/homelab/testing/test_operational_loop.py` — 15 run-safe tests
+  (11 loop behaviour + 3 duplicate-hold guard + 1 T13 safe-envelope guard;
+  `remediate_component`, `observe_container_state`, `remember` and the approval
+  hold store mocked/isolated; asyncio task never started).
 
 ### Validation
-- New focused: **12 passed** (11 loop + 1 T13 envelope guard).
-- Full Homelab suite: **33 passed** (21 baseline + 12).
+- New focused: **15 passed** (11 loop + 3 duplicate-hold guard + 1 T13 envelope
+  guard).
+- Full Homelab suite: **36 passed** (21 baseline + 15).
 - Full C07/Core intelligence suite: **122 passed** (unchanged — frozen Core
   intact).
-- Full app suite: **172 passed** (160 baseline + 12).
+- Full app suite: **175 passed** (160 baseline + 15).
 - `import app.main` clean; loop confirmed **disabled by default**.
 
 ### Core integrity
@@ -516,10 +520,38 @@ no code change.
 ### Observations (recorded, not defects)
 - With a fast demo cadence the loop raised a **second** held remediation
   (cycle 3) before the 60 s metric collector reflected the approved restart.
-  Bounded by cooldown; would have quarantined after 3. At the default 120 s
-  cadence this window is much smaller. If undesired, a future refinement could
-  have the loop suppress a new attempt while an unresolved hold for the same
-  component already exists.
+  Bounded by cooldown; would have quarantined after 3. **RESOLVED 2026-09-07**
+  by the *duplicate-hold guard* refinement (`operational_loop.py`
+  `_pending_hold_for`): a read-only query of the approval hold store; if a
+  `pending` hold already exists for the component the loop returns
+  `awaiting_approval` — no second hold, no flap count, no spurious quarantine.
+  3 new run-safe tests; full app suite **175 passed**.
 - Core verifier returned `observation_unavailable` while the above-Core Docker
   verifier returned `verified_success` — same split as the 2026-09-04 run;
   expected (the Core observer is not the Docker observer).
+
+---
+
+## Session note — CAP-04 duplicate-hold guard refinement
+
+**Date:** 2026-09-07. Above-Core; owner-authorized ("implement the refinement
+with the store query"). Follows the live-demo observation above.
+
+- **Modified** `app/homelab/operational_loop.py` — added `_pending_hold_for()`
+  (read-only query of `_approval_service.approval_hold_storage.get_all()`,
+  resolved through the Core module so runtime/test substitution is honoured —
+  same pattern as `continuation.py`). In `_process_component`, before the
+  cooldown / remediate path: if a `pending` `ApprovalHold` exists for the
+  component, return the new benign outcome **`awaiting_approval`** — no
+  `remediate_component` call, no new hold, no cooldown, no `attempt_times`
+  entry, no streak change. Cycling resumes automatically once the hold is
+  approved / rejected / expired or the component recovers.
+- **Modified** `app/homelab/testing/test_operational_loop.py` — autouse
+  `isolate_hold_store` fixture (empty in-memory `ApprovalHoldStorage`) so no
+  test sees real pending holds; 3 new tests (suppresses new remediation; never
+  quarantines while awaiting approval; cycling resumes after the hold is
+  resolved).
+- **No `app/core/**` change; no new mutation path** — the guard only *reads*
+  the hold store. Diff confined to `app/homelab/**`.
+- **Validation:** 15 focused (12 + 3); Homelab **36 passed**; Core intelligence
+  **122 passed** (unchanged); full app **175 passed**.

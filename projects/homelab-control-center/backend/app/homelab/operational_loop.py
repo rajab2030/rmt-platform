@@ -22,6 +22,10 @@ Guarantees (see ``docs/RMT_CAP_04_PROPOSAL.md``):
     until it recovers or is manually cleared.
   * Cooldown -- after any remediation attempt a component is skipped until the
     cooldown elapses.
+  * Duplicate-hold guard -- if an earlier remediation for a component is still
+    awaiting human approval, the loop does not route another one (it would only
+    mint a second hold and, unattended, drive a spurious quarantine). Resolved
+    by a read-only query of the approval hold store.
   * Single-flight -- cycles never overlap.
   * Fail-safe -- a per-component or per-cycle fault is recorded; the loop task
     stays alive and never raises into the app.
@@ -41,6 +45,8 @@ from app.homelab.remediation import REMEDIATION_POLICY, remediate_component
 from app.homelab.observer import observe_container_state
 from app.core.intelligence.memory.models import MemoryRecord
 from app.core.intelligence.memory.service import remember
+import app.core.intelligence.actions.approval_service as _approval_service
+from app.core.intelligence.actions.approval import ApprovalStatus
 
 
 # Governed-outcome classification (statuses come from
@@ -62,6 +68,29 @@ _HEALTHY_OBSERVED_STATES = {"running"}
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _pending_hold_for(component: str):
+    """Read-only: return an unresolved (pending) approval hold for this
+    component, or None.
+
+    The hold store is resolved through the Core module (not a direct import of
+    the singleton) so runtime / test substitution of that singleton is
+    honoured -- the same pattern ``app/homelab/continuation.py`` uses.
+    """
+    try:
+        holds = _approval_service.approval_hold_storage.get_all()
+    except Exception:
+        return None
+    for hold in holds:
+        action = getattr(hold, "action", None)
+        if (
+            action is not None
+            and getattr(action, "component", None) == component
+            and getattr(hold, "status", None) == ApprovalStatus.PENDING
+        ):
+            return hold
+    return None
 
 
 def _iso(value):
@@ -211,6 +240,22 @@ class HomelabOperationalLoop:
         # Quarantined: read-only recovery check only. Never remediate.
         if state.quarantined:
             return self._check_recovery(state, now)
+
+        # Duplicate-hold guard: an earlier remediation for this component is
+        # still awaiting human approval. Do not route another one -- it would
+        # only mint a second hold and, unattended, count toward the flap guard
+        # and drive a spurious quarantine. Not an attempt: no cooldown, no flap
+        # count, no streak change.
+        pending = _pending_hold_for(component)
+        if pending is not None:
+            state.last_outcome = "awaiting_approval"
+            state.last_detail = f"pending hold {pending.approval_id}"
+            return {
+                "component": component,
+                "outcome": "awaiting_approval",
+                "detail": f"pending hold {pending.approval_id}",
+                "quarantined": state.quarantined,
+            }
 
         # Cooldown: skip until it elapses.
         if state.cooldown_until is not None and now < state.cooldown_until:

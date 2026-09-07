@@ -124,9 +124,14 @@ C08; no frozen Core code modified. Approved scope: `docs/RMT_CAP_04_PROPOSAL.md`
     recorded, never continued — `continue_remediation` is not imported here);
     **flap guard** (N held/failed attempts within a window → component
     quarantined, read-only recovery checks only until healthy streak or manual
-    clear); **cooldown** after every attempt; **single-flight** (cycles never
-    overlap); **fail-safe** (per-component and per-cycle `try/except`; the task
-    never raises into the app). State transitions (quarantine / recovery /
+    clear); **cooldown** after every attempt; **duplicate-hold guard**
+    (a read-only query of the approval hold store — if a `pending` hold already
+    exists for the component the loop returns `awaiting_approval` instead of
+    routing another remediation: no second hold, no flap count, no spurious
+    quarantine of something merely waiting for a human); **single-flight**
+    (cycles never overlap); **fail-safe** (per-component and per-cycle
+    `try/except`; the task never raises into the app). State transitions
+    (quarantine / recovery /
     manual clear) are recorded append-only through the existing Core memory
     capability (`remember` + `MemoryRecord`) with distinct `event_type`s
     (`homelab_loop_quarantine`, `homelab_loop_recovery`,
@@ -139,14 +144,14 @@ C08; no frozen Core code modified. Approved scope: `docs/RMT_CAP_04_PROPOSAL.md`
     when `LOOP_ENABLED`, and stops it on shutdown; new routes
     `GET /homelab/loop/status` (read-only), `POST /homelab/loop/start`,
     `POST /homelab/loop/stop`, `POST /homelab/loop/clear?component=`.
-  - **New** `app/homelab/testing/test_operational_loop.py` — 11 run-safe tests
-    (`remediate_component`, `observe_container_state`, `remember` all mocked;
-    asyncio task never started).
-- **Validation:** **12 focused tests passed** (11 loop behaviour + 1 T13
-  safe-envelope guard); full Homelab suite **33 passed** (21 baseline + 12);
-  full C07/Core intelligence suite **122 passed** (unchanged); full app suite
-  **172 passed** (160 baseline + 12). `import app.main` clean; loop confirmed
-  **disabled by default**.
+  - **New** `app/homelab/testing/test_operational_loop.py` — 15 run-safe tests
+    (`remediate_component`, `observe_container_state`, `remember` and the
+    approval hold store all mocked/isolated; asyncio task never started).
+- **Validation:** **15 focused tests passed** (11 loop behaviour + 3
+  duplicate-hold guard + 1 T13 safe-envelope guard); full Homelab suite
+  **36 passed** (21 baseline + 15); full C07/Core intelligence suite
+  **122 passed** (unchanged); full app suite **175 passed** (160 baseline + 15).
+  `import app.main` clean; loop confirmed **disabled by default**.
 - **Live demonstration (real homelab, 2026-09-07):** owner-authorized. Isolated
   second instance on :8001 (systemd :8000 untouched). Fault-injected
   `uptime-kuma` (governed stop) → loop cycle held for approval
@@ -184,7 +189,7 @@ C08; no frozen Core code modified. Approved scope: `docs/RMT_CAP_04_PROPOSAL.md`
 | RMT-CAP-01 — Homelab Operations (Learn closure) | COMPLETED & VERIFIED | 122 Core + 141 full | C01–C07 untouched |
 | RMT-CAP-02 — Engineering Change-Impact & Risk Analysis | COMPLETED & VERIFIED | 14 focused + 155 full | C01–C07 untouched |
 | RMT-CAP-03 — Homelab Remediation Approval-Continuation Learn Closure | COMPLETED & VERIFIED | 5 focused + 122 Core + 160 full | C01–C07 untouched; no frozen Core code modified |
-| RMT-CAP-04 — Continuous Homelab Operational Loop | COMPLETED & VERIFIED; live-demonstrated 2026-09-07 | 12 focused + 33 Homelab + 122 Core + 172 full; live run PASS | C01–C07 untouched; no `app/core/**` modified; loop disabled by default; T13 disposition recorded |
+| RMT-CAP-04 — Continuous Homelab Operational Loop | COMPLETED & VERIFIED; live-demonstrated 2026-09-07 | 15 focused + 36 Homelab + 122 Core + 175 full; live run PASS | C01–C07 untouched; no `app/core/**` modified; loop disabled by default; T13 disposition recorded; duplicate-hold guard added |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.

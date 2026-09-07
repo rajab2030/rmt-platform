@@ -1,16 +1,48 @@
 """RMT-CAP-04 -- continuous Homelab operational loop (run-safe).
 
 All externals are mocked: ``remediate_component`` (the governed entrypoint),
-``observe_container_state`` (recovery signal), and ``remember`` (Learn store).
-No real container is mutated, no governed pipeline runs, no durable evidence
-file is touched. Cycles are driven synchronously via ``run_cycle_once`` -- the
-asyncio task is never started.
+``observe_container_state`` (recovery signal), ``remember`` (Learn store), and
+the approval hold store (isolated to an empty in-memory instance). No real
+container is mutated, no governed pipeline runs, no durable evidence file is
+touched. Cycles are driven synchronously via ``run_cycle_once`` -- the asyncio
+task is never started.
 """
 import pytest
 from fastapi.testclient import TestClient
 
+import app.core.intelligence.actions.approval_service as approval_service
+from app.core.intelligence.actions.approval import ApprovalHold, ApprovalStatus
+from app.core.intelligence.actions.approval_storage import ApprovalHoldStorage
+from app.core.intelligence.actions.models import ActionRequest, ActionType
+
 import app.homelab.operational_loop as loop_mod
 from app.homelab.operational_loop import HomelabOperationalLoop
+
+
+@pytest.fixture(autouse=True)
+def isolate_hold_store(monkeypatch):
+    """CAP-04's duplicate-hold guard reads the approval hold store. Isolate it
+    to an empty in-memory instance so tests never see real pending holds; the
+    tests that exercise the guard add holds to the returned store."""
+    store = ApprovalHoldStorage()
+    monkeypatch.setattr(approval_service, "approval_hold_storage", store)
+    return store
+
+
+def _pending_hold(component="uptime-kuma", approval_id="hold-1"):
+    return ApprovalHold(
+        approval_id=approval_id,
+        action_id="act-1",
+        action=ActionRequest(
+            decision_id="d-1",
+            component=component,
+            action_type=ActionType.RESTART,
+            reason="test hold",
+            confidence=80,
+        ),
+        adapter_name="simulation",
+        status=ApprovalStatus.PENDING,
+    )
 
 
 @pytest.fixture
@@ -281,6 +313,74 @@ def test_executed_outcome_resets_flap_state(loop, learn, single_component, monke
 # ---------------------------------------------------------------------------
 # 11. Manual quarantine clear endpoint
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# 12-14. Duplicate-hold guard (store query)
+# ---------------------------------------------------------------------------
+
+def test_pending_hold_suppresses_new_remediation(
+    loop, isolate_hold_store, single_component, monkeypatch
+):
+    isolate_hold_store.save(_pending_hold("uptime-kuma", "appr-pending"))
+    calls = _mock_remediate(
+        monkeypatch, {"uptime-kuma": {"status": "manual_approval_required"}}
+    )
+
+    loop.run_cycle_once()
+
+    assert calls == []  # no second remediation routed
+    state = loop.get_status()["components"]["uptime-kuma"]
+    assert state["last_outcome"] == "awaiting_approval"
+    assert state["attempts_in_window"] == 0
+    assert state["cooldown_until"] is None
+    assert state["quarantined"] is False
+    hist = loop.get_status()["history"][-1]["results"][0]
+    assert hist["outcome"] == "awaiting_approval"
+    assert "appr-pending" in hist["detail"]
+
+
+def test_awaiting_approval_never_quarantines(
+    loop, isolate_hold_store, single_component, monkeypatch
+):
+    monkeypatch.setattr(loop_mod.loop_config, "LOOP_COOLDOWN_SECONDS", 0)
+    monkeypatch.setattr(loop_mod.loop_config, "LOOP_MAX_ATTEMPTS_PER_WINDOW", 3)
+    isolate_hold_store.save(_pending_hold("uptime-kuma", "appr-pending"))
+    calls = _mock_remediate(
+        monkeypatch, {"uptime-kuma": {"status": "manual_approval_required"}}
+    )
+
+    for _ in range(6):
+        loop.run_cycle_once()
+
+    assert calls == []
+    state = loop.get_status()["components"]["uptime-kuma"]
+    assert state["quarantined"] is False
+    assert state["attempts_in_window"] == 0
+
+
+def test_cycling_resumes_after_hold_resolved(
+    loop, isolate_hold_store, single_component, monkeypatch
+):
+    hold = _pending_hold("uptime-kuma", "appr-pending")
+    isolate_hold_store.save(hold)
+    calls = _mock_remediate(
+        monkeypatch, {"uptime-kuma": {"status": "no_remediation"}}
+    )
+
+    loop.run_cycle_once()
+    assert calls == []
+    assert loop.get_status()["components"]["uptime-kuma"]["last_outcome"] == (
+        "awaiting_approval"
+    )
+
+    hold.status = ApprovalStatus.APPROVED  # hold resolved
+
+    loop.run_cycle_once()
+    assert calls == ["uptime-kuma"]
+    assert loop.get_status()["components"]["uptime-kuma"]["last_outcome"] == (
+        "no_remediation"
+    )
+
 
 def test_remediation_policy_within_cap04_safe_envelope():
     """T13 disposition (docs/RMT_T13_DISPOSITION.md §3b): the CAP-04 loop may be

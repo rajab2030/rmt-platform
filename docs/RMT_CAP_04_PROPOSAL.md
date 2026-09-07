@@ -161,6 +161,23 @@ longer waits on a separate T13 decision.
    CAP-05.
 5. **Cadence default** — 120 s (collector refreshes metrics every 60 s).
 
+## 11. Post-implementation refinement — duplicate-hold guard (2026-09-07)
+
+Added after the first live demonstration surfaced it: with a fast cadence the
+loop routed a second remediation for a component whose earlier remediation was
+still awaiting human approval, minting a duplicate hold and (unattended) driving
+a spurious quarantine.
+
+**Change (above-Core, no Core touch):** `operational_loop.py` now does a
+read-only query of the approval hold store (`_pending_hold_for`) before the
+remediate path; if a `pending` hold already exists for the component the cycle
+returns the benign outcome **`awaiting_approval`** — no `remediate_component`
+call, no new hold, no cooldown, no flap-window entry. Normal cycling resumes
+once the hold is approved / rejected / expired or the component recovers.
+Chosen approach: **store query** (catches holds created out-of-band too),
+not "remember only the loop's own approval_id". 3 new run-safe tests; full app
+suite **175 passed**.
+
 ---
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
