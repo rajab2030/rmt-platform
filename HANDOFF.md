@@ -942,13 +942,39 @@ behaviour-preserving.
 ### Validation
 Full suite **254 passed** (214 + 40 new: 25 auth incl. per-route 401/accept, 4
 notifications, 4 atomic-store, + auth unit). Core intelligence **126** (122
-unchanged + 4). `import app.main` clean.
+unchanged + 4). `import app.main` clean. Commit **`c4f63a3`**.
 
-### Open / next
-- **S4 live cutover** — install the loopback drop-in + Caddy per `DEPLOY.md`,
-  issue operator tokens (`auth.conf`), redeploy, re-verify (unauth → 401),
-  re-run the CAP-05 exercise under auth, restart-safety check.
-- **E2** — resolved hold not persisted to the hold store: Core fix (breaks the
-  freeze, needs authorization) vs above-Core reconciliation on load. **Decision
-  pending.**
+### Deployed to live 2026-09-07 12:36 UTC
+Owner ran the `DEPLOY.md` §1 steps. Drop-ins installed:
+`/etc/systemd/system/rmt-control-center.service.d/auth.conf` (mode 0600, two
+operator tokens `ragb` / `ops2`) and `bind-loopback.conf`. `daemon-reload` +
+`restart`; service `active` on the new code.
+
+**Verified on live :8000:**
+- `POST /homelab/loop/stop` no token → **401**; with `Authorization: Bearer
+  <token>` → **200**; `GET /` → 200 (open routes unaffected).
+- `POST /agent/authority/grant` with body `granted_by:"IGNORED"` → recorded
+  **`granted_by:"ragb"`** (authenticated operator; body value ignored) — S2-lite.
+- App listens **`127.0.0.1:8000` only**; `192.168.223.128:8000` refused — S4
+  loopback bind live.
+- 6 governance-evidence files parse, **no `.tmp` residue** — E1.
+- CAP-04 loop + agent 5A/5B still enabled and healthy on the new code.
+
+Token values are **not in the repo** — `sudo cat
+/etc/systemd/system/rmt-control-center.service.d/auth.conf`. Monitoring /
+exercise calls now need a token header.
+
+### Open / next (deferred to the next session)
+- **S4 Caddy proxy — NOT installed.** RMT currently has **no LAN-facing entry
+  point** (loopback + auth only). Owner decision: install Caddy
+  (`deploy/Caddyfile`, `DEPLOY.md` §1.4) if operators / the frontend need LAN
+  access, or leave loopback-only for SSH administration.
+- **E2** — resolved hold not persisted to the hold store: **Core fix** (breaks
+  the freeze, needs authorization) vs **above-Core reconciliation on startup**
+  (no Core touch). **Decision pending.** Last P0 item.
+- **Optional:** hard-kill restart-safety test (E1 is unit-tested); re-run the
+  CAP-05 LLM exercise under auth against `dozzle` to confirm the agent path
+  end-to-end with tokens.
+- Stray live grant `f34f62cfc626` (restart/uptime-kuma, `ragb`) from the S2-lite
+  verification — single-use, 5-min TTL, self-expires; no action.
 - Then P1: S3 enforcement, E3/E4/E5, D3, O1/O3, V1/V2, R1/R3.

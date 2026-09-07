@@ -21,12 +21,16 @@ It answers one question:
 survive a restart or crash with its governance evidence intact, reproducibly
 deployable, observable, and recoverable.
 
-> **P0 batch implemented 2026-09-07** (`docs/RMT_PROD_P0_PROPOSAL.md`, APPROVED).
-> S1 + S2-lite (auth + operator identity), E1 (atomic evidence writes), O2
-> (held-action alerting) are **code-complete and merged** (254 tests pass).
-> S4 (loopback bind + Caddy TLS proxy) artifacts are in `deploy/`; the live
-> cutover is an operator step (`docs/operations/DEPLOY.md`). Status cells below
-> updated accordingly; **E2 remains open** (separate Core-fix decision).
+> **P0 batch implemented + deployed 2026-09-07** (`docs/RMT_PROD_P0_PROPOSAL.md`,
+> APPROVED). S1 + S2-lite (auth + operator identity), E1 (atomic evidence
+> writes), O2 (held-action alerting) are **code-complete, merged (254 tests
+> pass), and LIVE** on `:8000` (service restarted 2026-09-07 12:36 UTC).
+> Verified on live: unauth → 401, authed → 200, `granted_by` records the
+> authenticated operator, evidence files parse with no `.tmp` residue.
+> **S4:** loopback bind is **live** (`127.0.0.1:8000` only); the Caddy TLS
+> reverse proxy is **not yet installed** — RMT currently has no LAN-facing
+> entry point (loopback + auth only). **E2 remains open** (Core-fix vs
+> above-Core reconciliation — decision pending). Status cells below reflect this.
 
 ### Relationship to the Core Gap Matrix
 
@@ -97,10 +101,10 @@ currently enforces who the operator is.
 
 | ID | Requirement | Current verified evidence | Status | Required action | Priority |
 |---|---|---|---|---|---|
-| **S1** | Authentication on every mutating route | **DONE** — `app/ops/auth.py` `require_operator` dependency on all 10 `@app.post` routes + the whole `/agent/*` router; bearer / `X-API-Key` → `RMT_OPERATOR_TOKENS`; app refuses to start if enabled + unconfigured. `test_auth.py` (per-route 401/accept). | **READY** *(code; live once `auth.conf` deployed)* | Deploy `auth.conf` with real tokens (`docs/operations/DEPLOY.md`). | **P0** |
-| **S2** | Operator identity & non-repudiation | **DONE (lite)** — `/approve`, `/homelab/approve`, `/agent/authority/grant` now take the identity from the authenticated `OperatorIdentity`; the body `approved_by` / `granted_by` is ignored. `/execute` threads the operator name into `decision_id` / `reason`. | **READY** *(code)* | — | **P1** |
+| **S1** | Authentication on every mutating route | **DONE + LIVE** — `app/ops/auth.py` `require_operator` on all 10 `@app.post` routes + the whole `/agent/*` router; bearer / `X-API-Key` → `RMT_OPERATOR_TOKENS`; app refuses to start if enabled + unconfigured. `auth.conf` deployed with two operator tokens; live-verified 401/200. | **READY** | — | **P0** |
+| **S2** | Operator identity & non-repudiation | **DONE (lite) + LIVE** — `/approve`, `/homelab/approve`, `/agent/authority/grant` take the identity from the authenticated `OperatorIdentity`; body `approved_by` / `granted_by` ignored. `/execute` threads the operator name into `decision_id` / `reason`. Live-verified: grant recorded `granted_by: "ragb"` from the token, body value ignored. | **READY** | — | **P1** |
 | **S3** | Separation of duties | The same caller can `POST /agent/authority/grant` and then `POST /homelab/approve` the resulting hold. Identity is now *recorded* (S2); the rule is not yet *enforced*. | **GAP** | Enforce approver ≠ grantor / proposer for agent-originated holds (config-gated). Fast-follow behind an `RMT_AUTH_SEPARATION` toggle. | **P1** |
-| **S4** | Transport security & network exposure | Listens `0.0.0.0:8000`, plain HTTP. Artifacts ready: `deploy/systemd/bind-loopback.conf` (→ `127.0.0.1`), `deploy/Caddyfile` (`tls internal` proxy). | **PARTIAL** *(artifacts ready; live cutover pending)* | Install per `docs/operations/DEPLOY.md` §1.3–1.4; verify app unreachable off-loopback. | **P0** |
+| **S4** | Transport security & network exposure | **Loopback bind LIVE** — `bind-loopback.conf` deployed; app listens `127.0.0.1:8000` only, verified unreachable off-loopback. **Caddy TLS proxy NOT installed** — no LAN entry point yet; `deploy/Caddyfile` ready. | **PARTIAL** *(bind done; proxy pending owner decision on whether LAN access is needed)* | `apt install caddy`; `cp deploy/Caddyfile /etc/caddy/`; edit site addrs; `caddy trust` on operator machines (`DEPLOY.md` §1.4). | **P0** |
 | **S5** | CORS configuration | `allow_origins` hardcoded to `http://192.168.235.128:5173` + `localhost:5173`, `allow_credentials=True`, `allow_methods/headers=["*"]`. | **PARTIAL** | Move origins to config; scope methods/headers to what the frontend needs. | **P2** |
 | **S6** | Secrets management | Only a local Ollama endpoint today (no key). No secret store exists if a credentialed model / notifier / IdP is added. | **PARTIAL** | Adopt a secrets mechanism (env-file with restricted mode, or a vault) before introducing any credential. | **P2** |
 | **S7** | Abuse / rate protection on expensive routes | `/agent/act/llm` (model call) and `/execute` (real mutation) have no throttle or concurrency cap beyond the agent single-use grant. | **GAP** | Add a simple per-principal rate limit / concurrency guard on `/agent/act*` and `/execute`. | **P2** |
@@ -138,7 +142,7 @@ able to *tell a human*.
 | ID | Requirement | Current verified evidence | Status | Required action | Priority |
 |---|---|---|---|---|---|
 | **O1** | Structured application logging + rotation | No logging framework in `app/main.py` or `app/core/**` (no `logging.getLogger`, loguru, structlog). Output is uvicorn's default to the journal. | **GAP** | Introduce structured logging (request id, action id, decision, principal) at the governed-lifecycle boundaries; ensure journald retention / rotation is set. | **P1** |
-| **O2** | Alert on held remediation / agent proposal | **DONE** — `app/ops/notifications.py` `notify_held` (webhook via stdlib `urllib`, fail-open, per-key de-dupe) hooked at `/execute`, `/homelab/remediate`, the CAP-04 loop, and the agent adapter. `RMT_NOTIFY_WEBHOOK_URL` unset → logs only. `test_notifications.py`. | **READY** *(code; set a webhook to route it off-box)* | Set `RMT_NOTIFY_WEBHOOK_URL` in `auth.conf`. | **P0** |
+| **O2** | Alert on held remediation / agent proposal | **DONE + LIVE (log sink)** — `app/ops/notifications.py` `notify_held` (webhook via stdlib `urllib`, fail-open, per-key de-dupe) hooked at `/execute`, `/homelab/remediate`, the CAP-04 loop, and the agent adapter. Deployed with `RMT_NOTIFY_WEBHOOK_URL` **unset** → held actions log to the journal only. `test_notifications.py`. | **READY** *(routing to a real sink pending)* | Set `RMT_NOTIFY_WEBHOOK_URL` in `auth.conf` when a chat/email sink exists. | **P0** |
 | **O3** | Alert on loop quarantine / cycle error / service down | `homelab_loop_quarantine` etc. are recorded to memory only; no outbound signal. | **GAP** | Notify on quarantine, `last_cycle_error`, and service-down (external heartbeat). | **P1** |
 | **O4** | Platform self-metrics | No request-rate / error-rate / hold-queue-depth metrics for the RMT process. | **GAP** | Expose a metrics endpoint or periodic self-report (holds outstanding, cycles, error counts). | **P2** |
 
@@ -190,9 +194,9 @@ able to *tell a human*.
 
 | Priority | Items | State |
 |---|---|---|
-| **P0** | S1 auth · S2-lite identity · E1 atomic writes · O2 alerting | **code-complete** (2026-09-07) |
-| **P0** | S4 transport | artifacts ready; **live cutover pending** (`DEPLOY.md`) |
-| **P0** | E2 hold persistence | **open** — needs the Core-fix vs above-Core-mitigation decision |
+| **P0** | S1 auth · S2-lite identity · E1 atomic writes · O2 alerting | **code-complete + LIVE & verified** (2026-09-07 12:36 UTC) |
+| **P0** | S4 transport | loopback bind **LIVE**; Caddy TLS proxy **not installed** — owner decision on whether LAN access is needed |
+| **P0** | E2 hold persistence | **open** — Core-fix vs above-Core reconciliation, decision pending |
 | **P1** | S3, E3, E4, E5, D3, O1, O3, V1, V2, R1, R3 | pending (D1, D2 done) |
 | **P2** | S5, S6, S7, D4, D6, O4, V3, V4, E6 | pending (D5 done) |
 | **ACCEPTED** | R4 (single-instance) | recorded |
@@ -270,18 +274,22 @@ Not required for this platform to be production-ready at its current purpose:
 The RMT Core architecture is validated and frozen. The running platform is a
 working, evidenced control plane, live-exercised end to end.
 
-**P0 batch (2026-09-07):** authentication + operator identity (S1/S2-lite),
+**P0 batch (2026-09-07): authentication + operator identity (S1/S2-lite),
 atomic governance-evidence writes (E1), and held-action alerting (O2) are
-**code-complete and merged** — 254 tests pass, the 122 frozen-Core behavioural
-tests unchanged. Transport security (S4) has its artifacts (`deploy/`) and
-runbook (`docs/operations/DEPLOY.md`); the **live cutover is an operator step**.
-**E2** (a resolved hold is not persisted to the hold store; record store
-authoritative) is the one remaining P0 item and needs a Core-fix-vs-mitigation
-decision.
+code-complete, merged (254 tests pass, 122 frozen-Core tests unchanged), and
+LIVE on `:8000`** (service restarted 12:36 UTC; unauth → 401, authed → 200,
+`granted_by` = authenticated operator, evidence intact). The app now binds
+loopback only.
 
-After S4 is deployed and E2 is dispositioned, the platform meets the P0 bar for
-threat model (b). The P1/P2 items remain for a robust posture but are not
-individually blocking.
+**Remaining for the P0 bar (threat model b):**
+1. **S4 proxy** — decide whether LAN access is needed; if so install Caddy
+   (`deploy/Caddyfile`, `DEPLOY.md` §1.4). Loopback + auth is already a safe
+   resting state for SSH-only administration.
+2. **E2** — a resolved hold is not persisted to the hold store (record store
+   authoritative). Core-fix (breaks freeze, needs authorization) vs above-Core
+   reconciliation on startup. Decision pending.
+
+The P1/P2 items remain for a robust posture but are not individually blocking.
 
 ---
 

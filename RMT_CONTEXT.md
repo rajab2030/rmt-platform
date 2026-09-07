@@ -226,18 +226,23 @@ Learn/verify attribution beyond `REMEDIATION_POLICY` — the 2026-09-07 5B-exerc
 finding). A **production-readiness gap matrix** exists
 (`docs/RMT_PRODUCTION_READINESS.md`, 2026-09-07): above-Core / operational, does
 not reopen C01–C07. Threat model set to **(b) trusted LAN, few operators**.
-**P0 batch implemented 2026-09-07** (`docs/RMT_PROD_P0_PROPOSAL.md`, APPROVED):
-**S1** operator auth + **S2-lite** identity (new `app/ops/`, `require_operator`
-on all mutating routes + `/agent/*`; `RMT_OPERATOR_TOKENS`; authenticated name
-now lands in the evidence), **E1** atomic evidence writes (owner-authorized
-frozen-Core hardening of `durable_store._persist`), **O2** held-action webhook
-alerting. **D1** deps pinned + lock; **D2/D5** `docs/operations/DEPLOY.md` +
-`CONFIG.md`; **S4** artifacts in `deploy/` (Caddy TLS proxy + loopback bind).
+**P0 batch implemented + DEPLOYED 2026-09-07** (`docs/RMT_PROD_P0_PROPOSAL.md`,
+APPROVED; commit `c4f63a3`): **S1** operator auth + **S2-lite** identity (new
+`app/ops/`, `require_operator` on all mutating routes + `/agent/*`;
+`RMT_OPERATOR_TOKENS`; authenticated name now lands in the evidence), **E1**
+atomic evidence writes (owner-authorized frozen-Core hardening of
+`durable_store._persist`), **O2** held-action webhook alerting (log sink).
+**D1** deps pinned + lock; **D2/D5** `docs/operations/DEPLOY.md` + `CONFIG.md`.
 Validation: **254 tests pass** (214 + 40); Core intelligence 126 (122 unchanged
-+ 4). **Remaining P0:** S4 live cutover (operator step — install drop-ins +
-Caddy, issue tokens, redeploy, re-verify) and **E2** (resolved hold not
-persisted to the hold store — Core-fix vs above-Core-mitigation decision
-pending). Then P1 (S3 enforcement, E3/E4/E5, D3, O1/O3, V1/V2, R1/R3). Two recorded **frozen-Core notes** await owner consideration only
++ 4). **Live on :8000 since 12:36 UTC** — `auth.conf` (tokens `ragb`/`ops2`,
+`sudo cat` to read) + `bind-loopback.conf` deployed; verified: unauth → 401,
+authed → 200, `granted_by` = operator, app on `127.0.0.1:8000` only, evidence
+intact, CAP-04 loop + agent still healthy. **Remaining P0 (deferred to next
+session):** (1) **S4 Caddy proxy NOT installed** — RMT has no LAN entry point
+(loopback + auth only); owner decides if LAN access is needed. (2) **E2**
+(resolved hold not persisted to the hold store — Core-fix vs above-Core
+reconciliation decision pending). Then P1 (S3 enforcement, E3/E4/E5, D3, O1/O3,
+V1/V2, R1/R3). Monitoring / exercise calls now require a token header. Two recorded **frozen-Core notes** await owner consideration only
 (Core is frozen): (1) a *failed* adapter execution produces no verification
 evidence; (2) `approve_held_action` does not reliably persist the approval
 **hold** store on resolution — the approval **record** store is authoritative
