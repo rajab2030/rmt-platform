@@ -23,6 +23,16 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
 # Master switch. `propose_and_govern` is a no-op ("disabled") until this is set.
 AGENT_ENABLED = _env_bool("RMT_AGENT_ENABLED", False)
 
@@ -42,3 +52,17 @@ AGENT_DEFAULT_REQUIRES_APPROVAL = _env_bool(
 AGENT_DEPENDENCY_ESCALATION = _env_bool(
     "RMT_AGENT_DEPENDENCY_ESCALATION", True
 )
+
+# --- 5B: LLM-backed agent adapter (opt-in; separate from AGENT_ENABLED) ---
+# The LLM only *proposes*; every proposal still passes 5A authority + T13 +
+# governance + human approval. Disabled by default.
+AGENT_LLM_ENABLED = _env_bool("RMT_AGENT_LLM_ENABLED", False)
+AGENT_LLM_MODEL = os.environ.get(
+    "RMT_AGENT_LLM_MODEL", "deepseek-v4-flash:cloud"
+)
+AGENT_LLM_HOST = os.environ.get(
+    "RMT_AGENT_LLM_HOST", "http://127.0.0.1:11434"
+)
+AGENT_LLM_TIMEOUT_SECONDS = _env_int("RMT_AGENT_LLM_TIMEOUT_SECONDS", 60)
+AGENT_LLM_MAX_TOKENS = _env_int("RMT_AGENT_LLM_MAX_TOKENS", 400)
+AGENT_LLM_TEMPERATURE = _env_float("RMT_AGENT_LLM_TEMPERATURE", 0.1)
