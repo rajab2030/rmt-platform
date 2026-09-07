@@ -153,17 +153,20 @@ The RMT Core is now considered frozen.
   (2026-09-07). Runs the existing single-shot Homelab governed lifecycle on a
   cadence under supervision — cadence + guardrails only, no new mutation path.
   `app/homelab/operational_loop.py` + `loop_config.py`; routes
-  `GET/POST /homelab/loop/{status,start,stop,clear}`. **Disabled by default**
-  (`LOOP_ENABLED=False`). Guardrails: approval retained (holds never
+  `GET/POST /homelab/loop/{status,start,stop,clear}`. Ships disabled;
+  **ENABLED on the live server 2026-09-07** via systemd drop-in
+  `rmt-control-center.service.d/cap04-loop.conf`
+  (`RMT_HOMELAB_LOOP_ENABLED=true`). Guardrails: approval retained (holds never
   auto-continued), flap-guard/quarantine, cooldown, duplicate-hold guard
-  (read-only hold-store query → `awaiting_approval`), single-flight, fail-safe.
-  Diff confined to `app/homelab/**` + `app/main.py`; no `app/core/**` change.
-  Validation: 15 focused + 36 Homelab + 122 Core + 175 full, all passed.
-  **Live-demonstrated on the real homelab 2026-09-07** (owner-authorized;
-  isolated :8001 instance; fault-inject → held → approve → governed restart →
-  Docker `verified_success` → loop stood down; PASS). See
+  (read-only hold + record store query → `awaiting_approval`; a hold blocks only
+  while still-actionable — not terminally recorded, not past its TTL),
+  single-flight, fail-safe. Diff confined to `app/homelab/**` + `app/main.py`;
+  no `app/core/**` change. Validation: 17 focused + 38 Homelab + 122 Core + 177
+  full, all passed. **Live-demonstrated on the real homelab 2026-09-07**
+  (owner-authorized; isolated instance; fault-inject → held → approve → governed
+  restart → Docker `verified_success` → loop stood down; PASS). See
   `docs/RMT_CAP_04_PROPOSAL.md`, `docs/RMT_CAPABILITIES_EVIDENCE.md`, and the
-  `HANDOFF.md` live-demonstration session note.
+  `HANDOFF.md` session notes.
 
 **MCR/T13 disposition — RECORDED 2026-09-07** (`docs/RMT_T13_DISPOSITION.md`):
 ACCEPT (with constraint) + BOUND + DEFER. T13 is a policy-completeness gap in the
@@ -177,13 +180,14 @@ dependency-cascade escalation fix is assigned to **CAP-05**
 **Next action:** the next above-Core capability is to be selected by the owner
 from the candidate directions (engineering intelligence expansion, frontend
 governed-evidence/productization, real Docker demonstration, AI Agent Governance
-via the MCR pattern / draft CAP-05). One recorded item still awaits owner
-disposition: the frozen-Core evidence note that a *failed* adapter execution
-produces no verification evidence. Enabling the CAP-04 loop in the real homelab
-and running a live demonstration is an owner-authorized operational step
-(**authorized 2026-09-07**). Do not begin implementation of a new capability
-until the owner selects and authorizes it. Do not reopen C01–C07; do not invent
-a new Core milestone (no C08).
+via the MCR pattern / draft CAP-05). Two recorded **frozen-Core notes** await
+owner consideration only (Core is frozen): (1) a *failed* adapter execution
+produces no verification evidence; (2) `approve_held_action` does not reliably
+persist the approval **hold** store on resolution — the approval **record**
+store is authoritative (CAP-04's guard uses it). CAP-04 is enabled on the live
+server; a redeploy is pending to pick up the guard hardening. Do not begin
+implementation of a new capability until the owner selects and authorizes it. Do
+not reopen C01–C07; do not invent a new Core milestone (no C08).
 
 ## 13. Environment limitations vs genuine implementation gaps
 
@@ -221,6 +225,17 @@ a new Core milestone (no C08).
   green. Adapter-decoupling #2–#18 remain DEFERRED under the owner REDUCE-SCOPE
   decision (see `docs/RMT_CORE_ADAPTER_DECOUPING.md`).
 - G2 Core-boundary review record — recorded (PASS).
+- **Frozen-Core note (recorded 2026-09-07, not fixed):**
+  `approve_held_action` (`app/core/intelligence/actions/approval_service.py`)
+  sets `hold.status = APPROVED/REJECTED` on the in-memory object but only
+  persists the approval **record** store, never the approval **hold** store —
+  so a resolved hold can read `pending` on disk after a process restart. The
+  **record** store is authoritative on resolution. Surfaced by CAP-04's
+  duplicate-hold guard, which now cross-checks the record store + hold TTL.
+  Core is frozen; owner consideration only.
+- **Frozen-Core note (recorded earlier, not fixed):** a *failed* adapter
+  execution produces no verification evidence (AGENTS.md §11 lists it as a
+  distinguishable outcome). Owner consideration only.
 
 ## 15. Rules for distinguishing FACT / DECISION / PROPOSAL / UNKNOWN
 

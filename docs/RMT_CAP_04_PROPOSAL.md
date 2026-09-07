@@ -175,8 +175,16 @@ returns the benign outcome **`awaiting_approval`** — no `remediate_component`
 call, no new hold, no cooldown, no flap-window entry. Normal cycling resumes
 once the hold is approved / rejected / expired or the component recovers.
 Chosen approach: **store query** (catches holds created out-of-band too),
-not "remember only the loop's own approval_id". 3 new run-safe tests; full app
-suite **175 passed**.
+not "remember only the loop's own approval_id".
+
+**Hardening (same day, on live enablement):** enabling the loop surfaced a
+frozen-Core gap — `approve_held_action` flips `hold.status` in memory but does
+not reliably persist the approval **hold** store, so a hold resolved days ago
+can read `pending` on disk after a restart. `_hold_is_still_actionable` now
+treats a PENDING hold as blocking only while genuinely actionable: no terminal
+decision in the reliably-persisted approval **record** store, and not past its
+`APPROVAL_HOLD_TTL_SECONDS` TTL. 5 run-safe guard tests total; full app suite
+**177 passed**.
 
 ---
 

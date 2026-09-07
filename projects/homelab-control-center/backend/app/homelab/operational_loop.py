@@ -23,9 +23,11 @@ Guarantees (see ``docs/RMT_CAP_04_PROPOSAL.md``):
   * Cooldown -- after any remediation attempt a component is skipped until the
     cooldown elapses.
   * Duplicate-hold guard -- if an earlier remediation for a component is still
-    awaiting human approval, the loop does not route another one (it would only
-    mint a second hold and, unattended, drive a spurious quarantine). Resolved
-    by a read-only query of the approval hold store.
+    awaiting human approval (a *still-actionable* PENDING hold: not resolved
+    per the approval record store, not past its TTL), the loop does not route
+    another one (it would only mint a second hold and, unattended, drive a
+    spurious quarantine). Resolved by a read-only query of the approval hold /
+    record stores.
   * Single-flight -- cycles never overlap.
   * Fail-safe -- a per-component or per-cycle fault is recorded; the loop task
     stays alive and never raises into the app.
@@ -70,14 +72,59 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _pending_hold_for(component: str):
-    """Read-only: return an unresolved (pending) approval hold for this
-    component, or None.
+def _hold_is_still_actionable(hold, now: datetime) -> bool:
+    """A manual-approval hold blocks a new remediation only while it is
+    genuinely actionable.
 
-    The hold store is resolved through the Core module (not a direct import of
-    the singleton) so runtime / test substitution of that singleton is
-    honoured -- the same pattern ``app/homelab/continuation.py`` uses.
+    Two Core facts make a bare ``hold.status == PENDING`` check insufficient:
+
+      1. ``approve_held_action`` flips ``hold.status`` on the in-memory object
+         but does NOT reliably persist the hold store, so a hold that was
+         approved / rejected days ago can still read ``pending`` on disk after
+         a process restart. The approval RECORD store *is* reliably updated on
+         resolution, so a terminal record decision (``approved`` / ``rejected``)
+         means the hold is done.
+      2. A manual hold has a short resolution TTL
+         (``APPROVAL_HOLD_TTL_SECONDS``); once ``expires_at`` passes, the Core
+         itself rejects any continuation, so a lapsed hold cannot block either.
     """
+    if getattr(hold, "status", None) != ApprovalStatus.PENDING:
+        return False
+
+    expires_at = getattr(hold, "expires_at", None)
+    if expires_at is not None:
+        exp = (
+            expires_at
+            if expires_at.tzinfo is not None
+            else expires_at.replace(tzinfo=timezone.utc)
+        )
+        if exp <= now:
+            return False
+
+    try:
+        record = _approval_service.approval_record_storage.get_by_id(
+            hold.approval_id
+        )
+    except Exception:
+        record = None
+    if record is not None and getattr(record, "decision", None) in (
+        "approved",
+        "rejected",
+    ):
+        return False
+
+    return True
+
+
+def _pending_hold_for(component: str):
+    """Read-only: return a *still-actionable* unresolved approval hold for this
+    component, or None (see ``_hold_is_still_actionable``).
+
+    The hold / record stores are resolved through the Core module (not a direct
+    import of the singletons) so runtime / test substitution is honoured -- the
+    same pattern ``app/homelab/continuation.py`` uses.
+    """
+    now = _now()
     try:
         holds = _approval_service.approval_hold_storage.get_all()
     except Exception:
@@ -87,7 +134,7 @@ def _pending_hold_for(component: str):
         if (
             action is not None
             and getattr(action, "component", None) == component
-            and getattr(hold, "status", None) == ApprovalStatus.PENDING
+            and _hold_is_still_actionable(hold, now)
         ):
             return hold
     return None
