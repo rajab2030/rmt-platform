@@ -750,7 +750,49 @@ stays as defence in depth.
 to `app/agent/**`, `app/homelab/dependencies.py`. Not yet deployed to live (new
 files; a redeploy would pick them up, agent still OFF).
 
-### Next: RMT-CAP-05 (5B) — LLM-backed agent adapter
-Owner-selected as the next work item. Proposal §1/§3 (`app/agent/llm_agent.py`,
-`AGENT_LLM_ENABLED` default off, local Ollama as in `experiments/mcr3`). Not
-started — needs its own scoped proposal + approval.
+### CAP-05 (5B) — LLM-backed agent adapter (2026-09-07)
+
+**Owner:** approved the scope (`docs/RMT_CAP_05B_PROPOSAL.md`). Above-Core; no
+`app/core/**` change; disabled by default (`RMT_AGENT_LLM_ENABLED`).
+
+- **New** `app/agent/llm_client.py` — stdlib `urllib` Ollama client (the
+  `experiments/mcr3/atlas.py` pattern; no new dependency).
+- **New** `app/agent/llm_agent.py` — `LlmAgent.propose(goal, observations,
+  grant_id)`. Strict single-JSON parse + **fail-closed** validation: `target` ∈
+  known homelab components, `mechanism` ∈ `ActionType`, `confidence` int 0-100;
+  anything else → `LlmProposalError` with reason `no_proposal` /
+  `invalid_proposal` / `llm_parse_error` / `llm_error`. Never a partial/guessed
+  proposal. `agent_id="llm-agent"`.
+- **Modified** `app/agent/loop_config.py` — `AGENT_LLM_ENABLED` (False),
+  `AGENT_LLM_MODEL` (`deepseek-v4-flash:cloud`), host/timeout/tokens/temp.
+- **Modified** `app/agent/api.py` — `POST /agent/act/llm` {goal, grant_id};
+  disabled → `llm_disabled` (no model call); valid proposal →
+  `propose_and_govern(...)` (the 5A path, unchanged). `GET /agent/status` gains
+  a read-only `llm` block.
+- **New** `app/agent/testing/test_llm_agent.py` — 17 cases (model always mocked).
+
+**The LLM only proposes.** No execution, no tool calls, no authority, no
+continuation. Every LLM proposal still runs 5A: authority (scoped/single-use) →
+T13 escalation → governance → **human approval**. Layered defence: structural
+attacks rejected by the allow-list validation before an `ActionRequest` exists;
+a structurally-valid but semantically-wrong proposal (the prompt-injection
+shape) is caught by human approval — tested.
+
+**Out of scope (per the proposal):** no autonomous LLM loop (one goal → at most
+one proposal); no lowering of `AGENT_DEFAULT_REQUIRES_APPROVAL`; not wired into
+the CAP-04 loop; not enabled on live.
+
+**Validation:** 17 focused + agent suite **37** (20 + 17) + Core **122**
+(unchanged) + Homelab **38** (unchanged) + full app **214** (197 + 17). `import
+app.main` clean; both agent flags OFF by default.
+
+**Not deployed to live** — new files; a redeploy would pick them up, both the
+5A surface and 5B still OFF.
+
+### Next candidates (owner to select)
+- Enable 5A and/or 5B on the live server + a controlled LLM exercise.
+- Populate real `HOMELAB_DEPENDENCIES` edges if/when any exist (activates T13
+  for real).
+- Frontend governed-evidence view; engineering-intelligence expansion.
+- Notifications for held remediations / proposals (currently only visible via
+  `GET /homelab/loop/status` and the approval list).

@@ -20,6 +20,7 @@ from app.agent.authority import authority_store
 from app.agent.contract import AgentIdentity, AgentIntent, AgentProposal
 from app.agent.adapter import propose_and_govern
 from app.agent.dependency_guard import dependency_view
+from app.agent.llm_agent import LlmAgent, LlmProposalError
 
 
 router = APIRouter(prefix="/agent", tags=["Agent"])
@@ -42,6 +43,11 @@ class ProposeBody(BaseModel):
     reason: str = ""
     confidence: int = 0
     expected_state: str = "running"
+    grant_id: str | None = None
+
+
+class LlmActBody(BaseModel):
+    goal: str
     grant_id: str | None = None
 
 
@@ -92,6 +98,44 @@ def act(body: ProposeBody):
     return payload
 
 
+@router.post("/act/llm")
+def act_llm(body: LlmActBody):
+    """5B: an LLM turns a natural-language goal into a proposal, then the
+    proposal runs the identical 5A governed path (authority -> T13 ->
+    governance -> human approval). The LLM never executes anything."""
+    if not loop_config.AGENT_LLM_ENABLED:
+        return {
+            "decision": "llm_disabled",
+            "detail": "LLM agent disabled (RMT_AGENT_LLM_ENABLED)",
+        }
+
+    try:
+        from app.core.observability.service import (
+            get_current_container_metrics,
+        )
+
+        observations = get_current_container_metrics()
+    except Exception:
+        observations = []
+
+    try:
+        proposal = LlmAgent().propose(
+            body.goal, observations, grant_id=body.grant_id
+        )
+    except LlmProposalError as exc:
+        payload = {
+            "decision": exc.reason,
+            "detail": exc.detail,
+            "goal": body.goal,
+        }
+        _last_outcome["value"] = payload
+        return payload
+
+    payload = propose_and_govern(proposal).as_dict()
+    _last_outcome["value"] = payload
+    return payload
+
+
 @router.get("/status")
 def status():
     return {
@@ -99,6 +143,11 @@ def status():
         "default_requires_approval": loop_config.AGENT_DEFAULT_REQUIRES_APPROVAL,
         "dependency_escalation": loop_config.AGENT_DEPENDENCY_ESCALATION,
         "dependency_map": dependency_view(),
+        "llm": {
+            "enabled": loop_config.AGENT_LLM_ENABLED,
+            "model": loop_config.AGENT_LLM_MODEL,
+            "host": loop_config.AGENT_LLM_HOST,
+        },
         "active_grants": len(authority_store.list_active()),
         "last_outcome": _last_outcome["value"],
     }

@@ -189,7 +189,16 @@ escalation; adding any edge escalates the matching allowed op automatically.
   `GET /agent/{status,authority}`. Disabled by default (`RMT_AGENT_ENABLED`).
   Diff confined to `app/agent/**` + `app/main.py`; no `app/core/**` change; no
   new mutation path; held proposals never auto-continued. 20 focused + 122 Core
-  (unchanged) + 197 full, all passed. **Deployed to the live server 2026-09-07
+  (unchanged) + 197 full, all passed.
+- **RMT-CAP-05 (5B) — LLM-Backed Agent Adapter:** COMPLETED & VERIFIED
+  (2026-09-07). A local LLM (`deepseek-v4-flash:cloud` via Ollama) turns a
+  natural-language goal into a structured `AgentProposal` that runs the
+  identical 5A path (authority → T13 → governance → human approval). The LLM
+  only proposes — no execution/tools/authority/continuation. Fail-closed parse
+  + allow-list validation; `POST /agent/act/llm`; disabled by default
+  (`RMT_AGENT_LLM_ENABLED`). Diff confined to `app/agent/**`; no `app/core/**`
+  change; no autonomous loop. 17 focused + 37 agent + 122 Core (unchanged) +
+  214 full, all passed. See `docs/RMT_CAP_05B_PROPOSAL.md`. **Deployed to the live server 2026-09-07
   with the agent OFF** (`/agent/*` routes present, `enabled: false`) and
   exercised once on a temp enabled instance (grant → propose → held → approve →
   governed docker restart → Docker `verified_success`; single-use +
@@ -199,8 +208,8 @@ escalation; adding any edge escalates the matching allowed op automatically.
 
 **Next action:** the next above-Core capability is to be selected by the owner
 from the candidate directions (engineering intelligence expansion, frontend
-governed-evidence/productization, **CAP-05 5B** — the LLM-backed agent adapter,
-owner-selected as the next work item; needs its own scoped proposal). Two recorded **frozen-Core notes** await
+governed-evidence/productization, enabling 5A / 5B on the live server + a controlled LLM exercise; a frontend
+governed-evidence view; notifications for held remediations/proposals). Two recorded **frozen-Core notes** await
 owner consideration only (Core is frozen): (1) a *failed* adapter execution
 produces no verification evidence; (2) `approve_held_action` does not reliably
 persist the approval **hold** store on resolution — the approval **record**

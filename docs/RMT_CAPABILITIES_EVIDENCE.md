@@ -248,6 +248,54 @@ C08; no frozen Core code modified. Approved scope: `docs/RMT_CAP_05_PROPOSAL.md`
   `dependency_guard.py` unions it with the Core context; `GET /agent/status`
   exposes the resolved map. `docs/RMT_T13_DISPOSITION.md` verdict moved to
   **ACCEPT + BOUND + CLOSED**.
+
+### RMT-CAP-05 (5B) — LLM-Backed Agent Adapter
+
+**Date:** 2026-09-07. Above-Core. Owner approved the scope
+(`docs/RMT_CAP_05B_PROPOSAL.md`). C01–C07 remain closed/frozen; no C08; no
+`app/core/**` change. **Disabled by default** (`RMT_AGENT_LLM_ENABLED`).
+
+- **Objective:** a local LLM turns a natural-language goal into a structured
+  `AgentProposal`, then the proposal runs the **identical 5A path**
+  (`propose_and_govern` → authority → T13 → governance → human approval). The
+  LLM only proposes — no execution, no tool calls, no authority, no continuation.
+- **Implementation:**
+  - **New** `app/agent/llm_client.py` — stdlib `urllib` Ollama client (the
+    `experiments/mcr3/atlas.py` pattern; no new dependency).
+  - **New** `app/agent/llm_agent.py` — `LlmAgent.propose(goal, observations,
+    grant_id)`. Strict single-JSON-object parse; **fail-closed** validation:
+    `target` ∈ known homelab components, `mechanism` ∈ `ActionType`,
+    `confidence` int 0–100; `propose:false` / missing / non-JSON / transport
+    error → `LlmProposalError(reason)` with `reason` ∈
+    `{no_proposal, invalid_proposal, llm_parse_error, llm_error}` — never a
+    partial or guessed proposal.
+  - **Modified** `app/agent/loop_config.py` — `AGENT_LLM_ENABLED` (default
+    **False**), `AGENT_LLM_MODEL` (`deepseek-v4-flash:cloud`),
+    `AGENT_LLM_HOST` (`http://127.0.0.1:11434`), timeout / max-tokens /
+    temperature.
+  - **Modified** `app/agent/api.py` — `POST /agent/act/llm` {goal, grant_id}:
+    disabled → `llm_disabled` (no model call); `LlmProposalError` → that reason;
+    valid → `propose_and_govern(...)` → the 5A `AgentOutcome`. `GET /agent/status`
+    gains a read-only `llm` block.
+- **Validation:** **17 focused tests** (`app/agent/testing/test_llm_agent.py`) —
+  parse of valid / `propose:false` / unknown target / bad mechanism / bad
+  confidence / non-JSON / prose-wrapped JSON; transport error → `llm_error`;
+  endpoint disabled gate; valid proposal → governed hold; no grant →
+  `no_authority` (LLM does not bypass authority); invalid target never reaches
+  governance; **semantic-injection shape** (structurally valid but
+  goal-mismatched target) → still `hold` for human approval (documents that
+  approval, not validation, is the catch). Agent suite **37** (20 + 17); Core
+  **122**, Homelab **38** (both unchanged); full app **214** (197 + 17).
+  `import app.main` clean; `RMT_AGENT_LLM_ENABLED=False` and
+  `RMT_AGENT_ENABLED=False` by default.
+- **Core integrity:** diff confined to `app/agent/**`. No second mutation
+  boundary — an LLM proposal becomes an `AgentProposal` → `propose_and_govern`
+  → `ActionRequest` → `execute_governed_action` only. Approval / T13 / authority
+  / Learn inherited from 5A unchanged. No autonomous LLM loop (one goal → at
+  most one proposal). Claim C not claimed (the LLM has no code path).
+- **Deferred / not done:** enabling 5B on the live server (a further explicit
+  step); wiring the LLM into the CAP-04 operational loop; any multi-step
+  reasoning loop.
 - **Core integrity:** diff confined to `app/agent/**` + `app/main.py` (router
   registration). No `app/core/**` change; no second mutation boundary (a
   proposal becomes an `ActionRequest` routed through `execute_governed_action`
@@ -278,7 +326,8 @@ C08; no frozen Core code modified. Approved scope: `docs/RMT_CAP_05_PROPOSAL.md`
 | RMT-CAP-02 — Engineering Change-Impact & Risk Analysis | COMPLETED & VERIFIED | 14 focused + 155 full | C01–C07 untouched |
 | RMT-CAP-03 — Homelab Remediation Approval-Continuation Learn Closure | COMPLETED & VERIFIED | 5 focused + 122 Core + 160 full | C01–C07 untouched; no frozen Core code modified |
 | RMT-CAP-04 — Continuous Homelab Operational Loop | COMPLETED & VERIFIED; live-demonstrated + enabled on live 2026-09-07 | 17 focused + 38 Homelab + 122 Core + 177 full; live run PASS | C01–C07 untouched; no `app/core/**` modified; T13 disposition recorded; duplicate-hold guard hardened against frozen-Core hold-persistence gap |
-| RMT-CAP-05 (5A) — Governed Agent Surface | COMPLETED & VERIFIED (5A); deployed to live (OFF) + exercised 2026-09-07; 5B deferred | 20 focused + 122 Core + 38 Homelab + 197 full; live exercise PASS | C01–C07 untouched; diff confined to `app/agent/**` + `app/homelab/dependencies.py` + `app/main.py`; no new mutation path; **T13 CLOSED** (guard live, homelab recorded independent); disabled by default |
+| RMT-CAP-05 (5A) — Governed Agent Surface | COMPLETED & VERIFIED (5A); deployed to live (OFF) + exercised 2026-09-07 | 20 focused + 122 Core + 38 Homelab + 197 full; live exercise PASS | C01–C07 untouched; diff confined to `app/agent/**` + `app/homelab/dependencies.py` + `app/main.py`; no new mutation path; **T13 CLOSED** (guard live, homelab recorded independent); disabled by default |
+| RMT-CAP-05 (5B) — LLM-Backed Agent Adapter | COMPLETED & VERIFIED 2026-09-07 | 17 focused + 37 agent + 122 Core + 38 Homelab + 214 full | C01–C07 untouched; diff confined to `app/agent/**`; LLM proposes only → 5A path unchanged; no new mutation path; no autonomous loop; disabled by default (`RMT_AGENT_LLM_ENABLED`) |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.
