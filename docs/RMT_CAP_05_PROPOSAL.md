@@ -1,8 +1,11 @@
 # RMT-CAP-05 — Governed Agent Surface (AI Agent Governance) — Proposal
 
-**Status:** **5A APPROVED & IMPLEMENTED 2026-09-07** (owner: "approve 5A now").
-**5B (LLM agent) remains DRAFT / deferred** — a separate owner decision.
-See `docs/RMT_CAPABILITIES_EVIDENCE.md` §CAP-05 for the 5A evidence record.
+**Status:** **5A APPROVED & IMPLEMENTED 2026-09-07** (owner: "approve 5A now");
+deployed to live (OFF) + exercised. **T13 CLOSED 2026-09-07** — the
+dependency-cascade guard is live and wired to an above-Core homelab dependency
+map (`app/homelab/dependencies.py`), recorded all-independent
+(`docs/RMT_T13_DISPOSITION.md` §3c). **5B (LLM agent) remains DRAFT / deferred**
+— a separate owner decision. See `docs/RMT_CAPABILITIES_EVIDENCE.md` §CAP-05.
 **Classification:** Above-Core / domain. No C08. No frozen Core change. No
 reopening of C01–C07.
 **Predecessors:** RMT-CAP-01/02/03/04 (completed; CAP-04 live-demonstrated
