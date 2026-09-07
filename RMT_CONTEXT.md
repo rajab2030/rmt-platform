@@ -185,7 +185,7 @@ owner consideration only (Core is frozen): (1) a *failed* adapter execution
 produces no verification evidence; (2) `approve_held_action` does not reliably
 persist the approval **hold** store on resolution — the approval **record**
 store is authoritative (CAP-04's guard uses it). CAP-04 is enabled on the live
-server; a redeploy is pending to pick up the guard hardening. Do not begin
+server (redeployed 2026-09-07 with the guard hardening; loop idle at `no_remediation`, 2 clean cycles). Do not begin
 implementation of a new capability until the owner selects and authorizes it. Do
 not reopen C01–C07; do not invent a new Core milestone (no C08).
 

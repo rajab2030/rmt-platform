@@ -449,7 +449,7 @@ only. Approval enforcement unchanged. Learning append-only / read-only.
   within the envelope no longer waits on a separate T13 decision.
 - Enabling in the real homelab: **DONE 2026-09-07** — `RMT_HOMELAB_LOOP_ENABLED=true`
   via systemd drop-in; live demonstration performed the same day (see notes
-  below). A redeploy is pending to pick up the duplicate-hold guard hardening.
+  below). Redeployed 2026-09-07 with the guard hardening; live loop then idle at `no_remediation`.
 - **Recorded frozen-Core notes** (Core is frozen; owner consideration only):
   - a *failed* adapter execution produces no verification evidence
     (AGENTS.md §11 lists it as a distinguishable outcome);
