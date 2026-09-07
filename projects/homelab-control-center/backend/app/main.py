@@ -1,9 +1,13 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.schemas.container import Container
+
+from app.ops import ops_config
+from app.ops.auth import OperatorIdentity, require_operator
+from app.ops.notifications import notify_held
 
 from app.monitor import get_history
 from app.collector import collect_metrics
@@ -82,6 +86,14 @@ collector_task = None
 async def lifespan(app: FastAPI):
     global collector_task
 
+    # S1: refuse to start with an unauthenticated mutating surface.
+    if ops_config.auth_enabled() and not ops_config.operator_tokens():
+        raise RuntimeError(
+            "RMT_AUTH_ENABLED is true but RMT_OPERATOR_TOKENS is empty -- "
+            "refusing to start. Set operator tokens or (local dev only) "
+            "RMT_AUTH_ENABLED=false."
+        )
+
     register_default_adapters()
 
     collector_task = asyncio.create_task(
@@ -127,7 +139,9 @@ app.include_router(intelligence_router)
 
 app.include_router(engineering_router)
 
-app.include_router(agent_router)
+# S1: the agent surface (grant / act / act.llm and its read-only status) is
+# entirely behind operator authentication.
+app.include_router(agent_router, dependencies=[Depends(require_operator)])
 
 
 @app.get("/")
@@ -182,6 +196,7 @@ def execute(
     operation: str,
     target: str,
     image: str | None = None,
+    operator: OperatorIdentity = Depends(require_operator),
 ):
     """
     Route container mutations through the single authoritative governed
@@ -202,26 +217,38 @@ def execute(
         }
 
     action = ActionRequest(
-        decision_id=f"operator-request-{operation}",
+        decision_id=f"operator-{operator.name}-{operation}",
         component=target,
         action_type=action_type,
-        reason=f"Operator requested {operation} on {target}",
+        reason=f"Operator {operator.name} requested {operation} on {target}",
         confidence=100,
         requires_approval=False,
         parameters={"image": image} if image else {},
     )
 
-    return execute_governed_action(
+    result = execute_governed_action(
         action,
         adapter_name=_resolve_adapter_name(),
     )
+
+    if isinstance(result, dict) and result.get("status") == "manual_approval_required":
+        notify_held(
+            kind="operator_execute",
+            component=target,
+            approval_id=result.get("approval_id"),
+            detail=result.get("reason", "") or "",
+            source="http_execute",
+        )
+
+    return result
 
 
 @app.post("/approve")
 def approve(
     approval_id: str,
-    approved_by: str,
     approved: bool = True,
+    approved_by: str | None = None,  # deprecated: identity comes from auth
+    operator: OperatorIdentity = Depends(require_operator),
 ):
     """
     Legitimate continuation for a manually held governed action.
@@ -229,16 +256,22 @@ def approve(
     Resumes the previously governed action only after the required approval
     has been granted. It does not create a new action, skip policy/risk, or
     manufacture authorization independently.
+
+    The approving identity is the authenticated operator; any ``approved_by``
+    query field is ignored (kept only for transitional compatibility).
     """
     return approve_held_action(
         approval_id,
-        approved_by=approved_by,
+        approved_by=operator.name,
         approved=approved,
     )
 
 
 @app.post("/homelab/remediate")
-def homelab_remediate(component: str):
+def homelab_remediate(
+    component: str,
+    operator: OperatorIdentity = Depends(require_operator),
+):
     """
     Above-Core Homelab remediation entrypoint.
 
@@ -249,14 +282,26 @@ def homelab_remediate(component: str):
     bypasses policy, risk, approval, authorization, or execution validation.
     """
     from app.homelab.remediation import remediate_component
-    return remediate_component(component)
+    result = remediate_component(component)
+
+    if isinstance(result, dict) and result.get("status") == "manual_approval_required":
+        notify_held(
+            kind="remediation",
+            component=component,
+            approval_id=result.get("approval_id"),
+            detail=result.get("reason", "") or "",
+            source="http_remediate",
+        )
+
+    return result
 
 
 @app.post("/homelab/approve")
 def homelab_approve(
     approval_id: str,
-    approved_by: str,
     approved: bool = True,
+    approved_by: str | None = None,  # deprecated: identity comes from auth
+    operator: OperatorIdentity = Depends(require_operator),
 ):
     """
     Above-Core Homelab remediation approval-continuation entrypoint.
@@ -268,11 +313,14 @@ def homelab_approve(
     continuation is called unchanged; this layer only records evidence after
     the Core has executed. A non-Homelab held action is continued exactly as
     the generic POST /approve would.
+
+    The approving identity is the authenticated operator; any ``approved_by``
+    query field is ignored (kept only for transitional compatibility).
     """
     from app.homelab.continuation import continue_remediation
     return continue_remediation(
         approval_id,
-        approved_by=approved_by,
+        approved_by=operator.name,
         approved=approved,
     )
 
@@ -288,7 +336,7 @@ def homelab_loop_status():
     return operational_loop.get_status()
 
 
-@app.post("/homelab/loop/start")
+@app.post("/homelab/loop/start", dependencies=[Depends(require_operator)])
 async def homelab_loop_start():
     """
     Above-Core RMT-CAP-04 control: enable the continuous Homelab operational
@@ -299,7 +347,7 @@ async def homelab_loop_start():
     return operational_loop.start()
 
 
-@app.post("/homelab/loop/stop")
+@app.post("/homelab/loop/stop", dependencies=[Depends(require_operator)])
 async def homelab_loop_stop():
     """
     Above-Core RMT-CAP-04 control: disable the continuous Homelab operational
@@ -308,7 +356,7 @@ async def homelab_loop_stop():
     return operational_loop.stop()
 
 
-@app.post("/homelab/loop/clear")
+@app.post("/homelab/loop/clear", dependencies=[Depends(require_operator)])
 def homelab_loop_clear(component: str):
     """
     Above-Core RMT-CAP-04 control: manually clear a component's loop

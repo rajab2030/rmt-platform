@@ -223,13 +223,21 @@ governed-evidence view / productization; notifications for held
 remediations/proposals; populate real `HOMELAB_DEPENDENCIES` edges if any exist,
 which activates T13 for real; widen `continue_remediation` above-Core
 Learn/verify attribution beyond `REMEDIATION_POLICY` — the 2026-09-07 5B-exercise
-finding). A **production-readiness gap matrix** now exists
+finding). A **production-readiness gap matrix** exists
 (`docs/RMT_PRODUCTION_READINESS.md`, 2026-09-07): above-Core / operational, does
-not reopen C01–C07. It records 21 GAP / 10 PARTIAL items; blocking set (P0) is
-S1 authentication, S4 transport/bind, E1 atomic evidence writes, E2 hold
-persistence, O2 held-action alerting. First step there is the owner fixing the
-deployment/threat model (§2). Several P2 candidate directions above are the same
-items (notifications = O2; frontend view relates to O-group). Two recorded **frozen-Core notes** await owner consideration only
+not reopen C01–C07. Threat model set to **(b) trusted LAN, few operators**.
+**P0 batch implemented 2026-09-07** (`docs/RMT_PROD_P0_PROPOSAL.md`, APPROVED):
+**S1** operator auth + **S2-lite** identity (new `app/ops/`, `require_operator`
+on all mutating routes + `/agent/*`; `RMT_OPERATOR_TOKENS`; authenticated name
+now lands in the evidence), **E1** atomic evidence writes (owner-authorized
+frozen-Core hardening of `durable_store._persist`), **O2** held-action webhook
+alerting. **D1** deps pinned + lock; **D2/D5** `docs/operations/DEPLOY.md` +
+`CONFIG.md`; **S4** artifacts in `deploy/` (Caddy TLS proxy + loopback bind).
+Validation: **254 tests pass** (214 + 40); Core intelligence 126 (122 unchanged
++ 4). **Remaining P0:** S4 live cutover (operator step — install drop-ins +
+Caddy, issue tokens, redeploy, re-verify) and **E2** (resolved hold not
+persisted to the hold store — Core-fix vs above-Core-mitigation decision
+pending). Then P1 (S3 enforcement, E3/E4/E5, D3, O1/O3, V1/V2, R1/R3). Two recorded **frozen-Core notes** await owner consideration only
 (Core is frozen): (1) a *failed* adapter execution produces no verification
 evidence; (2) `approve_held_action` does not reliably persist the approval
 **hold** store on resolution — the approval **record** store is authoritative

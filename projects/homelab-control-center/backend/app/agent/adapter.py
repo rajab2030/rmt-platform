@@ -21,6 +21,7 @@ from app.core.intelligence.actions.service import execute_governed_action
 
 from app.homelab.remediation import resolve_adapter_name, record_learning
 from app.homelab.verification import verify_docker_execution
+from app.ops.notifications import notify_held
 
 from app.agent import loop_config
 from app.agent.authority import authority_store
@@ -96,6 +97,14 @@ def propose_and_govern(proposal: AgentProposal) -> AgentOutcome:
             target, result, confidence=proposal.intent.confidence
         )
         outcome.learn_recorded = True
+        # O2: an agent-proposed action is awaiting human approval.
+        notify_held(
+            kind="agent_proposal",
+            component=target,
+            approval_id=result.get("approval_id"),
+            detail=esc_reason or result.get("reason", "") or "",
+            source="agent_adapter",
+        )
         return outcome
 
     if status == "executed":

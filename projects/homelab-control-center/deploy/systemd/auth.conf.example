@@ -1,0 +1,23 @@
+# production-readiness S1 / S2-lite / O2 -- operator authentication + alerting.
+#
+# Install (as root, restrictive mode -- the file holds shared secrets):
+#   sudo install -m 0600 deploy/systemd/auth.conf.example \
+#     /etc/systemd/system/rmt-control-center.service.d/auth.conf
+#   sudo $EDITOR /etc/systemd/system/rmt-control-center.service.d/auth.conf
+#   sudo systemctl daemon-reload && sudo systemctl restart rmt-control-center.service
+#
+# Generate each token with:  openssl rand -hex 24
+# Rotate by editing this file + daemon-reload + restart.
+#
+# With RMT_AUTH_ENABLED=true and RMT_OPERATOR_TOKENS empty the app refuses to
+# start (no unauthenticated mutating surface).
+
+[Service]
+Environment=RMT_AUTH_ENABLED=true
+Environment=RMT_OPERATOR_TOKENS=alice:REPLACE_WITH_RANDOM_1,bob:REPLACE_WITH_RANDOM_2
+
+# --- O2: held-action notifications (optional) ---------------------------------
+# Unset  => a held remediation / agent proposal is written to the service log.
+# Set    => also POSTed as JSON to this webhook (5s timeout, fail-open).
+#Environment=RMT_NOTIFY_WEBHOOK_URL=https://chat.homelab.lan/hooks/rmt
+#Environment=RMT_NOTIFY_MIN_INTERVAL_SECONDS=60

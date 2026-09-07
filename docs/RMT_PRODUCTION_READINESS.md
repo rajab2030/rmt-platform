@@ -21,6 +21,13 @@ It answers one question:
 survive a restart or crash with its governance evidence intact, reproducibly
 deployable, observable, and recoverable.
 
+> **P0 batch implemented 2026-09-07** (`docs/RMT_PROD_P0_PROPOSAL.md`, APPROVED).
+> S1 + S2-lite (auth + operator identity), E1 (atomic evidence writes), O2
+> (held-action alerting) are **code-complete and merged** (254 tests pass).
+> S4 (loopback bind + Caddy TLS proxy) artifacts are in `deploy/`; the live
+> cutover is an operator step (`docs/operations/DEPLOY.md`). Status cells below
+> updated accordingly; **E2 remains open** (separate Core-fix decision).
+
 ### Relationship to the Core Gap Matrix
 
 `RMT_CORE_GAP_MATRIX.md` establishes that the **Core architecture** is complete:
@@ -90,10 +97,10 @@ currently enforces who the operator is.
 
 | ID | Requirement | Current verified evidence | Status | Required action | Priority |
 |---|---|---|---|---|---|
-| **S1** | Authentication on every mutating route | `app/main.py` adds only `CORSMiddleware`; no `Depends`, API key, or bearer auth. `/execute`, `/approve`, `/homelab/approve`, `/homelab/remediate`, `/homelab/loop/*`, `/agent/authority/grant`, `/agent/act`, `/agent/act/llm` all open. | **GAP** | Add an auth dependency (API key or bearer token → reverse proxy / IdP) enforced on all mutating routes; read-only routes may stay open or share it. | **P0** |
-| **S2** | Operator identity & non-repudiation | `approved_by` / `granted_by` / `authorized_by` are free-text request fields, unverified. Evidence records whatever string is sent. | **GAP** | Derive the actor identity from the authenticated principal (S1), not the request body; record it in the authorization / approval evidence. | **P1** |
-| **S3** | Separation of duties | The same caller can `POST /agent/authority/grant` and then `POST /homelab/approve` the resulting hold. No proposer ≠ approver rule. | **GAP** | Enforce that the approving principal differs from the grantor / proposer for agent-originated holds (config-gated for single-operator mode). | **P1** |
-| **S4** | Transport security & network exposure | Listens `0.0.0.0:8000`, plain HTTP. | **GAP** | Bind `127.0.0.1` behind a TLS-terminating reverse proxy, or add TLS + restrict the bind address. | **P0** |
+| **S1** | Authentication on every mutating route | **DONE** — `app/ops/auth.py` `require_operator` dependency on all 10 `@app.post` routes + the whole `/agent/*` router; bearer / `X-API-Key` → `RMT_OPERATOR_TOKENS`; app refuses to start if enabled + unconfigured. `test_auth.py` (per-route 401/accept). | **READY** *(code; live once `auth.conf` deployed)* | Deploy `auth.conf` with real tokens (`docs/operations/DEPLOY.md`). | **P0** |
+| **S2** | Operator identity & non-repudiation | **DONE (lite)** — `/approve`, `/homelab/approve`, `/agent/authority/grant` now take the identity from the authenticated `OperatorIdentity`; the body `approved_by` / `granted_by` is ignored. `/execute` threads the operator name into `decision_id` / `reason`. | **READY** *(code)* | — | **P1** |
+| **S3** | Separation of duties | The same caller can `POST /agent/authority/grant` and then `POST /homelab/approve` the resulting hold. Identity is now *recorded* (S2); the rule is not yet *enforced*. | **GAP** | Enforce approver ≠ grantor / proposer for agent-originated holds (config-gated). Fast-follow behind an `RMT_AUTH_SEPARATION` toggle. | **P1** |
+| **S4** | Transport security & network exposure | Listens `0.0.0.0:8000`, plain HTTP. Artifacts ready: `deploy/systemd/bind-loopback.conf` (→ `127.0.0.1`), `deploy/Caddyfile` (`tls internal` proxy). | **PARTIAL** *(artifacts ready; live cutover pending)* | Install per `docs/operations/DEPLOY.md` §1.3–1.4; verify app unreachable off-loopback. | **P0** |
 | **S5** | CORS configuration | `allow_origins` hardcoded to `http://192.168.235.128:5173` + `localhost:5173`, `allow_credentials=True`, `allow_methods/headers=["*"]`. | **PARTIAL** | Move origins to config; scope methods/headers to what the frontend needs. | **P2** |
 | **S6** | Secrets management | Only a local Ollama endpoint today (no key). No secret store exists if a credentialed model / notifier / IdP is added. | **PARTIAL** | Adopt a secrets mechanism (env-file with restricted mode, or a vault) before introducing any credential. | **P2** |
 | **S7** | Abuse / rate protection on expensive routes | `/agent/act/llm` (model call) and `/execute` (real mutation) have no throttle or concurrency cap beyond the agent single-use grant. | **GAP** | Add a simple per-principal rate limit / concurrency guard on `/agent/act*` and `/execute`. | **P2** |
@@ -105,7 +112,7 @@ substrate is currently weaker than the governance logic on top of it.
 
 | ID | Requirement | Current verified evidence | Status | Required action | Priority |
 |---|---|---|---|---|---|
-| **E1** | Atomic, concurrency-safe evidence writes | `DurableStore._persist` does `open(path, "w")` + `json.dump(full list)` on every `save()`. No temp-file+rename, no lock, no fsync. A crash mid-write or two concurrent writers can truncate / corrupt an evidence file. | **GAP** | Atomic write (write temp + `os.replace`) + advisory lock, or migrate the six governance stores to SQLite (as intelligence memory already is). | **P0** |
+| **E1** | Atomic, concurrency-safe evidence writes | **DONE** — `DurableStore._persist` writes a sibling `.tmp`, `flush` + `os.fsync`, then `os.replace` (atomic on POSIX); `_load` discards stale `.tmp`. Byte-identical committed output; owner-authorized frozen-Core hardening deviation. `test_durable_store_atomic.py` (interrupted-write leaves prior file intact). | **READY** | — | **P0** |
 | **E2** | Hold state persisted on resolution | `approve_held_action` sets `hold.status` in memory and persists only the approval **record** store, never the **hold** store. After a restart a resolved hold reloads as `pending`. (Recorded frozen-Core note.) | **GAP** | Fix in Core (owner decision on the freeze) **or** an above-Core reconciliation on load; until then the **record** store is authoritative and consumers must cross-check it (CAP-04's guard already does). | **P0** |
 | **E3** | Failed-execution verification evidence | A failed adapter execution produces **no** verification record — not even `verification_failure` / `state_mismatch`. `AGENTS.md` §11 lists "adapter invoked and failed" as an outcome that should be distinguishable. (Recorded frozen-Core note.) | **GAP** | Emit a distinguishable verification/evidence record on adapter failure (Core fix on the freeze, or an above-Core wrapper on the execution result). | **P1** |
 | **E4** | Retention / rotation / size management | The six JSON stores grow unbounded and are fully rewritten each save (O(n) per write). | **GAP** | Define a retention window + archival/rotation; this is also resolved by an E1 migration to SQLite. | **P1** |
@@ -116,11 +123,11 @@ substrate is currently weaker than the governance logic on top of it.
 
 | ID | Requirement | Current verified evidence | Status | Required action | Priority |
 |---|---|---|---|---|---|
-| **D1** | Pinned, reproducible dependency set | `backend/requirements.txt` = `fastapi`, `uvicorn[standard]`, `docker` — all unpinned. `httpx2` (used by tests) is not listed. The working `.venv` has real versions that are not captured anywhere. | **GAP** | Produce a locked, pinned requirement set (hashes or a lock file); verify a clean venv builds and the suite passes from it. | **P1** |
-| **D2** | Deploy + rollback runbook for the RMT service | No runbook for the service itself (unit file, drop-ins, venv, stores). Rollback is implicitly "git + restart" but undocumented. | **GAP** | Write a deploy/rollback runbook: how to update the tree, which drop-ins exist, how to verify post-deploy (`/agent/status`, `/homelab/loop/status`, suite), how to roll back. | **P1** |
+| **D1** | Pinned, reproducible dependency set | **DONE** — `backend/requirements.txt` now pins every direct dep (+ `pytest`, `httpx2` as test-only); `backend/requirements.lock.txt` is the full 33-package transitive lock (`pip freeze`). | **READY** | Verify a clean venv builds from the lock in CI (V2). | **P1** |
+| **D2** | Deploy + rollback runbook for the RMT service | **DONE** — `docs/operations/DEPLOY.md` (first-time P0 cutover, routine redeploy, rollback, token rotation, restart-safety check) + `docs/operations/CONFIG.md` (every `RMT_*` var — also closes **D5**). | **READY** | Exercise it on the next redeploy. | **P1** |
 | **D3** | Service hardening | The unit has only `Restart=always` / `RestartSec=5`. No `MemoryMax`, `CPUQuota`, `NoNewPrivileges`, `ProtectSystem`, `ProtectHome`, `PrivateTmp`, restart backoff. | **GAP** | Add systemd sandboxing + resource limits; `StartLimitIntervalSec` / burst; run as the least-privileged user with only the Docker socket it needs. | **P1** |
 | **D4** | Health/readiness probe acted upon | `/intelligence/health` returns 200 (D1 correction, C07). Nothing external watches it; `Restart=always` only restarts on process exit, not on unhealthy. | **PARTIAL** | Wire a watchdog (systemd `WatchdogSec` + `sd_notify`, or an external check) that restarts on sustained unhealthy. | **P2** |
-| **D5** | Consolidated configuration reference | The `RMT_*` env vars are spread across `cap04-loop.conf`, `cap05-agent.conf`, and `app/homelab/loop_config.py` / `app/agent/loop_config.py` defaults. No single reference. | **GAP** | One `docs/operations/` page listing every `RMT_*` var, its default, effect, and which drop-in sets it. | **P2** |
+| **D5** | Consolidated configuration reference | **DONE** — `docs/operations/CONFIG.md` lists every `RMT_*` var (auth, notify, CAP-04 loop, agent 5A/5B), default, effect, and which drop-in sets it, plus the expected live drop-in inventory. | **READY** | Keep in sync with `loop_config.py` changes. | **P2** |
 | **D6** | Documented runtime prerequisites & environment parity | Behaviour depends on git presence and Docker-socket reachability (adapter resolves to `simulation` vs `docker`); this has bitten test runs before. | **PARTIAL** | Document required host capabilities; make adapter-mode explicit in `/agent/status` / a health field; fail loudly if a required capability is missing in production mode. | **P2** |
 
 ### Group O — Observability & Alerting
@@ -131,7 +138,7 @@ able to *tell a human*.
 | ID | Requirement | Current verified evidence | Status | Required action | Priority |
 |---|---|---|---|---|---|
 | **O1** | Structured application logging + rotation | No logging framework in `app/main.py` or `app/core/**` (no `logging.getLogger`, loguru, structlog). Output is uvicorn's default to the journal. | **GAP** | Introduce structured logging (request id, action id, decision, principal) at the governed-lifecycle boundaries; ensure journald retention / rotation is set. | **P1** |
-| **O2** | Alert on held remediation / agent proposal | A hold is visible only by polling `GET /homelab/loop/status` or the approval list. Nothing notifies. | **GAP** | Emit a notification (webhook / email / chat) when a remediation or agent proposal enters `manual_approval_required`. | **P0** (given the loop is enabled unattended) |
+| **O2** | Alert on held remediation / agent proposal | **DONE** — `app/ops/notifications.py` `notify_held` (webhook via stdlib `urllib`, fail-open, per-key de-dupe) hooked at `/execute`, `/homelab/remediate`, the CAP-04 loop, and the agent adapter. `RMT_NOTIFY_WEBHOOK_URL` unset → logs only. `test_notifications.py`. | **READY** *(code; set a webhook to route it off-box)* | Set `RMT_NOTIFY_WEBHOOK_URL` in `auth.conf`. | **P0** |
 | **O3** | Alert on loop quarantine / cycle error / service down | `homelab_loop_quarantine` etc. are recorded to memory only; no outbound signal. | **GAP** | Notify on quarantine, `last_cycle_error`, and service-down (external heartbeat). | **P1** |
 | **O4** | Platform self-metrics | No request-rate / error-rate / hold-queue-depth metrics for the RMT process. | **GAP** | Expose a metrics endpoint or periodic self-report (holds outstanding, cycles, error counts). | **P2** |
 
@@ -166,25 +173,29 @@ able to *tell a human*.
 
 ## 4. Status Summary
 
+*(Updated after the P0 batch, 2026-09-07.)*
+
 | Group | READY | PARTIAL | GAP | ACCEPTED | N/A |
 |---|---|---|---|---|---|
-| S — Security & Access Control | 0 | 2 | 5 | 0 | 0 |
-| E — Evidence Durability & Integrity | 0 | 0 | 6 | 0 | 0 |
-| D — Deployment & Configuration | 0 | 2 | 4 | 0 | 0 |
-| O — Observability & Alerting | 0 | 0 | 4 | 0 | 0 |
+| S — Security & Access Control | 2 | 1 | 4 | 0 | 0 |
+| E — Evidence Durability & Integrity | 1 | 0 | 5 | 0 | 0 |
+| D — Deployment & Configuration | 3 | 1 | 2 | 0 | 0 |
+| O — Observability & Alerting | 1 | 0 | 3 | 0 | 0 |
 | V — Validation & Change Safety | 0 | 3 | 1 | 0 | 0 |
 | R — Resilience & Recovery | 1 | 1 | 1 | 1 | 0 |
 | G — Governance Process | 4 | 0 | 0 | 0 | 0 |
-| **Total** | **5** | **10** | **21** | **1** | **0** |
+| **Total** | **12** | **6** | **16** | **1** | **0** |
 
 ### By priority
 
-| Priority | Items |
-|---|---|
-| **P0** | S1 (auth), S4 (TLS/bind), E1 (atomic writes), E2 (hold persistence), O2 (held-action alert) |
-| **P1** | S2, S3, E3, E4, E5, D1, D2, D3, O1, O3, V1, V2, R1, R3 |
-| **P2** | S5, S6, S7, D4, D5, D6, O4, V3, V4, E6 |
-| **ACCEPTED** | R4 (single-instance) |
+| Priority | Items | State |
+|---|---|---|
+| **P0** | S1 auth · S2-lite identity · E1 atomic writes · O2 alerting | **code-complete** (2026-09-07) |
+| **P0** | S4 transport | artifacts ready; **live cutover pending** (`DEPLOY.md`) |
+| **P0** | E2 hold persistence | **open** — needs the Core-fix vs above-Core-mitigation decision |
+| **P1** | S3, E3, E4, E5, D3, O1, O3, V1, V2, R1, R3 | pending (D1, D2 done) |
+| **P2** | S5, S6, S7, D4, D6, O4, V3, V4, E6 | pending (D5 done) |
+| **ACCEPTED** | R4 (single-instance) | recorded |
 
 ---
 
@@ -254,18 +265,23 @@ Not required for this platform to be production-ready at its current purpose:
 
 ## 8. Final Verdict
 
-**CORE: COMPLETE & FROZEN. OPERATIONAL PRODUCTION-READINESS: NOT YET.**
+**CORE: COMPLETE & FROZEN. OPERATIONAL PRODUCTION-READINESS: P0 IN PROGRESS.**
 
 The RMT Core architecture is validated and frozen. The running platform is a
-working, evidenced control plane and has been live-exercised end to end. It is
-**not** yet production-ready as an exposed or unattended system: it has **no
-authentication** on its mutating surface, its **governance-evidence writes are
-non-atomic**, a **resolved hold is not durably persisted**, and **nothing alerts
-a human** when an action is held for approval. These four (S1, E1, E2, O2), plus
-transport security (S4), are the blocking set. The remaining P1/P2 items are
-required for a robust production posture but are not, individually, blocking.
+working, evidenced control plane, live-exercised end to end.
 
-No code was changed in producing this assessment.
+**P0 batch (2026-09-07):** authentication + operator identity (S1/S2-lite),
+atomic governance-evidence writes (E1), and held-action alerting (O2) are
+**code-complete and merged** — 254 tests pass, the 122 frozen-Core behavioural
+tests unchanged. Transport security (S4) has its artifacts (`deploy/`) and
+runbook (`docs/operations/DEPLOY.md`); the **live cutover is an operator step**.
+**E2** (a resolved hold is not persisted to the hold store; record store
+authoritative) is the one remaining P0 item and needs a Core-fix-vs-mitigation
+decision.
+
+After S4 is deployed and E2 is dispositioned, the platform meets the P0 bar for
+threat model (b). The P1/P2 items remain for a robust posture but are not
+individually blocking.
 
 ---
 

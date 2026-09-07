@@ -10,11 +10,12 @@ Granting authority is an operator action (capability != authority). Every
 ``/agent/act`` proposal still passes full policy / risk / approval; a held
 proposal is never auto-continued here.
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.core.intelligence.actions.models import ActionType
 
+from app.ops.auth import OperatorIdentity, require_operator
 from app.agent import loop_config
 from app.agent.authority import authority_store
 from app.agent.contract import AgentIdentity, AgentIntent, AgentProposal
@@ -31,7 +32,7 @@ _last_outcome: dict = {"value": None}
 class GrantBody(BaseModel):
     operation: str
     target: str
-    granted_by: str
+    granted_by: str | None = None  # deprecated: identity comes from auth
     ttl_seconds: int | None = None
 
 
@@ -52,8 +53,15 @@ class LlmActBody(BaseModel):
 
 
 @router.post("/authority/grant")
-def grant_authority(body: GrantBody):
-    """Operator action: issue a scoped, single-use, time-limited grant."""
+def grant_authority(
+    body: GrantBody,
+    operator: OperatorIdentity = Depends(require_operator),
+):
+    """Operator action: issue a scoped, single-use, time-limited grant.
+
+    The granting identity is the authenticated operator; any ``granted_by`` in
+    the body is ignored (kept only for transitional compatibility).
+    """
     try:
         ActionType(body.operation)
     except ValueError:
@@ -64,7 +72,7 @@ def grant_authority(body: GrantBody):
     g = authority_store.grant(
         operation=body.operation,
         target=body.target,
-        granted_by=body.granted_by,
+        granted_by=operator.name,
         ttl_seconds=body.ttl_seconds,
     )
     return g.as_dict()
