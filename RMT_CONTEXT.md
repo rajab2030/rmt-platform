@@ -174,13 +174,27 @@ MCR-EXP-3 simulation, not a live defect in RMT Core or CAP-01..04. CAP-04 may be
 *enabled* only inside its safe-enablement envelope (every `REMEDIATION_POLICY`
 entry independent + `requires_approval=True`; guard test
 `test_remediation_policy_within_cap04_safe_envelope`). The full
-dependency-cascade escalation fix is assigned to **CAP-05**
-(`docs/RMT_CAP_05_PROPOSAL.md`, draft — not yet approved).
+dependency-cascade escalation fix is delivered by **CAP-05 (5A)**
+(`app/agent/dependency_guard.py`) — wired + tested, no-op until
+`ComponentContext.dependencies` is deliberately populated.
+
+- **RMT-CAP-05 (5A) — Governed Agent Surface:** COMPLETED & VERIFIED
+  (2026-09-07). MCR child-contract surface (`app/agent/`): an agent *proposes* a
+  consequential homelab op → `AgentProposal` → `execute_governed_action` (same
+  single boundary). Single-use, time-limited, scoped authority grants
+  (capability ≠ authority); T13 dependency-cascade escalation; deterministic
+  reference agent; routes `POST /agent/{authority/grant,act}` + read-only
+  `GET /agent/{status,authority}`. Disabled by default (`RMT_AGENT_ENABLED`).
+  Diff confined to `app/agent/**` + `app/main.py`; no `app/core/**` change; no
+  new mutation path; held proposals never auto-continued. 13 focused + 122 Core
+  (unchanged) + 190 full, all passed. **5B (LLM agent) deferred** — separate
+  owner decision, nothing built. See `docs/RMT_CAP_05_PROPOSAL.md` +
+  `docs/RMT_CAPABILITIES_EVIDENCE.md` §CAP-05.
 
 **Next action:** the next above-Core capability is to be selected by the owner
 from the candidate directions (engineering intelligence expansion, frontend
-governed-evidence/productization, real Docker demonstration, AI Agent Governance
-via the MCR pattern / draft CAP-05). Two recorded **frozen-Core notes** await
+governed-evidence/productization, **CAP-05 5B** — the LLM-backed agent adapter,
+now that 5A exists). Two recorded **frozen-Core notes** await
 owner consideration only (Core is frozen): (1) a *failed* adapter execution
 produces no verification evidence; (2) `approve_held_action` does not reliably
 persist the approval **hold** store on resolution — the approval **record**

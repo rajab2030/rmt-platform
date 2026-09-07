@@ -611,3 +611,62 @@ frozen; the RECORD store is the reliable source of truth).
 The live :8000 service is running the pre-hardening code (loop enabled but
 blocked by `316257fc`). A restart picks up the guard fix; the loop then sits at
 `no_remediation` against the healthy homelab.
+
+---
+
+## Session note — RMT-CAP-05 (5A) Governed Agent Surface
+
+**Date:** 2026-09-07. Above-Core. Owner: "approve 5A now" (5B — the LLM agent —
+explicitly held as a separate later decision). C01–C07 remain closed/frozen; no
+C08; no `app/core/**` change.
+
+### Delivered — new `app/agent/` package
+- `contract.py` — MCR child surface as dataclasses: `AgentIdentity`,
+  `AgentIntent` (goal kept distinct from mechanism), `AgentProposal`,
+  `AgentOutcome`.
+- `authority.py` — `AuthorityStore` (in-memory). Grants are operation+target
+  scoped, time-limited (`AGENT_GRANT_TTL_SECONDS`, default 300s), **single-use**
+  (consumed only when a proposal is accepted into the pipeline — `executed` or
+  `manual_approval_required`; not on a pre-boundary deny). Capability ≠
+  authority.
+- `dependency_guard.py` — **T13 closure**. `escalate_for_dependency_cascade`:
+  an allowed-class op (`start`/`create`) whose target has a dependent component
+  (`ComponentContext.dependencies`) → forces `requires_approval=True`. Every
+  dependency list is empty today → no-op; wired + tested so a widened envelope
+  is safe by construction.
+- `adapter.py` — `propose_and_govern(proposal)`: disabled gate → authority
+  check → T13 escalation → `ActionRequest` → `execute_governed_action(...)` →
+  `executed`: above-Core Docker verify + `record_learning`;
+  `manual_approval_required`: `record_learning`, **never** auto-continued.
+  Boundary exceptions contained (`decision="error"`, grant left intact).
+- `reference_agent.py` — deterministic: `HealthEvaluation` CRITICAL → RESTART
+  `AgentProposal`; else `None`.
+- `api.py` — `POST /agent/authority/grant` (operator issues a grant — **added
+  beyond the proposal's route list**, needed to make the surface usable),
+  `POST /agent/act`, read-only `GET /agent/status` + `GET /agent/authority`.
+- `app/main.py` — register `agent_router` (additive only).
+
+### Validation
+- 13 focused (`app/agent/testing/test_agent_governance.py`) — disabled gate;
+  allowed→execute→verify→learn; held→recorded→not continued; policy_denied→
+  grant intact; no grant / consumed / expired / scope-mismatch → `no_authority`;
+  T13 escalation forces approval (seeded dependency edge); T13 no-op with real
+  empty deps; status/authority endpoints read-only; boundary exception
+  contained; reference agent proposes only on CRITICAL.
+- Core intelligence **122** (unchanged); Homelab **38** (unchanged); full app
+  **190 passed** (177 + 13). `import app.main` clean; `RMT_AGENT_ENABLED=False`
+  by default.
+
+### Core integrity
+Diff confined to `app/agent/**` + `app/main.py`. No `app/core/**` change; no
+second mutation boundary (proposal → `ActionRequest` → `execute_governed_action`
+only); approval enforcement unchanged; held proposals never auto-continued;
+learning append-only / read-only. Disabled by default; request-driven (no
+background task).
+
+### Open / deferred
+- **5B** (LLM-backed agent adapter) — separate owner decision; nothing built.
+- Populating `ComponentContext.dependencies` (makes the T13 guard load-bearing)
+  — a separate explicit change.
+- Not deployed to the live server (this is a new package; a redeploy would pick
+  it up, still disabled by default).
