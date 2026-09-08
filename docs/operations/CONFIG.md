@@ -18,13 +18,20 @@ rmt-control-center.service`.
 | `RMT_OPERATOR_TOKENS` | *(empty)* | `name:token` pairs, comma-separated. **With auth enabled and this empty, the app refuses to start.** The matched `name` is recorded as `authorized_by` / `approved_by` / `granted_by` in the evidence. | `auth.conf` |
 | `RMT_AUTH_SEPARATION` | `false` | **S3.** When `true`, `/approve` and `/homelab/approve` return **403** if the operator continuing an *agent-originated* hold is the one who granted the agent's authority (or is the proposing agent id). Non-agent holds are unaffected. Fails closed. With one operator, agent-hold approvals need a second identity — enable only when you have one. | `auth.conf` |
 
-## Held-action notifications — `app/ops/ops_config.py` (P0: O2)
+## Notifications — `app/ops/ops_config.py` (P0: O2 held actions · P1: O3 ops alerts)
 
 | Variable | Default | Effect | Set by |
 |---|---|---|---|
-| `RMT_NOTIFY_WEBHOOK_URL` | *(empty)* | When set, a `manual_approval_required` outcome is POSTed as JSON here (5 s, fail-open). Unset → logged only. | `auth.conf` |
+| `RMT_NOTIFY_WEBHOOK_URL` | *(empty)* | When set, both `manual_approval_required` (O2) **and** ops alerts (O3: `loop_quarantine`, `loop_cycle_error`) are POSTed as JSON here (fail-open). Unset → logged only. | `auth.conf` |
 | `RMT_NOTIFY_TIMEOUT_SECONDS` | `5` | Webhook POST timeout. | `auth.conf` |
-| `RMT_NOTIFY_MIN_INTERVAL_SECONDS` | `60` | Per `(kind, component, approval_id)` de-dupe window — stops the loop re-alerting the same hold every cycle. | `auth.conf` |
+| `RMT_NOTIFY_MIN_INTERVAL_SECONDS` | `60` | Per-key de-dupe window (O2: `(kind, component, approval_id)`; O3: `(kind, key)`) — stops re-alerting every cycle. | `auth.conf` |
+
+### O3 service-down heartbeat — `backend/scripts/rmt-heartbeat.sh` (not read by the app)
+
+| Variable | Default | Effect | Set by |
+|---|---|---|---|
+| `RMT_HEARTBEAT_URL` | *(required)* | Cron pings this only while `GET /health` returns 200 — an inverted dead-man's switch. If the service is down the ping stops and the external monitor alerts. | crontab line |
+| `RMT_HEALTH_URL` | `http://127.0.0.1:8000/health` | Local probe the heartbeat script checks. | crontab line |
 
 ## CAP-04 continuous operational loop — `app/homelab/loop_config.py`
 

@@ -45,7 +45,7 @@ from datetime import datetime, timezone
 from app.homelab import loop_config
 from app.homelab.remediation import REMEDIATION_POLICY, remediate_component
 from app.homelab.observer import observe_container_state
-from app.ops.notifications import notify_held
+from app.ops.notifications import notify_held, notify_ops
 from app.core.intelligence.memory.models import MemoryRecord
 from app.core.intelligence.memory.service import remember
 import app.core.intelligence.actions.approval_service as _approval_service
@@ -239,6 +239,13 @@ class HomelabOperationalLoop:
                     self.run_cycle_once()
                 except Exception as exc:  # defensive: never kill the loop
                     self._last_cycle_error = repr(exc)
+                    # O3: a loop cycle raised -- tell a human (de-duped).
+                    notify_ops(
+                        kind="loop_cycle_error",
+                        detail=repr(exc),
+                        key="run_cycle",
+                        source="cap04_loop",
+                    )
                 await asyncio.sleep(loop_config.LOOP_INTERVAL_SECONDS)
         except asyncio.CancelledError:
             raise
@@ -392,6 +399,14 @@ class HomelabOperationalLoop:
                     "last_outcome": state.last_outcome,
                     "attempts_in_window": len(state.attempt_times),
                 },
+            )
+            # O3: a component was quarantined -- tell a human (de-duped per
+            # component; re-alerts at most once per notify_min_interval).
+            notify_ops(
+                kind="loop_quarantine",
+                detail=state.quarantine_reason or "",
+                key=state.component,
+                source="cap04_loop",
             )
 
     def _check_recovery(

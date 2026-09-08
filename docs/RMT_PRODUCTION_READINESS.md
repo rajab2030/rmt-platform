@@ -152,7 +152,7 @@ able to *tell a human*.
 |---|---|---|---|---|---|
 | **O1** | Structured application logging + rotation | No logging framework in `app/main.py` or `app/core/**` (no `logging.getLogger`, loguru, structlog). Output is uvicorn's default to the journal. | **GAP** | Introduce structured logging (request id, action id, decision, principal) at the governed-lifecycle boundaries; ensure journald retention / rotation is set. | **P1** |
 | **O2** | Alert on held remediation / agent proposal | **DONE + LIVE (log sink)** — `app/ops/notifications.py` `notify_held` (webhook via stdlib `urllib`, fail-open, per-key de-dupe) hooked at `/execute`, `/homelab/remediate`, the CAP-04 loop, and the agent adapter. Deployed with `RMT_NOTIFY_WEBHOOK_URL` **unset** → held actions log to the journal only. `test_notifications.py`. | **READY** *(routing to a real sink pending)* | Set `RMT_NOTIFY_WEBHOOK_URL` in `auth.conf` when a chat/email sink exists. | **P0** |
-| **O3** | Alert on loop quarantine / cycle error / service down | `homelab_loop_quarantine` etc. are recorded to memory only; no outbound signal. | **GAP** | Notify on quarantine, `last_cycle_error`, and service-down (external heartbeat). | **P1** |
+| **O3** | Alert on loop quarantine / cycle error / service down | **DONE (above-Core, 2026-09-08).** `app/ops/notifications.py::notify_ops` (same fail-open, de-duped webhook sink as O2) fires on **loop quarantine** and **loop cycle error** — hooked in `app/homelab/operational_loop.py`. **Service-down** is out-of-band: new unauthenticated `GET /health` probe (`status: ok`/`degraded` from the loop state) + `backend/scripts/rmt-heartbeat.sh`, a cron inverted dead-man's-switch that pings `RMT_HEARTBEAT_URL` only while `/health` answers 200. `test_notifications.py` + `test_health.py` + `test_operational_loop.py` cover it. No `app/core/**` change. | **READY** | Set `RMT_NOTIFY_WEBHOOK_URL`; cron `rmt-heartbeat.sh` with a monitor URL. | **P1** |
 | **O4** | Platform self-metrics | No request-rate / error-rate / hold-queue-depth metrics for the RMT process. | **GAP** | Expose a metrics endpoint or periodic self-report (holds outstanding, cycles, error counts). | **P2** |
 
 ### Group V — Validation & Change Safety
@@ -209,7 +209,7 @@ able to *tell a human*.
 
 **P0 is fully closed (2026-09-08).** All six blocking items — S1, S2-lite, E1,
 E2, O2, S4 — are live and verified. Next work is P1.
-| **P1** | D3, O1, O3, V1, V2, R3 | pending (D1, D2, R1, E3, S3, E4, E5 done) |
+| **P1** | D3, O1, V1, V2, R3 | pending (D1, D2, R1, E3, S3, E4, E5, O3 done) |
 | **P2** | S5, S6, S7, D4, D6, O4, V3, V4 | pending (D5, E6 done) |
 | **ACCEPTED** | R4 (single-instance) | recorded |
 
@@ -333,8 +333,9 @@ blocking. **S3 (2026-09-08) closed** above-Core: `RMT_AUTH_SEPARATION` gates
 be its grantor. **E4 (2026-09-08) closed**: `archive_aged_evidence` bounds the
 live JSON stores on startup (`RMT_EVIDENCE_RETENTION_DAYS`, default 90; archives
 to `<name>.archive.jsonl`). **E5 (2026-09-08) closed**: dedicated
-backup/verify/restore scripts + `RMT_EVIDENCE_RECOVERY.md`. Next: P1 — D3,
-O1/O3, V1/V2, R3.
+backup/verify/restore scripts + `RMT_EVIDENCE_RECOVERY.md`. **O3 (2026-09-08)
+closed**: `notify_ops` alerts on loop quarantine + cycle error; `GET /health` +
+`rmt-heartbeat.sh` cover service-down. Next: P1 — D3, O1, V1/V2, R3.
 
 ---
 

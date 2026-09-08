@@ -1,7 +1,14 @@
-"""RMT-PROD P0 (O2) -- held-action notifications.
+"""RMT-PROD P0 (O2) + P1 (O3) -- operator notifications.
 
-Above-Core / operational. When a governed action enters
-``manual_approval_required``, tell a human.
+Above-Core / operational. Two "tell a human" hooks over one fail-open,
+de-duped, stdlib-``urllib`` webhook sink (``RMT_NOTIFY_WEBHOOK_URL``):
+
+  * ``notify_held``  (O2) -- a governed action entered
+    ``manual_approval_required`` and awaits approval.
+  * ``notify_ops``   (O3) -- an operational fault: the CAP-04 loop quarantined
+    a component, or a loop cycle raised. (Service-down is out-of-band -- a
+    down process cannot alert; see ``scripts/rmt-heartbeat.sh`` + the
+    ``GET /health`` probe.)
 
 Guarantees:
   * **Fail-open** -- any transport / config problem is caught and logged; a
@@ -79,6 +86,57 @@ def notify_held(
         logger.info("held-for-approval notification sent: %s", key)
     except Exception as exc:  # fail-open -- never break the governed path
         logger.warning("held-for-approval notification failed: %r", exc)
+
+
+def notify_ops(
+    *,
+    kind: str,
+    detail: str = "",
+    key: str = "",
+    source: str = "",
+) -> None:
+    """Best-effort notification of an operational fault (O3).
+
+    ``kind``: ``"loop_quarantine"`` | ``"loop_cycle_error"`` (extensible).
+    ``key``: de-dupe discriminator within the kind (e.g. the component name),
+    so a persistently-failing loop alerts about once per ``notify_min_interval``
+    rather than every cycle. Never raises.
+    """
+    try:
+        dedupe = f"ops:{kind}:{key}"
+        now = time.monotonic()
+        prev = _last_sent.get(dedupe)
+        interval = ops_config.notify_min_interval_seconds()
+        if prev is not None and (now - prev) < interval:
+            return
+        _last_sent[dedupe] = now
+
+        payload = {
+            "event": "ops_alert",
+            "kind": kind,
+            "key": key,
+            "detail": detail,
+            "source": source,
+        }
+
+        url = ops_config.notify_webhook_url()
+        if url is None:
+            logger.warning(
+                "OPS ALERT (no RMT_NOTIFY_WEBHOOK_URL configured): %s", payload
+            )
+            return
+
+        data = json.dumps(payload).encode()
+        req = urllib.request.Request(
+            url, data=data, headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(
+            req, timeout=ops_config.notify_timeout_seconds()
+        ) as r:
+            r.read()
+        logger.info("ops-alert notification sent: %s", dedupe)
+    except Exception as exc:  # fail-open -- never break the loop
+        logger.warning("ops-alert notification failed: %r", exc)
 
 
 def _reset_for_tests() -> None:

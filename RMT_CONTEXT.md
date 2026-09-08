@@ -296,7 +296,12 @@ fail-open; `test_retention.py` 10 tests. E5 = `backend/scripts/rmt-evidence-{bac
 `sha256`, restore refuses while the service is up. **Full app suite 316 passed**
 (306 + 10). D4 proposal revised to rev-2 (`7dab721`) — S3/E3 recorded done,
 `ActionType` blocker + dual-approval scoped, sequencing = hold D4 until E4/E5
-close (now done). Next: **P1** (D3, O1/O3, V1/V2, R3). Monitoring / exercise
+close (now done). **O3 also closed 2026-09-08:** `notify_ops` (same webhook
+sink as O2) alerts on CAP-04 loop quarantine + cycle error; new unauthenticated
+`GET /health` (`ok`/`degraded`) + `backend/scripts/rmt-heartbeat.sh` (cron
+inverted dead-man's switch) cover service-down. `test_health.py` +
+`test_notifications.py`/`test_operational_loop.py` extensions. Next: **P1** (D3,
+O1, V1/V2, R3). Monitoring / exercise
 calls now require a token header.
 **Owner directive 2026-09-08: no Core modification or fix** — recorded
 frozen-Core gaps get an above-Core mitigation or an explicit accept-and-record,

@@ -1546,3 +1546,46 @@ D3, O1, O3, V1, V2, R3.
 
 ### Not deployed / operator tasks
 Nothing to deploy (scripts). Operator: add the cron line; run one restore drill.
+
+---
+
+## Session note — O3 alerting (loop quarantine / cycle error / service-down)
+
+**Date:** 2026-09-08. Above-Core / operational. No `app/core/**` change.
+
+### Implemented
+- **`app/ops/notifications.py`** — new `notify_ops(*, kind, detail, key,
+  source)` over the same fail-open, de-duped, stdlib-`urllib` webhook sink as
+  O2's `notify_held`. `kind` ∈ `loop_quarantine` | `loop_cycle_error`;
+  `event: "ops_alert"`. De-dupe key `ops:<kind>:<key>` (per-component for
+  quarantine, `run_cycle` for cycle errors) so a persistently-broken loop
+  alerts ~once per `RMT_NOTIFY_MIN_INTERVAL_SECONDS`, not every 120s.
+- **`app/homelab/operational_loop.py`** — `notify_ops` hooked in
+  `_maybe_quarantine` (right after the `homelab_loop_quarantine` transition
+  record) and in `run()`'s cycle-fault guard.
+- **`app/main.py`** — new **unauthenticated** `GET /health`: `status`
+  `ok`/`degraded` (degraded when `last_cycle_error` is set or any component
+  quarantined) + a loop summary. Always HTTP 200 while the process answers —
+  it's a liveness probe.
+- **`backend/scripts/rmt-heartbeat.sh`** — cron inverted dead-man's switch:
+  pings `RMT_HEARTBEAT_URL` only while `GET /health` returns 200. Service-down
+  is inherently out-of-band (a dead process can't alert); the external monitor
+  raises the alarm when the ping stops.
+
+### Validation
+`test_notifications.py` (+4 `notify_ops`), `test_health.py` (new, 3),
+`test_operational_loop.py` (+1 cycle-error alert, +assert on quarantine alert)
+— **29 passed** in that slice. Full app suite: see below. `import app.main`
+clean.
+
+### Matrix effect
+**O3 → READY.** P1 now: D3, O1, V1, V2, R3. (O4 platform self-metrics is P2.)
+
+### Operator tasks
+- Set `RMT_NOTIFY_WEBHOOK_URL` in `auth.conf` (currently unset → O2 + O3 both
+  log-only).
+- Cron `rmt-heartbeat.sh` with a monitor URL (`CONFIG.md` → O3 section).
+
+### Not deployed
+`notifications.py` + `operational_loop.py` + `main.py` — needs a service
+restart. `GET /health` is inert config-wise (no new env the app reads).
