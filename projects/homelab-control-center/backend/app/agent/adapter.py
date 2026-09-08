@@ -21,6 +21,7 @@ from app.core.intelligence.actions.service import execute_governed_action
 
 from app.homelab.remediation import resolve_adapter_name, record_learning
 from app.homelab.verification import verify_docker_execution
+from app.ops.execution_evidence import record_failed_execution_evidence
 from app.ops.notifications import notify_held
 
 from app.agent import loop_config
@@ -117,6 +118,16 @@ def propose_and_govern(proposal: AgentProposal) -> AgentOutcome:
             result["docker_verification_status"] = verification.status
             result["docker_verification_reason"] = verification.reason
             outcome.verification_status = verification.status
+        elif not result.get("success"):
+            # E3: adapter invoked and failed -> distinguishable evidence.
+            failed = record_failed_execution_evidence(
+                result,
+                expected=action.expected_outcome,
+                source="agent_adapter",
+            )
+            if failed is not None:
+                result["docker_verification_status"] = failed.status
+                outcome.verification_status = failed.status
         record_learning(
             target, result, confidence=proposal.intent.confidence
         )

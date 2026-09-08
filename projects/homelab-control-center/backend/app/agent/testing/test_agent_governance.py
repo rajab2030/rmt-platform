@@ -48,10 +48,14 @@ def captured_governed(monkeypatch):
 
     learn_calls = []
     verify_calls = []
+    failed_evidence_calls = []
 
     class _V:
         status = "verified_success"
         reason = "ok"
+
+    class _FailedRec:
+        status = "adapter_execution_failed"
 
     monkeypatch.setattr(adapter_mod, "execute_governed_action", fake_execute)
     monkeypatch.setattr(adapter_mod, "resolve_adapter_name", lambda: "simulation")
@@ -63,8 +67,13 @@ def captured_governed(monkeypatch):
         adapter_mod, "verify_docker_execution",
         lambda *a, **k: verify_calls.append((a, k)) or _V(),
     )
+    monkeypatch.setattr(
+        adapter_mod, "record_failed_execution_evidence",
+        lambda *a, **k: failed_evidence_calls.append((a, k)) or _FailedRec(),
+    )
     box["learn"] = learn_calls
     box["verify"] = verify_calls
+    box["failed_evidence"] = failed_evidence_calls
     return box
 
 
@@ -98,6 +107,26 @@ def test_allowed_proposal_executes_verifies_learns(enabled, captured_governed):
     assert out.execution_id == "exec-1"
     assert out.verification_status == "verified_success"
     assert out.learn_recorded and len(captured_governed["learn"]) == 1
+    assert authority_store.get(g.grant_id).consumed is True
+
+
+def test_failed_execution_records_e3_evidence(enabled, captured_governed):
+    """E3: adapter invoked and failed -> a distinguishable evidence record,
+    no Docker verify, grant still consumed, still learned."""
+    captured_governed["result"] = {
+        "status": "executed", "execution_id": "exec-9",
+        "success": False, "message": "adapter boom",
+    }
+    g = authority_store.grant("restart", "uptime-kuma", "operator")
+    out = propose_and_govern(_proposal(grant_id=g.grant_id))
+
+    assert out.decision == "allow"
+    assert out.execution_id == "exec-9"
+    assert out.verification_status == "adapter_execution_failed"
+    assert captured_governed["verify"] == []          # no success -> no Docker verify
+    assert len(captured_governed["failed_evidence"]) == 1
+    assert captured_governed["failed_evidence"][0][1]["source"] == "agent_adapter"
+    assert out.learn_recorded
     assert authority_store.get(g.grant_id).consumed is True
 
 
