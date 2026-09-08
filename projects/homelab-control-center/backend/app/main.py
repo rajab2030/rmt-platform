@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.schemas.container import Container
@@ -10,6 +10,7 @@ from app.ops.auth import OperatorIdentity, require_operator
 from app.ops.execution_evidence import record_failed_execution_evidence
 from app.ops.notifications import notify_held
 from app.ops.reconcile import reconcile_governance_stores
+from app.ops.separation import check_separation
 
 from app.monitor import get_history
 from app.collector import collect_metrics
@@ -276,6 +277,12 @@ def approve(
     The approving identity is the authenticated operator; any ``approved_by``
     query field is ignored (kept only for transitional compatibility).
     """
+    # S3: for an agent-originated hold, the approver must differ from the
+    # operator who granted the agent's authority (opt-in: RMT_AUTH_SEPARATION).
+    ok, why = check_separation(approval_id, operator.name)
+    if not ok:
+        raise HTTPException(status_code=403, detail=f"separation of duties: {why}")
+
     result = approve_held_action(
         approval_id,
         approved_by=operator.name,
@@ -340,6 +347,12 @@ def homelab_approve(
     The approving identity is the authenticated operator; any ``approved_by``
     query field is ignored (kept only for transitional compatibility).
     """
+    # S3: for an agent-originated hold, the approver must differ from the
+    # operator who granted the agent's authority (opt-in: RMT_AUTH_SEPARATION).
+    ok, why = check_separation(approval_id, operator.name)
+    if not ok:
+        raise HTTPException(status_code=403, detail=f"separation of duties: {why}")
+
     from app.homelab.continuation import continue_remediation
     result = continue_remediation(
         approval_id,

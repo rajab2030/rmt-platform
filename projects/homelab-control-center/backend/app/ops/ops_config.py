@@ -11,6 +11,9 @@ production-safe setting.
                                 app refuses to start.
   * ``RMT_NOTIFY_WEBHOOK_URL``-- optional held-action notification sink. Unset
                                 => notifications are logged only.
+  * ``RMT_AUTH_SEPARATION``   -- S3: enforce approver != grantor for
+                                agent-originated approval holds (default False;
+                                opt-in).
 """
 import os
 
@@ -60,6 +63,16 @@ def operator_tokens() -> dict[str, str]:
         if name and token:
             out[token] = name
     return out
+
+
+# --- S3: separation of duties --------------------------------------------------
+
+
+def separation_enabled() -> bool:
+    """Enforce approver != grantor / proposer for agent-originated approval
+    holds. Default off (opt-in); read dynamically so a drop-in edit + restart
+    is enough."""
+    return _env_bool("RMT_AUTH_SEPARATION", False)
 
 
 # --- O2: held-action notifications -----------------------------------------

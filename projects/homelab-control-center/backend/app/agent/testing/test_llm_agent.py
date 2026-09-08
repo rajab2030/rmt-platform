@@ -13,6 +13,7 @@ import app.agent.adapter as adapter_mod
 import app.agent.api as api_mod
 from app.agent import loop_config
 from app.agent.authority import authority_store
+from app.ops import separation as separation_mod
 from app.agent.llm_agent import LlmAgent, LlmProposalError, parse_proposal
 from app.core.intelligence.actions.models import ActionType
 
@@ -43,8 +44,10 @@ def _ok_json(target="uptime-kuma", mechanism="restart", confidence=80):
 @pytest.fixture(autouse=True)
 def _reset():
     authority_store.reset()
+    separation_mod.reset()
     yield
     authority_store.reset()
+    separation_mod.reset()
 
 
 # --- unit: parse / propose --------------------------------------------

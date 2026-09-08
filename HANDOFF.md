@@ -1394,3 +1394,72 @@ E1/E2/E6/R1 evidence and conclusions stand — the pollution is `failed`
 trace/audit noise for a non-existent target, not a consistency problem. The R1
 byte-identical-restart result is unaffected (it tested identity across a
 restart, which held).
+
+---
+
+## Session note — S3 separation of duties (approver ≠ grantor for agent holds)
+
+**Date:** 2026-09-08. Above-Core / operational. No `app/core/**` change.
+Config-gated by **`RMT_AUTH_SEPARATION`** (default **off**).
+
+### The gap
+S2-lite made the granting / approving identity *recorded* (from the
+authenticated operator). S3 *enforces*: for a manual-approval hold that an
+**agent proposal** raised, the operator who continues it (`/approve` or
+`/homelab/approve`) must not be the operator who granted the agent's authority
+for it. The Core hold carries no link back to the agent grant.
+
+### Implemented
+- **New `app/ops/separation.py`**:
+  - In-memory provenance map `approval_id → HoldProvenance{grant_id,
+    granted_by, agent_id, recorded_at}` (like `authority_store`; entries older
+    than `PROVENANCE_MAX_AGE_SECONDS = 3600` are ignored + pruned).
+  - `record_hold_provenance(...)` — fail-**open** (bookkeeping).
+  - `check_separation(approval_id, approver) -> (ok, reason)`:
+    `separation_disabled` (toggle off) · `not_agent_originated` (no provenance)
+    · `ok` · `approver_is_grantor` (deny) · `approver_is_proposer` (deny,
+    approver == agent id) · `separation_check_error` (deny — fails **closed**;
+    `RMT_AUTH_SEPARATION=false` is the escape hatch).
+- **`app/ops/ops_config.py`** — `separation_enabled()` reads
+  `RMT_AUTH_SEPARATION` (default False), dynamic.
+- **`app/agent/adapter.py`** — on `manual_approval_required`, records the
+  provenance (grant looked up via `authority_store.get(grant_id)` for
+  `granted_by`) before the Learn record.
+- **`app/main.py`** — `/approve` and `/homelab/approve` call
+  `check_separation(approval_id, operator.name)` before continuing; a deny →
+  `HTTPException(403, "separation of duties: <reason>")`.
+- **`app/agent/api.py`** — `GET /agent/status` gains `separation_of_duties`.
+- **Tests** — `app/ops/testing/test_separation.py` (14: record/get roundtrip,
+  empty id, expiry + prune, disabled default, grantor blocked, other operator
+  allowed, agent-id blocked, non-agent pass-through, fail-closed, and
+  `/approve` + `/homelab/approve` 403 + non-grantor allowed). Agent-governance
+  held test now also asserts provenance was recorded. `test_agent_governance.py`
+  / `test_llm_agent.py` `_reset` fixtures also `separation.reset()`.
+
+### Validation
+`test_separation.py` + `test_agent_governance.py` 28 passed; **full app suite
+306 passed** (292 + 14). `import app.main` clean. 122 frozen-Core intelligence
+tests unchanged. Evidence stores unpolluted (11/11/13).
+
+### Operational note
+With a **single** operator, enabling `RMT_AUTH_SEPARATION` means agent-raised
+holds can't be self-approved — you need a second operator identity. That's why
+it's opt-in and off by default. Non-agent (`/execute`) holds are never affected.
+
+### Matrix effect
+**S3 → READY.** P1 drops S3 (D1, D2, R1, E3, S3 done). W1 access-control is
+S1/S2-lite/S3 complete; S5/S7 remain (P2).
+
+### Not deployed to live
+New/changed code — needs `sudo systemctl restart rmt-control-center.service`.
+The toggle stays **off** unless an operator adds
+`Environment=RMT_AUTH_SEPARATION=true` to a drop-in.
+
+### Unrelated
+`docs/RMT_D4_PROPOSAL.md` (untracked) is a DRAFT above-Core capability proposal
+(Financial/Approval Control) that depends on S3 — owner's to manage, not part
+of this work.
+
+### Next (P1, all above-Core)
+E4 retention/rotation, E5 RMT-store backup, D3 systemd sandboxing, O1/O3
+observability, V1/V2, R3 platform-recovery runbook.

@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from app.core.intelligence.actions.models import ActionType
 
 from app.ops.auth import OperatorIdentity, require_operator
+from app.ops.separation import separation_enabled
 from app.agent import loop_config
 from app.agent.authority import authority_store
 from app.agent.contract import AgentIdentity, AgentIntent, AgentProposal
@@ -151,6 +152,7 @@ def status():
         "default_requires_approval": loop_config.AGENT_DEFAULT_REQUIRES_APPROVAL,
         "dependency_escalation": loop_config.AGENT_DEPENDENCY_ESCALATION,
         "dependency_map": dependency_view(),
+        "separation_of_duties": separation_enabled(),
         "llm": {
             "enabled": loop_config.AGENT_LLM_ENABLED,
             "model": loop_config.AGENT_LLM_MODEL,
