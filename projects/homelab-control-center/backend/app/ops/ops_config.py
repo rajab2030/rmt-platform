@@ -14,6 +14,10 @@ production-safe setting.
   * ``RMT_AUTH_SEPARATION``   -- S3: enforce approver != grantor for
                                 agent-originated approval holds (default False;
                                 opt-in).
+  * ``RMT_EVIDENCE_RETENTION_DAYS`` -- E4: on startup, archive evidence records
+                                older than this out of the live JSON stores
+                                into ``<name>.archive.jsonl`` (default 90;
+                                ``<= 0`` disables).
 """
 import os
 
@@ -73,6 +77,15 @@ def separation_enabled() -> bool:
     holds. Default off (opt-in); read dynamically so a drop-in edit + restart
     is enough."""
     return _env_bool("RMT_AUTH_SEPARATION", False)
+
+
+# --- E4: evidence retention -------------------------------------------------
+
+
+def evidence_retention_days() -> int:
+    """Age (days) past which an evidence record is archived out of the live
+    store on startup. Default 90; ``<= 0`` disables archival. Dynamic."""
+    return _env_int("RMT_EVIDENCE_RETENTION_DAYS", 90)
 
 
 # --- O2: held-action notifications -----------------------------------------
