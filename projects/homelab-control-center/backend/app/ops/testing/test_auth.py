@@ -2,12 +2,36 @@
 
 These are the only tests that run with ``RMT_AUTH_ENABLED=true``. The shared
 ``conftest.py`` defaults every other suite to auth-off.
+
+The "accepts valid token" cases genuinely reach the governed pipeline, so
+``isolate_stores`` swaps every durable evidence store (and the execution adapter
+registry) to in-memory instances -- otherwise a ``/execute?target=x`` test call
+would hit the real Docker daemon and write ``failed`` trace / audit /
+``adapter_execution_failed`` (E3) records into the real JSON stores.
 """
+from unittest.mock import Mock
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.ops import ops_config
 from app.ops.auth import OperatorIdentity, resolve_operator, auth_misconfigured
+
+from app.core.intelligence.actions.approval_storage import (
+    ApprovalHoldStorage,
+    ApprovalRecordStorage,
+)
+from app.core.intelligence.actions.authorization_storage import AuthorizationStorage
+from app.core.intelligence.execution.models import ExecutionResult
+from app.core.intelligence.execution.storage import ExecutionAuditStorage
+from app.core.intelligence.execution.trace_storage import ExecutionTraceStorage
+from app.core.intelligence.verification.storage import VerificationStorage
+
+import app.core.intelligence.actions.service as actions_service_module
+import app.core.intelligence.execution.engine as engine_module
+import app.core.intelligence.actions.approval_service as approval_service_module
+import app.core.intelligence.verification.service as verification_service_module
+import app.ops.execution_evidence as execution_evidence_module
 
 
 TOKENS = "alice:alice-secret-1,bob:bob-secret-2"
@@ -22,7 +46,54 @@ def auth_env(monkeypatch):
 
 
 @pytest.fixture
-def client(auth_env):
+def isolate_stores(monkeypatch):
+    """Swap durable evidence stores + the adapter registry to in-memory, so a
+    route test never writes real governance evidence or touches Docker."""
+    auth_storage = AuthorizationStorage()
+    trace_storage = ExecutionTraceStorage()
+    audit_storage = ExecutionAuditStorage()
+    hold_storage = ApprovalHoldStorage()
+    record_storage = ApprovalRecordStorage()
+    verification_storage = VerificationStorage()
+
+    monkeypatch.setattr(
+        actions_service_module, "execution_authorization_storage", auth_storage
+    )
+    monkeypatch.setattr(
+        engine_module, "execution_authorization_storage", auth_storage
+    )
+    monkeypatch.setattr(engine_module, "execution_trace_storage", trace_storage)
+    monkeypatch.setattr(engine_module, "execution_audit_storage", audit_storage)
+    monkeypatch.setattr(
+        approval_service_module, "approval_hold_storage", hold_storage
+    )
+    monkeypatch.setattr(
+        approval_service_module, "approval_record_storage", record_storage
+    )
+    monkeypatch.setattr(
+        approval_service_module, "execution_authorization_storage", auth_storage
+    )
+    monkeypatch.setattr(
+        verification_service_module, "verification_storage", verification_storage
+    )
+    monkeypatch.setattr(
+        execution_evidence_module, "verification_storage", verification_storage
+    )
+
+    adapter = Mock()
+    adapter.supports.return_value = True
+    adapter.execute.side_effect = lambda request: ExecutionResult(
+        execution_id=request.execution_id,
+        status="completed",
+        success=True,
+        message="isolated test adapter",
+    )
+    monkeypatch.setattr(engine_module.adapter_registry, "get", lambda name: adapter)
+    yield
+
+
+@pytest.fixture
+def client(auth_env, isolate_stores):
     import app.main as main_app
 
     with TestClient(main_app.app) as c:

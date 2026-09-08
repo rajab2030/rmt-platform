@@ -1341,3 +1341,56 @@ by `execution_id`, plus the existing `status=failed` audit + trace.
 S3 approver≠grantor enforcement (behind `RMT_AUTH_SEPARATION`), E4
 retention/rotation, E5 RMT-store backup, D3 systemd sandboxing, O1/O3, V1/V2,
 R3 platform-recovery runbook.
+
+---
+
+## Session note — test-isolation fix: `test_auth.py` was polluting the Core evidence stores
+
+**Date:** 2026-09-08. Follow-up to the E3 commit. No behaviour change; test
+hygiene + a one-off cleanup script.
+
+### What surfaced
+After the E3 restart, `verifications.json` on live showed 2
+`adapter_execution_failed` records for target `x` ("No such container: x"),
+timestamped **before** the restart. Root cause: `app/ops/testing/test_auth.py`
+had **no store isolation**. Its "accepts valid token" cases
+(`test_mutating_route_accepts_valid_token`, `test_apikey_header_accepted`) POST
+`/execute?target=x` / `/homelab/remediate?component=x` with a real token, which
+reached the **real** governed pipeline → the **real** Docker adapter (reachable
+on this host) → 404 → a `failed` **trace** + **audit** record written to the
+real JSON stores. The new E3 hook then also wrote an `adapter_execution_failed`
+**verification** record. This has been happening since `test_auth.py` was added
+in the P0 batch (2026-09-07) — **10** polluted `target: x` executions had
+accumulated in `traces.json` and `audit.json` (each), 2 in `verifications.json`.
+
+### Fix (committed)
+- **`app/ops/testing/test_auth.py`** — new `isolate_stores` fixture (a
+  dependency of `client`): swaps the six durable evidence stores + the E3
+  `verification_storage` ref + the execution adapter registry to in-memory
+  instances, mirroring `test_http_entrypoints.py::_isolate_evidence_stores`.
+  Verified: a full `test_auth.py` run and a full app-suite run now leave
+  `traces.json` / `audit.json` / `verifications.json` **byte-count unchanged**.
+  32 auth tests pass; full app suite **292 passed**.
+- **`scripts/clean_test_pollution.py`** (new, one-off) — removes every record
+  whose reason/message contains `No such container: x` from the three stores.
+  Dry run: `traces 21→11, audit 21→11, verifications 15→13` (22 records).
+
+### Cleanup — owner step (NOT done)
+The live service (PID 9181, started 10:39) holds these stores in memory
+*including* the polluted records, so a hand-edit would be re-persisted on its
+next `save()`. Run with the service stopped:
+
+    sudo systemctl stop rmt-control-center.service
+    cd /home/rmt-lab/homelab/projects/homelab-control-center/backend
+    .venv/bin/python scripts/clean_test_pollution.py            # dry run
+    .venv/bin/python scripts/clean_test_pollution.py --apply
+    sudo systemctl start rmt-control-center.service
+
+Purely cosmetic (bogus `target: x`, `status: failed`) — not corruption, not a
+governance defect. Safe to defer to any restart window.
+
+### Not affected
+E1/E2/E6/R1 evidence and conclusions stand — the pollution is `failed`
+trace/audit noise for a non-existent target, not a consistency problem. The R1
+byte-identical-restart result is unaffected (it tested identity across a
+restart, which held).
