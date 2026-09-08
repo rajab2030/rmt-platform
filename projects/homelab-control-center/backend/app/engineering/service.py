@@ -18,7 +18,6 @@ from app.core.intelligence.memory.query import get_previous_failures
 from app.core.intelligence.context.registry import get_component_context
 
 from app.engineering.models import (
-    ProposedChange,
     ResolutionStatus,
     AffectedComponent,
     RiskFactor,

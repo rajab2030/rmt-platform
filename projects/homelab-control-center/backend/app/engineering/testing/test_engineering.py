@@ -4,11 +4,8 @@ Verifies component resolution, impact, engineering-change risk (explicit
 deterministic rule), recommendation, evidence traceability, and the
 read-only guarantee.
 """
-import pytest
-
 import app.engineering.service as service
 from app.engineering.models import (
-    ProposedChange,
     ResolutionStatus,
     EngineeringChangeAssessment,
 )

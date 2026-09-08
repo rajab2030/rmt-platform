@@ -1,0 +1,30 @@
+name: CI
+
+# Production-readiness item V2 -- runs the backend CI gate on every push / PR.
+#
+# NOTE: this repo has no remote yet. This workflow is inert until the repo is
+# pushed to GitHub; at that point it gates pushes and PRs automatically with no
+# further changes. All gate logic lives in the script it calls
+# (projects/homelab-control-center/backend/scripts/ci.sh) so local and CI runs
+# stay identical.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  backend-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run CI gate (reproducible install + lint + full suite)
+        working-directory: projects/homelab-control-center/backend
+        run: scripts/ci.sh

@@ -47,10 +47,6 @@ from app.core.intelligence.actions.approval_service import (
     approve_held_action,
 )
 
-from app.core.configuration.settings import (
-    load_settings,
-)
-
 from app.core.intelligence.execution.adapters.registry import (
     adapter_registry,
 )
