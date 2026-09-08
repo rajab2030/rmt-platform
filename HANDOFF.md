@@ -1781,3 +1781,62 @@ projects/homelab-control-center/deploy/systemd/hardening.conf
 systemctl daemon-reload && sudo systemctl restart rmt-control-center.service`,
 then watch the first restart per `DEPLOY.md` §5.1. Folds into the same restart
 that picks up the undeployed `b485365..HEAD` code batch (E6/E3/S3/E4/O3/O1).
+
+---
+
+## Session note — V1 automated end-to-end test on the real Docker adapter
+
+**Date:** 2026-09-08. Above-Core / operational. **No `app/core/**` change.**
+
+### The gap
+Every suite mocked the execution adapter. The only real end-to-end proof was
+the **manual** live exercises in this file.
+
+### Delivered
+- **New `app/homelab/testing/test_e2e_docker.py`** (`pytestmark =
+  pytest.mark.e2e`) — 2 tests that drive the **real** `DockerExecutionAdapter`:
+  1. `test_fault_held_approved_executed_verified` — disposable `alpine`
+     container → `.stop()` (fault) → `observe_container_state` sees `exited`
+     → `execute_governed_action(RESTART, requires_approval=True, adapter_name=
+     "docker")` → **`manual_approval_required`** (asserts nothing executed:
+     container still `exited`, audit store empty) → `approve_held_action(...)`
+     → **`executed` / success** → real container back to `running` →
+     `verify_docker_execution(...)` → **`verified_success`** → asserts the
+     correlated `ExecutionAuthorization` (linked by `approval_id`, matching
+     `action_id`), audit record (`adapter == "docker"`), execution trace, and a
+     `verified_success` verification record — and that the **real** JSON stores
+     are untouched.
+  2. `test_real_adapter_failure_records_e3_evidence` — real adapter against a
+     missing container → `success is False` → `record_failed_execution_evidence`
+     → **`adapter_execution_failed`** (the E3 path, end-to-end).
+- **Auto-skips** (`pytest.importorskip` + `pytest.skip`) when the Docker daemon
+  is unreachable or `alpine:latest` can't be obtained → safe in the default
+  suite and in CI. On this host (and a Docker-capable runner) it **runs for
+  real** — `ci.sh`'s lock venv includes `docker==7.2.0`.
+- **New `backend/pytest.ini`** — registers the `e2e` marker.
+- Isolation: all six durable stores + **every** `verification_storage`
+  reference swapped to in-memory; disposable container `rmt-e2e-<hex>` (never a
+  homelab component) force-removed on teardown.
+
+### Finding (fixed this session)
+`app/ops/execution_evidence.py` binds its **own** module-level
+`verification_storage` name (`from … import verification_storage`), so the
+first draft's isolation missed it and test 2 wrote 2 real
+`adapter_execution_failed` records for `rmt-e2e-absent-*` into
+`verifications.json`. Fixed by adding `execution_evidence_module` to the patch
+loop; the 2 stray records were removed (15 → 13). Re-verified: a full
+`test_e2e_docker.py` run now leaves all six stores **byte-identical** (md5).
+(The pre-existing un-cleaned `target: x` records from the 2026-09-07
+`test_auth.py` era are a separate documented owner cleanup — not touched.)
+
+### Validation
+`test_e2e_docker.py` — 2 passed (real Docker, this host). Full gate `ci.sh`
+below. No `app/core/**` change; 122 frozen-Core tests unchanged.
+
+### Matrix effect
+**V1 → READY.** V group now 2 READY / 2 PARTIAL / 0 GAP. **R3 is the last open
+P1.**
+
+### Not deployed
+New test files only — nothing to deploy. The e2e test runs wherever Docker is
+reachable (this host, a Docker-capable CI runner) and skips elsewhere.

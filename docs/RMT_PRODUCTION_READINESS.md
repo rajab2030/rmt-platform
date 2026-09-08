@@ -159,7 +159,7 @@ able to *tell a human*.
 
 | ID | Requirement | Current verified evidence | Status | Required action | Priority |
 |---|---|---|---|---|---|
-| **V1** | Automated end-to-end test on a realistic adapter | The 214-test suite mocks the execution adapter. The only true end-to-end proof (LLM → propose → approve → docker → verify) is the **manual** live exercises recorded in `HANDOFF.md`. | **PARTIAL** | Add an automated end-to-end test against a disposable real container (or a high-fidelity fake) covering fault → held → approve → execute → verify. | **P1** |
+| **V1** | Automated end-to-end test on a realistic adapter | **DONE (2026-09-08).** `app/homelab/testing/test_e2e_docker.py` (`@pytest.mark.e2e`) drives the **real** `DockerExecutionAdapter` against a disposable `alpine` container: fault (stop) → `observe_container_state` sees `exited` → `execute_governed_action(RESTART, requires_approval=True)` → **`manual_approval_required`** (nothing executed) → `approve_held_action` → real `docker restart` → container back to `running` → above-Core `verify_docker_execution` → **`verified_success`** → asserts the correlated authorization / audit (`adapter=docker`) / trace / verification records, and that the real JSON stores are untouched. A second test drives the real adapter against a missing container → `success=False` → E3 `adapter_execution_failed`. **Auto-skips** when the Docker daemon is unreachable or `alpine:latest` can't be obtained, so it is safe in the default suite and CI. All six evidence stores + every `verification_storage` reference are swapped to in-memory (finding: `app/ops/execution_evidence.py` binds its own ref — now also patched); the throwaway container (`rmt-e2e-<hex>`, never a homelab component) is force-removed on teardown. `pytest.ini` registers the `e2e` marker. No `app/core/**` change. | **READY** | — | **P1** |
 | **V2** | CI on every change | **DONE (2026-09-08).** `backend/scripts/ci.sh` — one gate: throwaway venv built strictly from `requirements.lock.txt` (reproducible install) → `ruff check` (errors-only: `F`, `E9`; `backend/ruff.toml`; `app/core` excluded — it keeps its own 122-test gate) → the full backend suite. Exit non-zero on any step. `.github/workflows/ci.yml` calls it on push / PR to `main`/`master` — **inert until the repo has a remote**, then it gates automatically with no further change. Verified green from a clean venv: ruff clean, **324 passed**. 7 pre-existing dead imports removed (all above-Core; no `app/core/**` touch). Also closes the D1 open action (clean-venv-from-lock build). | **READY** | Push the repo to a remote so the workflow runs; add branch protection when it does. | **P1** |
 | **V3** | Coverage of environment-dependent routes | `/platform/state` (git) and `/containers*` (docker socket) were validated only opportunistically; `test_http_entrypoints.py` had to be corrected once for adapter-mode drift. | **PARTIAL** | Add explicit tests for both adapter modes (git/docker present and absent). | **P2** |
 | **V4** | Regression guard on live-config changes | Enabling a capability on live is a manual drop-in + restart + manual exercise. | **PARTIAL** | A post-deploy smoke script (assert route presence, flags, loop idle, suite green) run automatically after each restart. | **P2** |
@@ -194,13 +194,13 @@ able to *tell a human*.
 | E — Evidence Durability & Integrity | 6 | 0 | 0 | 0 | 0 |
 | D — Deployment & Configuration | 4 | 2 | 0 | 0 | 0 |
 | O — Observability & Alerting | 3 | 0 | 1 | 0 | 0 |
-| V — Validation & Change Safety | 1 | 3 | 0 | 0 | 0 |
+| V — Validation & Change Safety | 2 | 2 | 0 | 0 | 0 |
 | R — Resilience & Recovery | 2 | 0 | 1 | 1 | 0 |
 | G — Governance Process | 4 | 0 | 0 | 0 | 0 |
-| **Total** | **24** | **7** | **3** | **1** | **0** |
+| **Total** | **25** | **6** | **3** | **1** | **0** |
 
-Remaining: **GAP** — S7, O4 (both P2), R3 (P1). **PARTIAL** — S5, S6, D4, D6,
-V1, V3, V4 (V1 is P1; the rest P2).
+Remaining: **GAP** — S7, O4 (both P2), **R3 (the last P1)**. **PARTIAL** — S5,
+S6, D4, D6, V3, V4 (all P2).
 
 ### By priority
 
@@ -212,7 +212,7 @@ V1, V3, V4 (V1 is P1; the rest P2).
 
 **P0 is fully closed (2026-09-08).** All six blocking items — S1, S2-lite, E1,
 E2, O2, S4 — are live and verified. Next work is P1.
-| **P1** | V1, R3 | pending (D1, D2, R1, E3, S3, E4, E5, O3, V2, O1, D3 done) |
+| **P1** | R3 | pending (D1, D2, R1, E3, S3, E4, E5, O3, V2, O1, D3, V1 done) |
 | **P2** | S5, S6, S7, D4, D6, O4, V3, V4 | pending (D5, E6 done) |
 | **ACCEPTED** | R4 (single-instance) | recorded |
 
@@ -244,7 +244,7 @@ all done. Enables R3 (platform recovery).
 
 **W4 — Operability.** O2, O3, **O1 done** → D4 → O4.
 
-**W5 — Validation.** **V2 (CI) done** → V1 (real e2e) → V3 → V4.
+**W5 — Validation.** **V2 (CI) + V1 (real Docker e2e) done** → V3 → V4.
 
 ### Dependency view
 
@@ -348,7 +348,10 @@ structured JSON logging to stdout/journald, per-request `request_id` +
 journald handles rotation. **D3 (2026-09-08) closed**:
 `deploy/systemd/hardening.conf` — sandboxing + resource ceilings + restart
 backoff, no code change; `systemd-analyze security` 9.2 UNSAFE → 4.1 OK
-(install pending). Next: P1 — V1, R3.
+(install pending). **V1 (2026-09-08) closed**: `test_e2e_docker.py` drives the
+real `DockerExecutionAdapter` against a disposable `alpine` container through
+fault → held → approve → restart → verify → evidence (auto-skips without
+Docker). **R3 is the last open P1.**
 
 ---
 
