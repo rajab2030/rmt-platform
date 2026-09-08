@@ -1463,3 +1463,44 @@ of this work.
 ### Next (P1, all above-Core)
 E4 retention/rotation, E5 RMT-store backup, D3 systemd sandboxing, O1/O3
 observability, V1/V2, R3 platform-recovery runbook.
+
+---
+
+## Session note — E4 evidence retention/archival + D4 proposal rev-2
+
+**Date:** 2026-09-08. Above-Core / operational. No `app/core/**` change.
+
+### D4 proposal rev-2 (`7dab721`)
+Revised `docs/RMT_D4_PROPOSAL.md` after review: S3 (`b391293`) + E3 (`111b108`)
+recorded DONE; new §3a scopes dual approval as an above-Core M-of-N layer
+(Option D1); new §9 surfaces the **`ActionType`** blocker — the enum is closed
+and `actions/policy.py` denies any type not in `ALLOWED_ACTION_TYPES`, so D4
+needs either a 2-file behaviour-preserving Core deviation (Path A) or submit-as-
+`create` + real type in parameters/`decision_id` (Path B, recommended). Sequencing
+recommendation: **hold D4 until E4 + E5 close**.
+
+### E4 — implemented (`app/ops/retention.py`)
+`archive_aged_evidence()` — startup, after `reconcile_governance_stores()`:
+each of the six evidence stores has records older than
+`RMT_EVIDENCE_RETENTION_DAYS` (default 90; `<=0` disables) moved into an
+append-only `<name>.archive.jsonl` beside it; the trimmed store is re-persisted
+via the atomic (E1) path. Bounded (no/unparseable `created_at` → kept),
+idempotent, fail-open per store and overall.
+- `app/ops/ops_config.py` — `evidence_retention_days()`.
+- `app/main.py` — one lifespan call after the reconcile; import added.
+- `app/ops/testing/test_retention.py` — 10 tests.
+- `docs/operations/CONFIG.md` — `RMT_EVIDENCE_RETENTION_DAYS` row.
+
+### Validation
+`test_retention.py` 10 passed; **full app suite 316 passed** (306 + 10). `import
+app.main` clean. Against the live stores `archive_aged_evidence()` returns
+`archived_total: 0` (oldest record 6 days old) — a safe no-op until records age
+past 90 days.
+
+### Not deployed to live
+`retention.py` + `main.py` — needs a service restart. No-op on the current
+stores; it will WARN + write archive files only once evidence ages past the
+window.
+
+### Next
+**E5** — RMT evidence backup/restore (in progress this session).

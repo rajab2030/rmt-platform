@@ -10,6 +10,7 @@ from app.ops.auth import OperatorIdentity, require_operator
 from app.ops.execution_evidence import record_failed_execution_evidence
 from app.ops.notifications import notify_held
 from app.ops.reconcile import reconcile_governance_stores
+from app.ops.retention import archive_aged_evidence
 from app.ops.separation import check_separation
 
 from app.monitor import get_history
@@ -105,6 +106,11 @@ async def lifespan(app: FastAPI):
     # inconsistent approval linkage (log-only). Fail-open; see
     # app/ops/reconcile.py.
     reconcile_governance_stores()
+
+    # E4: archive evidence records older than RMT_EVIDENCE_RETENTION_DAYS out of
+    # the live JSON stores into <name>.archive.jsonl so the live files stay
+    # bounded. After the reconcile above; fail-open; see app/ops/retention.py.
+    archive_aged_evidence()
 
     collector_task = asyncio.create_task(
         collect_metrics()

@@ -128,7 +128,7 @@ substrate is currently weaker than the governance logic on top of it.
 | **E1** | Atomic, concurrency-safe evidence writes | **DONE** — `DurableStore._persist` writes a sibling `.tmp`, `flush` + `os.fsync`, then `os.replace` (atomic on POSIX); `_load` discards stale `.tmp`. Byte-identical committed output; owner-authorized frozen-Core hardening deviation. `test_durable_store_atomic.py` (interrupted-write leaves prior file intact). | **READY** | — | **P0** |
 | **E2** | Hold state persisted on resolution | **DONE (above-Core)** — owner chose reconciliation over a Core fix. `app/ops/reconcile.py::reconcile_holds_against_records`, run once in the `app/main.py` startup lifespan, brings the hold store back into agreement with the authoritative approval **record** store: a `pending` hold whose record shows a terminal decision (`approved`/`rejected`) is corrected in place and re-persisted via the store's atomic (E1) write path. Read-only where nothing diverges; fail-open (never blocks startup). Never invents a resolution. No `app/core/**` change. `app/ops/testing/test_reconcile.py` — 9 tests; full suite 263 passed. | **READY** | — | **P0** |
 | **E3** | Failed-execution verification evidence | **DONE (above-Core, 2026-09-08).** `app/ops/execution_evidence.py::record_failed_execution_evidence` — for a governed outcome that *reached the adapter and failed* (`status == "executed"`, `success is False`, has `execution_id`), writes one `VerificationResult` into the **existing** verification store with a distinct status **`adapter_execution_failed`** (§11 "adapter invoked and failed"), correlated by `execution_id`. Bounded (blocked-before-adapter outcomes left alone), idempotent (skips if an above-Core observer already recorded one), fail-open. Wired at `/execute`, `/approve`, `/homelab/remediate`, `/homelab/approve`, and the agent adapter's failure branch. No `app/core/**` change. `test_execution_evidence.py` — 19 tests + an agent end-to-end test. | **READY** | — | **P1** |
-| **E4** | Retention / rotation / size management | The six JSON stores grow unbounded and are fully rewritten each save (O(n) per write). | **GAP** | Define a retention window + archival/rotation; this is also resolved by an E1 migration to SQLite. | **P1** |
+| **E4** | Retention / rotation / size management | **DONE (above-Core, 2026-09-08).** `app/ops/retention.py::archive_aged_evidence` runs on startup (after the reconcile): every evidence record older than **`RMT_EVIDENCE_RETENTION_DAYS`** (default 90; `<=0` disables) is moved out of the live JSON store into an append-only `<name>.archive.jsonl` beside it, and the trimmed store is re-persisted via the atomic (E1) path. Bounded (no/bad `created_at` → kept), idempotent, fail-open per store. Archives are what E5 backs up; full history = archive + live. No `app/core/**` change. `test_retention.py` — 10 tests. | **READY** | — | **P1** |
 | **E5** | Evidence backup & restore (RMT stores) | `docs/recovery/RECOVERY_RUNBOOK.md` + the `scripts/` backup engine cover the **Docker stack** (volumes, stack config). The RMT governance stores and `data/observability.db` are not in a documented backup/restore path. | **GAP** | Add the RMT evidence stores + SQLite DB to the backup engine and the recovery runbook, with a restore-integrity check. | **P1** |
 | **E6** | Startup integrity / reconciliation | **DONE (above-Core, 2026-09-08).** `app/ops/reconcile.py::reconcile_governance_stores` runs on startup: (1) E2 — corrects a stale `pending` hold against the authoritative record store; (2) **E6 — `audit_authorizations()` cross-checks every `ExecutionAuthorization` against the approval record + hold stores** and logs (`WARNING`) any inconsistent linkage — `missing_record`, `contradicts_rejection`, `record_not_terminal`, `hold_still_pending`. The authorization store is Core-owned + append-only (the Core never mutates an authorization after creation), so this half is **read-only by design** — it surfaces divergence, never rewrites Core evidence. Verified against the live store: 18 checked, 1 flagged (a historical 2026-09-02 `test-container` orphan authz with no record), `authorizations.json` byte-identical afterward. `test_reconcile.py` — 18 tests (9 E2 + 9 E6). | **READY** | — | **P2** |
 
@@ -209,7 +209,7 @@ able to *tell a human*.
 
 **P0 is fully closed (2026-09-08).** All six blocking items — S1, S2-lite, E1,
 E2, O2, S4 — are live and verified. Next work is P1.
-| **P1** | E4, E5, D3, O1, O3, V1, V2, R3 | pending (D1, D2, R1, E3, S3 done) |
+| **P1** | E5, D3, O1, O3, V1, V2, R3 | pending (D1, D2, R1, E3, S3, E4 done) |
 | **P2** | S5, S6, S7, D4, D6, O4, V3, V4 | pending (D5, E6 done) |
 | **ACCEPTED** | R4 (single-instance) | recorded |
 
@@ -328,7 +328,9 @@ failed, so all five §11 outcomes are now distinguishable in evidence. The
 remaining P1/P2 items are for a more robust posture but are not individually
 blocking. **S3 (2026-09-08) closed** above-Core: `RMT_AUTH_SEPARATION` gates
 `/approve` + `/homelab/approve` so the approver of an agent-raised hold cannot
-be its grantor. Next: P1 — E4/E5, D3, O1/O3, V1/V2, R3.
+be its grantor. **E4 (2026-09-08) closed**: `archive_aged_evidence` bounds the
+live JSON stores on startup (`RMT_EVIDENCE_RETENTION_DAYS`, default 90; archives
+to `<name>.archive.jsonl`). Next: P1 — E5, D3, O1/O3, V1/V2, R3.
 
 ---
 
