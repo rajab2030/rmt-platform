@@ -116,7 +116,7 @@ currently enforces who the operator is.
 | **S4** | Transport security & network exposure | **DONE + LIVE (2026-09-08)** — `bind-loopback.conf` deployed (app listens `127.0.0.1:8000` only, verified unreachable off-loopback) **and** Caddy `2.6.2` TLS reverse proxy installed + enabled, `/etc/caddy/Caddyfile` from `deploy/Caddyfile`, `tls internal` CA trusted on the host. Verified on `192.168.223.128`: `https://` → 200 CA-validated, `http://` → 308 redirect, no-token `POST` → 401, open GET → 200, CAP-04 loop healthy through the proxy. | **READY** | Import the Caddy root CA on other operator machines (`/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt`). | **P0** |
 | **S5** | CORS configuration | **DONE (2026-09-08).** `RMT_CORS_ORIGINS` (comma-separated) → `ops_config.cors_origins()`; default is `http://localhost:5173` only (the stale hardcoded `192.168.235.128` is gone). `allow_methods` scoped to `GET, POST`, `allow_headers` to `Authorization, X-API-Key, Content-Type, X-Request-ID` (were `["*"]`). `test_cors.py` — 4 tests. | **READY** | Set `RMT_CORS_ORIGINS` to the deployed frontend origin in a drop-in. | **P2** |
 | **S6** | Secrets management | **DONE by policy (2026-09-08).** No credential exists in the system today (local Ollama, no key). `docs/operations/SECRETS.md` fixes the standing pattern (root-owned `0600` systemd `EnvironmentFile`, template committed / populated file not) and the pre-agreed next step — `systemd` credentials (`LoadCredential=`) — which is mandatory before **any** credentialed dependency (model key, authed notifier, IdP) is added. | **READY** *(by policy)* | Implement the `systemd`-credentials path when the first credential is proposed. | **P2** |
-| **S7** | Abuse / rate protection on expensive routes | `/agent/act/llm` (model call) and `/execute` (real mutation) have no throttle or concurrency cap beyond the agent single-use grant. | **GAP** | Add a simple per-principal rate limit / concurrency guard on `/agent/act*` and `/execute`. | **P2** |
+| **S7** | Abuse / rate protection on expensive routes | **DONE (2026-09-08).** `app/ops/ratelimit.py` — an in-process **fixed-window** limiter keyed by `(principal, bucket)`. `POST /execute` → 30/min per operator (`RMT_RATELIMIT_EXECUTE_PER_MINUTE`); `POST /agent/act`, `/agent/act/llm`, `/agent/authority/grant` → 20/min (`RMT_RATELIMIT_AGENT_PER_MINUTE`); over-limit → **429** + `Retry-After`. Per-principal (the authenticated operator; peer IP fallback). Read-only agent routes are not limited. `RMT_RATELIMIT_ENABLED=false` disables it. Fits the single-process deployment (R4). `test_ratelimit.py` — 5 tests. No `app/core/**` change. | **READY** | — | **P2** |
 
 ### Group E — Evidence Durability & Integrity
 
@@ -139,7 +139,7 @@ substrate is currently weaker than the governance logic on top of it.
 | **D1** | Pinned, reproducible dependency set | **DONE** — `backend/requirements.txt` now pins every direct dep (+ `pytest`, `httpx2` as test-only); `backend/requirements.lock.txt` is the full 33-package transitive lock (`pip freeze`). | **READY** | — (V2 `ci.sh` now builds a clean venv from the lock on every run). | **P1** |
 | **D2** | Deploy + rollback runbook for the RMT service | **DONE** — `docs/operations/DEPLOY.md` (first-time P0 cutover, routine redeploy, rollback, token rotation, restart-safety check) + `docs/operations/CONFIG.md` (every `RMT_*` var — also closes **D5**). | **READY** | Exercise it on the next redeploy. | **P1** |
 | **D3** | Service hardening | **DONE (2026-09-08).** `projects/homelab-control-center/deploy/systemd/hardening.conf` — a drop-in adding: restart backoff (`StartLimitIntervalSec=300` / `StartLimitBurst=5`, `RestartSteps` / `RestartMaxDelaySec=60`); resource ceilings (`MemoryMax=512M`, `MemoryHigh=384M`, `CPUQuota=200%`, `TasksMax=128` — idle RSS is ~70M); `NoNewPrivileges`, `LockPersonality`, `RestrictRealtime/SUIDSGID/Namespaces`, `RemoveIPC`, `UMask=0077`; `ProtectSystem=full`, `PrivateTmp`, and the kernel-surface protections (`ProtectControlGroups/KernelTunables/KernelModules/KernelLogs/Clock/Hostname`, `ProtectProc=invisible`); `SystemCallArchitectures=native`, `SystemCallFilter=@system-service` (`→EPERM`), `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK`. Docker-socket access survives (supplementary `docker` group, not dropped by `NoNewPrivileges`); no `app/core/**` or code change. `systemd-analyze verify` clean; `systemd-analyze security --offline` **9.2 UNSAFE → 4.1 OK**. `ProtectHome` stays `no` and `ProtectSystem` is `full` not `strict` (evidence JSON + `data/observability.db` live under `/home`); `strict`+`ReadWritePaths`, `ProcSubset=pid`, IP filtering are documented deferrals (`DEPLOY.md` §5.1). | **READY** | Install the drop-in + `daemon-reload` + restart; watch the first restart (`DEPLOY.md` §5.1). | **P1** |
-| **D4** | Health/readiness probe acted upon | `/intelligence/health` returns 200 (D1 correction, C07). Nothing external watches it; `Restart=always` only restarts on process exit, not on unhealthy. | **PARTIAL** | Wire a watchdog (systemd `WatchdogSec` + `sd_notify`, or an external check) that restarts on sustained unhealthy. | **P2** |
+| **D4** | Health/readiness probe acted upon | **DONE (2026-09-08).** `backend/scripts/rmt-watchdog.sh` — cron / systemd-timer polls `GET /health`; after N consecutive **unreachable** results (`RMT_WATCHDOG_FAILS_BEFORE_RESTART`, default 3) it `systemctl restart`s the service and fires an ops alert (`RMT_WATCHDOG_NOTIFY_URL`). Sustained `status: degraded` (loop cycle error / quarantine) is **alert-only** by default — a restart doesn't clear a quarantine and risks a restart loop; `RMT_WATCHDOG_RESTART_ON_DEGRADED=true` opts in. Consecutive-failure count in a state file; clears on recovery. Ops tooling only; no code change. | **READY** | Cron `rmt-watchdog.sh` every 1–2 min with a notify URL. | **P2** |
 | **D5** | Consolidated configuration reference | **DONE** — `docs/operations/CONFIG.md` lists every `RMT_*` var (auth, notify, CAP-04 loop, agent 5A/5B), default, effect, and which drop-in sets it, plus the expected live drop-in inventory. | **READY** | Keep in sync with `loop_config.py` changes. | **P2** |
 | **D6** | Documented runtime prerequisites & environment parity | **DONE (2026-09-08).** `docs/operations/PREREQUISITES.md` lists required vs capability-sensitive host capabilities. `app/ops/runtime_info.py` — `GET /health` carries a `runtime` block (`configured_engine`, `resolved_adapter`, `docker_available`, `git_available`, `adapter_degraded`, `notes`); a configured/resolved engine mismatch is logged as a `WARNING` at startup. The V4 smoke script asserts `configured == resolved == "docker"` on the live host. `test_runtime_info.py` — 6 tests. | **READY** | — | **P2** |
 
@@ -153,7 +153,7 @@ able to *tell a human*.
 | **O1** | Structured application logging + rotation | **DONE (2026-09-08).** `app/ops/logging_config.py` — stdlib `logging`, **no dependency**. `configure_logging()` owns the `rmt` logger tree: one JSON line per record to stdout → journald, `propagate=False`, idempotent; `RMT_LOG_LEVEL` (default `INFO`), `RMT_LOG_JSON` (default `true`). `RequestContextMiddleware` binds a per-request `request_id` (honours inbound `X-Request-ID`, echoes it on the response) and logs one `http_request` line (method, path, status, duration_ms, principal). `log_event()` emits one structured line at each governed-lifecycle boundary — the 4 mutating routes (`governed_execute` / `governed_approve` / `homelab_remediate` / `homelab_approve`), the CAP-04 loop (`loop_remediation` / `loop_quarantine` / `loop_cycle_error`), and every agent proposal that reaches the adapter (`agent_proposal_outcome`) — correlated by `action_id` / `execution_id` / `approval_id`. `require_operator` stashes the resolved name on `request.state.principal`. No `app/core/**` change. `test_logging_config.py` — 16 tests. **Rotation:** journald (`DEPLOY.md` §5 — `SystemMaxUse=` / `MaxRetentionSec=`), operator step. | **READY** | Set a journald cap on the host (`DEPLOY.md` §5). | **P1** |
 | **O2** | Alert on held remediation / agent proposal | **DONE + LIVE (log sink)** — `app/ops/notifications.py` `notify_held` (webhook via stdlib `urllib`, fail-open, per-key de-dupe) hooked at `/execute`, `/homelab/remediate`, the CAP-04 loop, and the agent adapter. Deployed with `RMT_NOTIFY_WEBHOOK_URL` **unset** → held actions log to the journal only. `test_notifications.py`. | **READY** *(routing to a real sink pending)* | Set `RMT_NOTIFY_WEBHOOK_URL` in `auth.conf` when a chat/email sink exists. | **P0** |
 | **O3** | Alert on loop quarantine / cycle error / service down | **DONE (above-Core, 2026-09-08).** `app/ops/notifications.py::notify_ops` (same fail-open, de-duped webhook sink as O2) fires on **loop quarantine** and **loop cycle error** — hooked in `app/homelab/operational_loop.py`. **Service-down** is out-of-band: new unauthenticated `GET /health` probe (`status: ok`/`degraded` from the loop state) + `backend/scripts/rmt-heartbeat.sh`, a cron inverted dead-man's-switch that pings `RMT_HEARTBEAT_URL` only while `/health` answers 200. `test_notifications.py` + `test_health.py` + `test_operational_loop.py` cover it. No `app/core/**` change. | **READY** | Set `RMT_NOTIFY_WEBHOOK_URL`; cron `rmt-heartbeat.sh` with a monitor URL. | **P1** |
-| **O4** | Platform self-metrics | No request-rate / error-rate / hold-queue-depth metrics for the RMT process. | **GAP** | Expose a metrics endpoint or periodic self-report (holds outstanding, cycles, error counts). | **P2** |
+| **O4** | Platform self-metrics | **DONE (2026-09-08).** `app/ops/metrics.py` + unauthenticated `GET /metrics` in Prometheus text format (`text/plain; version=0.0.4`), **no new dependency**. Exposes: loop enabled/running/cycles/cycle-error/quarantined; approval holds by status (queue depth); approval decisions; verification outcomes by status; executions by adapter; authorizations issued; agent enabled + active grants; `rmt_metrics_scrape_errors_total`. **Read-only** derivation from the loop status + the durable evidence stores — no new evidence category, no write path, no `app/core/**` change. Each store read is wrapped (a failure increments the scrape-errors counter instead of 500-ing). `test_metrics.py` — 4 tests. | **READY** | Point Prometheus / a scraper at `:8000/metrics` (or via Caddy). | **P2** |
 
 ### Group V — Validation & Change Safety
 
@@ -161,8 +161,8 @@ able to *tell a human*.
 |---|---|---|---|---|---|
 | **V1** | Automated end-to-end test on a realistic adapter | **DONE (2026-09-08).** `app/homelab/testing/test_e2e_docker.py` (`@pytest.mark.e2e`) drives the **real** `DockerExecutionAdapter` against a disposable `alpine` container: fault (stop) → `observe_container_state` sees `exited` → `execute_governed_action(RESTART, requires_approval=True)` → **`manual_approval_required`** (nothing executed) → `approve_held_action` → real `docker restart` → container back to `running` → above-Core `verify_docker_execution` → **`verified_success`** → asserts the correlated authorization / audit (`adapter=docker`) / trace / verification records, and that the real JSON stores are untouched. A second test drives the real adapter against a missing container → `success=False` → E3 `adapter_execution_failed`. **Auto-skips** when the Docker daemon is unreachable or `alpine:latest` can't be obtained, so it is safe in the default suite and CI. All six evidence stores + every `verification_storage` reference are swapped to in-memory (finding: `app/ops/execution_evidence.py` binds its own ref — now also patched); the throwaway container (`rmt-e2e-<hex>`, never a homelab component) is force-removed on teardown. `pytest.ini` registers the `e2e` marker. No `app/core/**` change. | **READY** | — | **P1** |
 | **V2** | CI on every change | **DONE (2026-09-08).** `backend/scripts/ci.sh` — one gate: throwaway venv built strictly from `requirements.lock.txt` (reproducible install) → `ruff check` (errors-only: `F`, `E9`; `backend/ruff.toml`; `app/core` excluded — it keeps its own 122-test gate) → the full backend suite. Exit non-zero on any step. `.github/workflows/ci.yml` calls it on push / PR to `main`/`master` — **inert until the repo has a remote**, then it gates automatically with no further change. Verified green from a clean venv: ruff clean, **324 passed**. 7 pre-existing dead imports removed (all above-Core; no `app/core/**` touch). Also closes the D1 open action (clean-venv-from-lock build). | **READY** | Push the repo to a remote so the workflow runs; add branch protection when it does. | **P1** |
-| **V3** | Coverage of environment-dependent routes | `/platform/state` (git) and `/containers*` (docker socket) were validated only opportunistically; `test_http_entrypoints.py` had to be corrected once for adapter-mode drift. | **PARTIAL** | Add explicit tests for both adapter modes (git/docker present and absent). | **P2** |
-| **V4** | Regression guard on live-config changes | Enabling a capability on live is a manual drop-in + restart + manual exercise. | **PARTIAL** | A post-deploy smoke script (assert route presence, flags, loop idle, suite green) run automatically after each restart. | **P2** |
+| **V3** | Coverage of environment-dependent routes | **DONE (2026-09-08).** `app/ops/testing/test_env_routes.py` — `/containers`, `/containers/{name}/stats` and `/platform/state` pinned in **both** modes: capability present (200 + body) and capability absent. To make "absent" a defined outcome, the three route bodies now catch the Docker/`git` failure and return **503** (`{"detail": "docker unavailable: …"}` / `git unavailable: …`) instead of an unhandled 500. `test_http_entrypoints.py`'s deliberate exclusion of these routes is now covered here. 5 tests; no `app/core/**` change. | **READY** | — | **P2** |
+| **V4** | Regression guard on live-config changes | **DONE (2026-09-08).** `backend/scripts/rmt-smoke.sh` — post-deploy smoke: `/health` 200 + `status ok`; the D6 `runtime` block shows `resolved_adapter == RMT_SMOKE_EXPECT_ADAPTER` (default `docker`) and `adapter_degraded == false`; `/metrics` up with 0 scrape errors; `POST /execute` and `GET /agent/status` → 401 unauthenticated (S1); loop state matches `RMT_SMOKE_EXPECT_LOOP`; optional authed `/agent/status` with `RMT_SMOKE_TOKEN`. Exit non-zero on any failure. Verified against a throwaway instance (9/10, the 10th a deliberately mis-set expectation). Run it after every restart / drop-in change. | **READY** | Wire into the deploy step / a post-start `ExecStartPost=` or cron. | **P2** |
 
 ### Group R — Resilience & Recovery
 
@@ -186,22 +186,24 @@ able to *tell a human*.
 
 ## 4. Status Summary
 
-*(Resynced 2026-09-08 after the E1–E6 / S3 / O1 / O3 / V2 / D3 / V1 / R3
-closures.)*
+*(Resynced 2026-09-08 after the E1–E6 / S3 / S5 / S6 / S7 / O1 / O3 / O4 / D3 /
+D4 / D6 / V1 / V2 / V3 / V4 / R3 closures — **P0, P1 and P2 all complete**.)*
 
 | Group | READY | PARTIAL | GAP | ACCEPTED | N/A |
 |---|---|---|---|---|---|
-| S — Security & Access Control | 4 | 2 | 1 | 0 | 0 |
+| S — Security & Access Control | 7 | 0 | 0 | 0 | 0 |
 | E — Evidence Durability & Integrity | 6 | 0 | 0 | 0 | 0 |
-| D — Deployment & Configuration | 4 | 2 | 0 | 0 | 0 |
-| O — Observability & Alerting | 3 | 0 | 1 | 0 | 0 |
-| V — Validation & Change Safety | 2 | 2 | 0 | 0 | 0 |
+| D — Deployment & Configuration | 6 | 0 | 0 | 0 | 0 |
+| O — Observability & Alerting | 4 | 0 | 0 | 0 | 0 |
+| V — Validation & Change Safety | 4 | 0 | 0 | 0 | 0 |
 | R — Resilience & Recovery | 3 | 0 | 0 | 1 | 0 |
 | G — Governance Process | 4 | 0 | 0 | 0 | 0 |
-| **Total** | **26** | **6** | **2** | **1** | **0** |
+| **Total** | **34** | **0** | **0** | **1** | **0** |
 
-Remaining: **GAP** — S7, O4 (both P2). **PARTIAL** — S5, S6, D4, D6, V3, V4
-(all P2). **Every P0 and P1 item is closed.**
+**Nothing PARTIAL or GAP remains.** `R4` (single-instance / no HA) stays
+**ACCEPTED** at homelab scale. `S6` is READY *by policy* (no credential exists
+yet; the `systemd`-credentials path is scoped and mandatory before the first
+one — `docs/operations/SECRETS.md`).
 
 ### By priority
 
@@ -214,7 +216,7 @@ Remaining: **GAP** — S7, O4 (both P2). **PARTIAL** — S5, S6, D4, D6, V3, V4
 **P0 is fully closed (2026-09-08).** All six blocking items — S1, S2-lite, E1,
 E2, O2, S4 — are live and verified.
 | **P1** | — | **all closed** (D1, D2, R1, E3, S3, E4, E5, O3, V2, O1, D3, V1, R3) |
-| **P2** | S5, S6, S7, D4, D6, O4, V3, V4 | pending (D5, E6 done) |
+| **P2** | — | **all closed** (S5, S6, S7, D4, D5, D6, O4, V3, V4, E6) |
 | **ACCEPTED** | R4 (single-instance) | recorded |
 
 ---
@@ -297,8 +299,9 @@ Not required for this platform to be production-ready at its current purpose:
 
 ## 8. Final Verdict
 
-**CORE: COMPLETE & FROZEN. OPERATIONAL PRODUCTION-READINESS: P0 + P1 COMPLETE
-(2026-09-08). Only P2 hardening remains.**
+**CORE: COMPLETE & FROZEN. OPERATIONAL PRODUCTION-READINESS: P0 + P1 + P2 ALL
+COMPLETE (2026-09-08).** Every row of this matrix is READY except `R4` (no HA),
+which stays **ACCEPTED** at homelab scale.
 
 The RMT Core architecture is validated and frozen. The running platform is a
 working, evidenced control plane, live-exercised end to end.
@@ -361,8 +364,21 @@ and `backend/scripts/rmt-rebuild.sh` (+ `docs/operations/RMT_PLATFORM_RECOVERY.m
 drives a cold start from the repo + an E5 evidence backup through venv-from-lock
 → evidence restore → integrity check → suite → unit install → service up. A
 scratch-dir drill passed end to end (342 passed; throwaway `/health` → `ok`;
-live service untouched). **All P0 and P1 items are now closed; only P2 hardening
-remains.**
+live service untouched).
+
+**P2 batch (2026-09-08) closed** — all above-Core, no `app/core/**` change:
+**S5** CORS from `RMT_CORS_ORIGINS` + scoped methods/headers; **S6** secrets
+pattern documented + accepted by policy (`docs/operations/SECRETS.md`); **S7**
+`app/ops/ratelimit.py` per-principal fixed-window limits on `/execute` +
+`/agent/act*` → 429; **D4** `rmt-watchdog.sh` restarts on sustained-unreachable
+`/health`, alerts on degraded; **D6** `app/ops/runtime_info.py` — `/health`
+`runtime` block + startup WARNING on adapter-mode mismatch, plus
+`docs/operations/PREREQUISITES.md`; **O4** `app/ops/metrics.py` + Prometheus
+`GET /metrics` (read-only, no dependency); **V3** `test_env_routes.py` pins
+`/containers*` + `/platform/state` in both modes (routes now 503 not 500 when
+the capability is absent); **V4** `rmt-smoke.sh` post-deploy gate. Full suite
+green. **Every P0, P1 and P2 item is now closed; only `R4` (no HA) remains, and
+it is ACCEPTED.**
 
 ---
 

@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from app.core.intelligence.actions.models import ActionType
 
 from app.ops.auth import OperatorIdentity, require_operator
+from app.ops.ratelimit import rate_limit_agent
 from app.ops.separation import separation_enabled
 from app.agent import loop_config
 from app.agent.authority import authority_store
@@ -53,7 +54,7 @@ class LlmActBody(BaseModel):
     grant_id: str | None = None
 
 
-@router.post("/authority/grant")
+@router.post("/authority/grant", dependencies=[Depends(rate_limit_agent)])
 def grant_authority(
     body: GrantBody,
     operator: OperatorIdentity = Depends(require_operator),
@@ -79,7 +80,7 @@ def grant_authority(
     return g.as_dict()
 
 
-@router.post("/act")
+@router.post("/act", dependencies=[Depends(rate_limit_agent)])
 def act(body: ProposeBody):
     """Agent proposes a consequential action -> governed lifecycle."""
     try:
@@ -107,7 +108,7 @@ def act(body: ProposeBody):
     return payload
 
 
-@router.post("/act/llm")
+@router.post("/act/llm", dependencies=[Depends(rate_limit_agent)])
 def act_llm(body: LlmActBody):
     """5B: an LLM turns a natural-language goal into a proposal, then the
     proposal runs the identical 5A governed path (authority -> T13 ->
