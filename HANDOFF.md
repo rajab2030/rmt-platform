@@ -1259,3 +1259,85 @@ E3 (above-Core execution-result wrapper: emit a distinguishable
 False — same layer as `verify_docker_execution`), S3 approver≠grantor
 enforcement, E4 retention/rotation, E5 RMT-store backup, D3 systemd sandboxing,
 O1/O3, V1/V2, R3 platform-recovery runbook.
+
+---
+
+## Session note — E3 above-Core execution-result wrapper (distinguishable adapter-failure evidence)
+
+**Date:** 2026-09-08. Above-Core / operational. **No `app/core/**` change** (owner
+directive: no Core modification or fix).
+
+### The gap
+`AGENTS.md` §11 requires five post-execution outcomes to be *distinguishable in
+evidence*: blocked-before-execution / **adapter invoked and failed** /
+successful execution / verification failure / unknown-or-unavailable state. When
+a governed execution reached the adapter and it returned `success=False`, the
+Core wrote an **audit** + **trace** record (both `status="failed"`) but **no
+verification record** — every caller gates `verify_execution` /
+`verify_docker_execution` on `result.success`. `verification_failure` already
+means "the verifier itself failed", so adapter failure was not distinguishable
+*in the verification store*.
+
+Path-by-path (some were already covered above-Core):
+- `/homelab/remediate`, `/homelab/approve` (uptime-kuma) — already wrote
+  `state_mismatch` / `observation_unavailable` (no success gate in
+  `remediation.py` / `continuation.py`).
+- `/execute`, `/approve` (Core paths), `/agent/act*`, `/homelab/approve` for a
+  non-`REMEDIATION_POLICY` component — **no record**.
+
+### Implemented
+- **New `app/ops/execution_evidence.py`** — `record_failed_execution_evidence(
+  outcome, *, expected=None, source)`:
+  - Fires only for a real failed execution attempt: `outcome["status"] ==
+    "executed"` **and** `success is False` **and** `execution_id` present.
+    Blocked-before-adapter outcomes (`manual_approval_required`,
+    `policy_denied`, `no_authority`, `authorization_not_created`, `rejected`,
+    `no_remediation`, `unsupported_operation`, `error`) are left alone.
+  - Writes one `VerificationResult` to the **existing** `verification_storage`
+    with status **`adapter_execution_failed`** (distinct from the four frozen
+    `VerificationStatus` values), correlated by `execution_id`, `reason` from
+    the adapter message.
+  - **Idempotent** — skips if `verification_storage.get_by_execution_id(...)`
+    already has a record (so paths already covered above-Core aren't
+    double-written).
+  - **Fail-open** — never raises.
+- **New `app/ops/testing/test_execution_evidence.py`** — 19 tests (records the
+  failure case; carries `expected` through; idempotent; success not recorded;
+  every blocked-before-execution status left alone; no execution_id;
+  non-dict/None safe; reason fallback chain; fail-open on store error).
+- **`app/main.py`** — `record_failed_execution_evidence(...)` called before the
+  return of `/execute` (with `action.expected_outcome`), `/approve`,
+  `/homelab/remediate`, `/homelab/approve`. Import added.
+- **`app/agent/adapter.py`** — the `if status == "executed":` branch gained an
+  `elif not result.get("success"):` that calls the helper
+  (`source="agent_adapter"`) and sets `outcome.verification_status =
+  "adapter_execution_failed"`. Import added.
+- **`app/agent/testing/test_agent_governance.py`** — `captured_governed`
+  fixture now also mocks `record_failed_execution_evidence`; new
+  `test_failed_execution_records_e3_evidence` drives `propose_and_govern` with a
+  failed governed result and asserts the E3 evidence call + status, no Docker
+  verify, grant still consumed, still learned.
+
+### Validation
+`test_execution_evidence.py` 19 passed; agent governance + E3 helper 33 passed;
+ops + agent + homelab 148 passed; **full app suite 292 passed** (272 + 20).
+`import app.main` clean. 122 frozen-Core intelligence tests unchanged.
+
+### Matrix effect
+**E3 → READY.** All five `AGENTS.md` §11 outcomes are now distinguishable in
+evidence. P1 list drops E3 (D1, D2, R1, E3 done). No matrix item touches the
+frozen Core.
+
+### Not deployed to live
+New/changed code (`execution_evidence.py`, `main.py`, `agent/adapter.py`) —
+needs `sudo systemctl restart rmt-control-center.service`. Safe: the helper only
+*adds* a record on an adapter failure that otherwise had none, is idempotent,
+and is fail-open. No live exercise run this session (would write real evidence);
+a controlled one: `POST /execute?operation=restart&target=<bogus>` under auth →
+expect a `verifications.json` entry `status=adapter_execution_failed` correlated
+by `execution_id`, plus the existing `status=failed` audit + trace.
+
+### Next (P1, all above-Core)
+S3 approver≠grantor enforcement (behind `RMT_AUTH_SEPARATION`), E4
+retention/rotation, E5 RMT-store backup, D3 systemd sandboxing, O1/O3, V1/V2,
+R3 platform-recovery runbook.

@@ -127,7 +127,7 @@ substrate is currently weaker than the governance logic on top of it.
 |---|---|---|---|---|---|
 | **E1** | Atomic, concurrency-safe evidence writes | **DONE** — `DurableStore._persist` writes a sibling `.tmp`, `flush` + `os.fsync`, then `os.replace` (atomic on POSIX); `_load` discards stale `.tmp`. Byte-identical committed output; owner-authorized frozen-Core hardening deviation. `test_durable_store_atomic.py` (interrupted-write leaves prior file intact). | **READY** | — | **P0** |
 | **E2** | Hold state persisted on resolution | **DONE (above-Core)** — owner chose reconciliation over a Core fix. `app/ops/reconcile.py::reconcile_holds_against_records`, run once in the `app/main.py` startup lifespan, brings the hold store back into agreement with the authoritative approval **record** store: a `pending` hold whose record shows a terminal decision (`approved`/`rejected`) is corrected in place and re-persisted via the store's atomic (E1) write path. Read-only where nothing diverges; fail-open (never blocks startup). Never invents a resolution. No `app/core/**` change. `app/ops/testing/test_reconcile.py` — 9 tests; full suite 263 passed. | **READY** | — | **P0** |
-| **E3** | Failed-execution verification evidence | A failed adapter execution produces **no** verification record — not even `verification_failure` / `state_mismatch`. `AGENTS.md` §11 lists "adapter invoked and failed" as an outcome that should be distinguishable. (Recorded frozen-Core note.) | **GAP** | Emit a distinguishable evidence record on adapter failure via an **above-Core execution-result wrapper** (no `app/core/**` change — owner directive: no Core fix). | **P1** |
+| **E3** | Failed-execution verification evidence | **DONE (above-Core, 2026-09-08).** `app/ops/execution_evidence.py::record_failed_execution_evidence` — for a governed outcome that *reached the adapter and failed* (`status == "executed"`, `success is False`, has `execution_id`), writes one `VerificationResult` into the **existing** verification store with a distinct status **`adapter_execution_failed`** (§11 "adapter invoked and failed"), correlated by `execution_id`. Bounded (blocked-before-adapter outcomes left alone), idempotent (skips if an above-Core observer already recorded one), fail-open. Wired at `/execute`, `/approve`, `/homelab/remediate`, `/homelab/approve`, and the agent adapter's failure branch. No `app/core/**` change. `test_execution_evidence.py` — 19 tests + an agent end-to-end test. | **READY** | — | **P1** |
 | **E4** | Retention / rotation / size management | The six JSON stores grow unbounded and are fully rewritten each save (O(n) per write). | **GAP** | Define a retention window + archival/rotation; this is also resolved by an E1 migration to SQLite. | **P1** |
 | **E5** | Evidence backup & restore (RMT stores) | `docs/recovery/RECOVERY_RUNBOOK.md` + the `scripts/` backup engine cover the **Docker stack** (volumes, stack config). The RMT governance stores and `data/observability.db` are not in a documented backup/restore path. | **GAP** | Add the RMT evidence stores + SQLite DB to the backup engine and the recovery runbook, with a restore-integrity check. | **P1** |
 | **E6** | Startup integrity / reconciliation | **DONE (above-Core, 2026-09-08).** `app/ops/reconcile.py::reconcile_governance_stores` runs on startup: (1) E2 — corrects a stale `pending` hold against the authoritative record store; (2) **E6 — `audit_authorizations()` cross-checks every `ExecutionAuthorization` against the approval record + hold stores** and logs (`WARNING`) any inconsistent linkage — `missing_record`, `contradicts_rejection`, `record_not_terminal`, `hold_still_pending`. The authorization store is Core-owned + append-only (the Core never mutates an authorization after creation), so this half is **read-only by design** — it surfaces divergence, never rewrites Core evidence. Verified against the live store: 18 checked, 1 flagged (a historical 2026-09-02 `test-container` orphan authz with no record), `authorizations.json` byte-identical afterward. `test_reconcile.py` — 18 tests (9 E2 + 9 E6). | **READY** | — | **P2** |
@@ -209,7 +209,7 @@ able to *tell a human*.
 
 **P0 is fully closed (2026-09-08).** All six blocking items — S1, S2-lite, E1,
 E2, O2, S4 — are live and verified. Next work is P1.
-| **P1** | S3, E3, E4, E5, D3, O1, O3, V1, V2, R3 | pending (D1, D2, R1 done) |
+| **P1** | S3, E4, E5, D3, O1, O3, V1, V2, R3 | pending (D1, D2, R1, E3 done) |
 | **P2** | S5, S6, S7, D4, D6, O4, V3, V4 | pending (D5, E6 done) |
 | **ACCEPTED** | R4 (single-instance) | recorded |
 
@@ -226,11 +226,11 @@ decision. Nothing else should be exposed until S1 + S4 are done.
 **W2 — Evidence substrate.** E1 (atomic writes / SQLite migration) is the
 keystone; it also resolves E4. **E2 and E6 are closed** by an above-Core startup
 reconciliation + audit (`app/ops/reconcile.py::reconcile_governance_stores`) —
-the owner chose that over a Core fix, so no freeze deviation. **E3** (a failed
-adapter execution produces no verification record) is fixed **above-Core only**
-— an execution-result wrapper that emits a distinguishable evidence record on
-adapter failure; no `app/core/**` change. E5 folds the RMT stores into the
-existing backup engine.
+the owner chose that over a Core fix, so no freeze deviation. **E3 is closed**
+by an above-Core execution-result wrapper (`app/ops/execution_evidence.py`) that
+writes a distinguishable `adapter_execution_failed` verification record when the
+adapter was invoked and failed; no `app/core/**` change. E5 folds the RMT stores
+into the existing backup engine.
 
 **W3 — Deployment reproducibility.** D1 (lock deps) → D2 (deploy/rollback
 runbook) → D3 (unit hardening). Enables R3 (platform recovery).
@@ -320,11 +320,12 @@ startup pass with a read-only authorization-store integrity audit
 store byte-identical on reload. E1/E2/E6 all closed → a restart is provably
 faithful.
 
-**P0 is fully closed** and the restart-safety bar (R1) is met. The remaining
-P1/P2 items are for a more robust posture but are not individually blocking.
-Next: P1 — S3 enforcement, E3 (failed-execution verification evidence — fixed
-**above-Core only**, an execution-result wrapper; no Core change), E4/E5, D3,
-O1/O3, V1/V2, R3.
+**P0 is fully closed** and the restart-safety bar (R1) is met. **E3 (2026-09-08)
+closed** above-Core: `record_failed_execution_evidence` writes a distinguishable
+`adapter_execution_failed` verification record when the adapter was invoked and
+failed, so all five §11 outcomes are now distinguishable in evidence. The
+remaining P1/P2 items are for a more robust posture but are not individually
+blocking. Next: P1 — S3 enforcement, E4/E5, D3, O1/O3, V1/V2, R3.
 
 ---
 

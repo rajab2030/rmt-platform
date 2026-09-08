@@ -7,6 +7,7 @@ from app.schemas.container import Container
 
 from app.ops import ops_config
 from app.ops.auth import OperatorIdentity, require_operator
+from app.ops.execution_evidence import record_failed_execution_evidence
 from app.ops.notifications import notify_held
 from app.ops.reconcile import reconcile_governance_stores
 
@@ -248,6 +249,13 @@ def execute(
             source="http_execute",
         )
 
+    # E3: distinguishable evidence when the adapter was invoked and failed.
+    record_failed_execution_evidence(
+        result,
+        expected=getattr(action, "expected_outcome", None),
+        source="http_execute",
+    )
+
     return result
 
 
@@ -268,11 +276,14 @@ def approve(
     The approving identity is the authenticated operator; any ``approved_by``
     query field is ignored (kept only for transitional compatibility).
     """
-    return approve_held_action(
+    result = approve_held_action(
         approval_id,
         approved_by=operator.name,
         approved=approved,
     )
+    # E3: distinguishable evidence when the adapter was invoked and failed.
+    record_failed_execution_evidence(result, source="http_approve")
+    return result
 
 
 @app.post("/homelab/remediate")
@@ -301,6 +312,10 @@ def homelab_remediate(
             source="http_remediate",
         )
 
+    # E3: covers the case remediate_and_verify skips (no expected_outcome);
+    # a no-op when the above-Core Docker verify already recorded an outcome.
+    record_failed_execution_evidence(result, source="http_remediate")
+
     return result
 
 
@@ -326,11 +341,15 @@ def homelab_approve(
     query field is ignored (kept only for transitional compatibility).
     """
     from app.homelab.continuation import continue_remediation
-    return continue_remediation(
+    result = continue_remediation(
         approval_id,
         approved_by=operator.name,
         approved=approved,
     )
+    # E3: covers a non-REMEDIATION_POLICY component, where continue_remediation
+    # early-returns before the above-Core Docker verify; a no-op otherwise.
+    record_failed_execution_evidence(result, source="http_homelab_approve")
+    return result
 
 
 @app.get("/homelab/loop/status")

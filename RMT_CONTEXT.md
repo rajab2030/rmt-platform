@@ -265,9 +265,19 @@ holds/records — logs `missing_record` / `contradicts_rejection` /
 Core-owned append-only so read-only by design). `test_reconcile.py` now 18 tests
 (9 E2 + 9 E6). Hard-kill restart test PASSED — all six evidence stores
 byte-identical on reload. E1/E2/E6 all closed → restart provably faithful.
-Next: **P1** (S3 enforcement, **E3 above-Core wrapper only — no Core fix**,
-E4/E5, D3, O1/O3, V1/V2, R3). Monitoring / exercise calls now require a token
-header. **Owner directive 2026-09-08: no Core modification or fix** — recorded
+**E3 also closed 2026-09-08** (above-Core, no Core change): new
+`app/ops/execution_evidence.py::record_failed_execution_evidence` — when the
+adapter was invoked and returned `success=False` (which produced no verification
+record — callers gate `verify_*` on `result.success`), writes one
+`VerificationResult` to the existing store with a distinct status
+`adapter_execution_failed`, correlated by `execution_id`; bounded
+(blocked-before-adapter outcomes untouched), idempotent, fail-open. Wired at
+`/execute`, `/approve`, `/homelab/remediate`, `/homelab/approve` and the agent
+adapter's failure branch. `test_execution_evidence.py` 19 tests + 1 agent
+end-to-end. **Full app suite 292 passed** (272 + 20). All five `AGENTS.md` §11
+outcomes now distinguishable in evidence. Next: **P1** (S3 enforcement, E4/E5,
+D3, O1/O3, V1/V2, R3). Monitoring / exercise calls now require a token header.
+**Owner directive 2026-09-08: no Core modification or fix** — recorded
 frozen-Core gaps get an above-Core mitigation or an explicit accept-and-record,
 never a freeze deviation. CAP-04, CAP-05 (5A) and CAP-05 (5B) are all enabled on
 the live server (2026-09-07); the CAP-04 loop is idle at `no_remediation` and
