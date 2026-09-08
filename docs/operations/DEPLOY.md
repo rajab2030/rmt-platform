@@ -179,8 +179,15 @@ Old tokens stop working at the restart. Removing an operator = delete their
 
 ## 5. Known follow-ups (not in P0)
 
-- **E2** — a resolved approval hold is not persisted to the hold store; the
-  record store is authoritative. Pending the Core-fix decision.
+- **P0 status:** S1/S2-lite, E1, O2 live 2026-09-07; **E2** and **S4** closed
+  2026-09-08. E2 = `app/ops/reconcile.py` runs in the startup lifespan and
+  reconciles the approval hold store against the authoritative record store
+  (no `app/core/**` change). S4 = Caddy `2.6.2` TLS reverse proxy installed +
+  enabled (`/etc/caddy/Caddyfile` from `deploy/Caddyfile`, `tls internal`).
+  **P0 is fully closed.**
+- **S4 operator CA** — import the Caddy internal root CA on each operator
+  workstation: `/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt`
+  (or `caddy trust` on that machine). Done on the RMT host itself.
 - **E5** — add the RMT evidence stores + `data/observability.db` to the backup
   engine and `RECOVERY_RUNBOOK.md`.
 - **S5** — CORS origin list in `app/main.py` is hardcoded (and currently points

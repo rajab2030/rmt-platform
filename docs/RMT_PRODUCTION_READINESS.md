@@ -31,11 +31,15 @@ deployable, observable, and recoverable.
 > `app/ops/reconcile.py` reconciles the hold store against the authoritative
 > approval-record store on startup — no `app/core/**` change. Full suite **263
 > passed** (254 + 9 `test_reconcile.py`).
-> **S4:** loopback bind is **live** (`127.0.0.1:8000` only); the Caddy TLS
-> reverse proxy is **not yet installed** — owner chose to install it; the
-> artifacts are cutover-ready (`deploy/Caddyfile`, `DEPLOY.md` §1.4) and the
-> install is a root operator step. Until then RMT has no LAN-facing entry point
-> (loopback + auth only). Status cells below reflect this.
+> **S4 is now closed** (2026-09-08). Loopback bind is live (`127.0.0.1:8000`
+> only, verified unreachable off-loopback) and the **Caddy `2.6.2` TLS reverse
+> proxy is installed, enabled, and live**: `/etc/caddy/Caddyfile` from
+> `deploy/Caddyfile`, `tls internal` CA trusted on the host. Verified on
+> `192.168.223.128`: `https://` → 200 (CA-validated, no `-k`), `http://` → 308
+> auto-redirect, `POST` with no token → 401, open GET → 200, the app itself
+> refuses `:8000` off-loopback. CAP-04 loop healthy through the proxy.
+>
+> **P0 is now fully closed** — S1/S2-lite, E1, E2, O2, S4 all live and verified.
 
 ### Relationship to the Core Gap Matrix
 
@@ -109,7 +113,7 @@ currently enforces who the operator is.
 | **S1** | Authentication on every mutating route | **DONE + LIVE** — `app/ops/auth.py` `require_operator` on all 10 `@app.post` routes + the whole `/agent/*` router; bearer / `X-API-Key` → `RMT_OPERATOR_TOKENS`; app refuses to start if enabled + unconfigured. `auth.conf` deployed with two operator tokens; live-verified 401/200. | **READY** | — | **P0** |
 | **S2** | Operator identity & non-repudiation | **DONE (lite) + LIVE** — `/approve`, `/homelab/approve`, `/agent/authority/grant` take the identity from the authenticated `OperatorIdentity`; body `approved_by` / `granted_by` ignored. `/execute` threads the operator name into `decision_id` / `reason`. Live-verified: grant recorded `granted_by: "ragb"` from the token, body value ignored. | **READY** | — | **P1** |
 | **S3** | Separation of duties | The same caller can `POST /agent/authority/grant` and then `POST /homelab/approve` the resulting hold. Identity is now *recorded* (S2); the rule is not yet *enforced*. | **GAP** | Enforce approver ≠ grantor / proposer for agent-originated holds (config-gated). Fast-follow behind an `RMT_AUTH_SEPARATION` toggle. | **P1** |
-| **S4** | Transport security & network exposure | **Loopback bind LIVE** — `bind-loopback.conf` deployed; app listens `127.0.0.1:8000` only, verified unreachable off-loopback. **Caddy TLS proxy NOT installed** — no LAN entry point yet; `deploy/Caddyfile` ready. | **PARTIAL** *(bind done; proxy pending owner decision on whether LAN access is needed)* | `apt install caddy`; `cp deploy/Caddyfile /etc/caddy/`; edit site addrs; `caddy trust` on operator machines (`DEPLOY.md` §1.4). | **P0** |
+| **S4** | Transport security & network exposure | **DONE + LIVE (2026-09-08)** — `bind-loopback.conf` deployed (app listens `127.0.0.1:8000` only, verified unreachable off-loopback) **and** Caddy `2.6.2` TLS reverse proxy installed + enabled, `/etc/caddy/Caddyfile` from `deploy/Caddyfile`, `tls internal` CA trusted on the host. Verified on `192.168.223.128`: `https://` → 200 CA-validated, `http://` → 308 redirect, no-token `POST` → 401, open GET → 200, CAP-04 loop healthy through the proxy. | **READY** | Import the Caddy root CA on other operator machines (`/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt`). | **P0** |
 | **S5** | CORS configuration | `allow_origins` hardcoded to `http://192.168.235.128:5173` + `localhost:5173`, `allow_credentials=True`, `allow_methods/headers=["*"]`. | **PARTIAL** | Move origins to config; scope methods/headers to what the frontend needs. | **P2** |
 | **S6** | Secrets management | Only a local Ollama endpoint today (no key). No secret store exists if a credentialed model / notifier / IdP is added. | **PARTIAL** | Adopt a secrets mechanism (env-file with restricted mode, or a vault) before introducing any credential. | **P2** |
 | **S7** | Abuse / rate protection on expensive routes | `/agent/act/llm` (model call) and `/execute` (real mutation) have no throttle or concurrency cap beyond the agent single-use grant. | **GAP** | Add a simple per-principal rate limit / concurrency guard on `/agent/act*` and `/execute`. | **P2** |
@@ -200,8 +204,11 @@ able to *tell a human*.
 | Priority | Items | State |
 |---|---|---|
 | **P0** | S1 auth · S2-lite identity · E1 atomic writes · O2 alerting | **code-complete + LIVE & verified** (2026-09-07 12:36 UTC) |
-| **P0** | S4 transport | loopback bind **LIVE**; owner chose to install the Caddy TLS proxy — artifacts cutover-ready (`deploy/Caddyfile`, `DEPLOY.md` §1.4), install is a pending root operator step |
-| **P0** | E2 hold persistence | **DONE (above-Core reconciliation)** — `app/ops/reconcile.py`, wired into startup; `test_reconcile.py` 9 tests, full suite 263 passed |
+| **P0** | S4 transport | **DONE + LIVE** (2026-09-08) — loopback bind + Caddy `2.6.2` TLS reverse proxy installed, enabled, verified on `192.168.223.128` |
+| **P0** | E2 hold persistence | **DONE (above-Core reconciliation)** — `app/ops/reconcile.py`, wired into startup; live since the 2026-09-08 reboot (corrected the two stale holds `316257fc` / `79d6383a`); `test_reconcile.py` 9 tests, full suite 263 passed |
+
+**P0 is fully closed (2026-09-08).** All six blocking items — S1, S2-lite, E1,
+E2, O2, S4 — are live and verified. Next work is P1.
 | **P1** | S3, E3, E4, E5, D3, O1, O3, V1, V2, R1, R3 | pending (D1, D2 done) |
 | **P2** | S5, S6, S7, D4, D6, O4, V3, V4 | pending (D5 done; E6 now PARTIAL) |
 | **ACCEPTED** | R4 (single-instance) | recorded |
@@ -269,7 +276,7 @@ Not required for this platform to be production-ready at its current purpose:
 1. **Owner fixes the threat model** (§2 (a) / (b) / (c)).
 2. Close **P0** as one focused effort: S1 + S4 (auth + bind/TLS), E1 (atomic
    evidence writes), O2 (held-action alert), E2 (startup hold/record
-   reconciliation). **Done** except the S4 Caddy install (a root operator step).
+   reconciliation). **DONE (2026-09-08)** — all six live and verified.
 3. Re-verify: full suite green, live exercise repeated under auth, restart test
    with evidence intact.
 4. Then W3 / W4 / W5 in bounded steps, updating this matrix's Status column as
@@ -277,7 +284,8 @@ Not required for this platform to be production-ready at its current purpose:
 
 ## 8. Final Verdict
 
-**CORE: COMPLETE & FROZEN. OPERATIONAL PRODUCTION-READINESS: P0 IN PROGRESS.**
+**CORE: COMPLETE & FROZEN. OPERATIONAL PRODUCTION-READINESS: P0 COMPLETE
+(2026-09-08); P1 NEXT.**
 
 The RMT Core architecture is validated and frozen. The running platform is a
 working, evidenced control plane, live-exercised end to end.
@@ -296,13 +304,17 @@ record shows `approved`/`rejected` is corrected and re-persisted atomically).
 No `app/core/**` change. Full suite **263 passed** (254 + 9); 122 frozen-Core
 tests unchanged.
 
-**Remaining for the P0 bar (threat model b):**
-1. **S4 proxy** — owner chose to install Caddy. Artifacts are cutover-ready
-   (`deploy/Caddyfile`, `DEPLOY.md` §1.4); the install (`apt install caddy`,
-   copy config, `systemctl restart caddy`, `caddy trust`) is a pending root
-   operator step. Loopback + auth is a safe resting state until then.
+**S4 (2026-09-08): closed.** Caddy `2.6.2` TLS reverse proxy installed, enabled,
+and live — `/etc/caddy/Caddyfile` from `deploy/Caddyfile`, `tls internal` CA
+trusted on the host. Verified on `192.168.223.128`: `https://` → 200
+(CA-validated), `http://` → 308 auto-redirect, no-token `POST` → 401, open GET →
+200, app refuses `:8000` off-loopback, CAP-04 loop healthy through the proxy.
+Remaining housekeeping only: import the Caddy root CA on other operator machines.
 
-The P1/P2 items remain for a robust posture but are not individually blocking.
+**P0 is fully closed.** The P1/P2 items remain for a more robust posture but are
+not individually blocking. Next: P1 — S3 enforcement, E3 (failed-execution
+verification evidence — the lone remaining frozen-Core item), E4/E5, D3, O1/O3,
+V1/V2, R1/R3.
 
 ---
 

@@ -246,13 +246,20 @@ lifespan, corrects any `pending` hold whose approval **record** is terminal
 against the authoritative record store and re-persists atomically; fail-open,
 never invents a resolution, no `app/core/**` change. Also covers the
 hold↔record half of **E6** (now PARTIAL). Full suite **263 passed** (254 + 9
-`test_reconcile.py`). Not yet deployed to live (needs a service restart).
-**Remaining P0:** **S4 Caddy proxy** — owner chose to **install** it; artifacts
-cutover-ready (`deploy/Caddyfile` targets verified host IP `192.168.223.128`,
-`bind-loopback.conf` already live), the `apt install caddy` + config + `caddy
-trust` cutover (`DEPLOY.md` §1.4) is a pending root operator step. Then P1 (S3
-enforcement, E3/E4/E5, D3, O1/O3, V1/V2, R1/R3). Monitoring / exercise calls now
-require a token header. One recorded **frozen-Core note** awaits owner
+`test_reconcile.py`). Committed 2026-09-08 (`b485365`). **E2 is live** — the
+2026-09-08 host reboot auto-started the service from the working tree; the
+startup reconcile ran and corrected the two stale holds (`316257fc` →
+`approved`, `79d6383a` → `rejected`), leaving the genuinely-unresolved
+`54f685f6` (`manual_required` record) untouched; re-run now is a no-op.
+**S4 CLOSED 2026-09-08** — Caddy `2.6.2` TLS reverse proxy installed + enabled;
+`/etc/caddy/Caddyfile` from `deploy/Caddyfile`, `tls internal` CA trusted on the
+host. Verified on `192.168.223.128`: `https://` → 200 CA-validated, `http://` →
+308 redirect, no-token `POST` → 401, open GET → 200, app refuses `:8000`
+off-loopback, CAP-04 loop healthy through the proxy. Remaining: import the Caddy
+root CA on other operator machines.
+**P0 IS FULLY CLOSED (2026-09-08)** — S1, S2-lite, E1, E2, O2, S4 all live and
+verified. Next: **P1** (S3 enforcement, E3/E4/E5, D3, O1/O3, V1/V2, R1/R3).
+Monitoring / exercise calls now require a token header. One recorded **frozen-Core note** awaits owner
 consideration only (Core is frozen): a *failed* adapter execution produces no
 verification evidence (E3). *(The former note (2) — `approve_held_action` not
 persisting the **hold** store — is resolved above-Core by E2.)* CAP-04, CAP-05 (5A) and CAP-05 (5B) are all enabled on

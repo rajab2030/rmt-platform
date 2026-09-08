@@ -1054,3 +1054,82 @@ no C08. **No `app/core/**` file touched.**
 - `docs/RMT_PRODUCTION_READINESS.md` (E2 → READY, E6 → PARTIAL, R1 evidence,
   status table, W2/§6/§7/§8, header blurb)
 - `HANDOFF.md`, `RMT_CONTEXT.md` (state + next action)
+
+---
+
+## Session note — E2 committed + live; S4 Caddy proxy installed → P0 CLOSED
+
+**Date:** 2026-09-08. Above-Core / operational. C01–C07 remain closed/frozen;
+no C08. No `app/core/**` change.
+
+### Commits
+- **`b485365`** — `RMT-PROD P0 (E2): above-Core startup reconciliation of the
+  approval hold store` (`app/ops/reconcile.py`, `test_reconcile.py`,
+  `app/main.py`).
+- **`05bab80`** — `docs: E2 closed above-Core; add above-Core opportunity
+  roadmap` (`RMT_PRODUCTION_READINESS.md`, new `RMT_ABOVE_CORE_ROADMAP.md`,
+  `HANDOFF.md`, `RMT_CONTEXT.md`).
+
+### E2 — confirmed live
+The prior session left E2 "not deployed". Investigation this session: the host
+**rebooted 2026-09-08 08:47 UTC** (`who -b`); systemd auto-started
+`rmt-control-center.service` (PID 1257) from the working tree, which already
+carried the then-uncommitted `reconcile.py` + `main.py` call. The startup
+reconcile ran. On-disk proof in `app/core/intelligence/actions/approval_holds.json`:
+`316257fc` now `approved` (was stale `pending`), `79d6383a` now `rejected` (was
+stale `pending`), and the genuinely-unresolved `54f685f6` (record decision
+`manual_required`, non-terminal) correctly **left `pending`**. Re-running
+`reconcile_holds_against_records()` against the live store now returns
+`{"checked": 7, "reconciled": 0}` — idempotent no-op. No `*.json.tmp` residue
+(E1 clean). Could not read the boot-time `WARNING` log line (`journalctl`
+needs sudo; this shell has no passwordless sudo).
+
+### S4 — Caddy TLS reverse proxy installed (owner ran the sudo steps)
+- `caddy 2.6.2` installed + `systemctl enable --now caddy`; `/etc/caddy/Caddyfile`
+  copied from `projects/homelab-control-center/deploy/Caddyfile` (unchanged —
+  site line `rmt.homelab.lan, 192.168.223.128`, `tls internal`,
+  `reverse_proxy 127.0.0.1:8000`, JSON access log to `/var/log/caddy/`).
+- `caddy trust` succeeded on the host — the internal root CA is in the host
+  trust store.
+- **Verified on `192.168.223.128`:**
+  - app `:8000` off-loopback → connection refused (bind-loopback holds).
+  - `https://` → **200, CA-validated** (no `-k` needed on the host).
+  - `http://` → **308** auto-redirect to `https://`.
+  - `POST /homelab/loop/stop` no token → **401**; open `GET /homelab/loop/status`
+    → **200**; `GET /agent/status` no token → **401** (agent routes auth-gated,
+    intended).
+  - CAP-04 loop healthy through the proxy (`enabled/running`, `no_remediation`,
+    no cycle error).
+- **Remaining housekeeping only:** import the Caddy root CA
+  (`/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt`) on other
+  operator workstations. `rmt.homelab.lan` does not resolve on the host — with
+  `tls internal` that is harmless (local cert issuance needs no DNS); trim the
+  site line to just the IP if a clean config is wanted.
+
+### Why S4 lagged (recorded)
+The owner authorized the Caddy install on 2026-09-07, but it needs root
+(`apt install`) and this shell has no passwordless sudo, so every session logged
+it as "a root operator step — not yet run" and handed it forward. The other P0
+sudo steps landed because the owner ran them directly from `DEPLOY.md` §1;
+§1.4 (Caddy) was the one sub-step that got skipped. Closed this session once the
+owner ran the install.
+
+### P0 — FULLY CLOSED (2026-09-08)
+S1, S2-lite, E1, **E2**, O2, **S4** — all live and verified.
+
+### Docs updated this session
+- `docs/RMT_PRODUCTION_READINESS.md` — S4 → READY, P0 rollup → closed, header
+  blurb, §7 step 2, §8 verdict + remaining section.
+- `docs/operations/DEPLOY.md` §5 — E2/S4 marked closed; added the operator-CA
+  follow-up.
+- `RMT_CONTEXT.md` §12 — E2 live, S4 closed, P0 fully closed, next = P1.
+- `HANDOFF.md` — this note.
+
+### Next
+**P1** (none blocking on its own): S3 approver≠grantor enforcement (behind
+`RMT_AUTH_SEPARATION`), **E3** (failed-execution verification evidence — the
+lone remaining item that would touch frozen Core; needs its own owner decision:
+Core fix vs above-Core wrapper), E4 retention/rotation, E5 RMT-store backup,
+D3 systemd sandboxing, O1/O3, V1/V2, R1 (hard-kill restart test) / R3 (platform
+recovery runbook). Also open: extend the E6 startup reconciliation to the
+authorization store; S5 CORS to config (stale `192.168.235.128` in `main.py`).
