@@ -790,6 +790,11 @@ app.main` clean; both agent flags OFF by default.
 5A surface and 5B still OFF.
 
 ### Next candidates (owner to select)
+> **Full scoped menu: `docs/RMT_ABOVE_CORE_ROADMAP.md`** (2026-09-07) — fit
+> profile + Tier 0 operational-readiness, Tier 1 homelab depth, Tier 2 new
+> domains on the frozen Core, Tier 3 platform surface, and the E3 Core-change
+> candidate; each item scoped Objective / Boundary / DoD. The bullets below are
+> the original shortlist, now folded into that document.
 - ~~Enable 5A and/or 5B on the live server + a controlled LLM exercise.~~
   **DONE 2026-09-07** — see the session note below.
 - Populate real `HOMELAB_DEPENDENCIES` edges if/when any exist (activates T13
@@ -966,15 +971,86 @@ exercise calls now need a token header.
 
 ### Open / next (deferred to the next session)
 - **S4 Caddy proxy — NOT installed.** RMT currently has **no LAN-facing entry
-  point** (loopback + auth only). Owner decision: install Caddy
-  (`deploy/Caddyfile`, `DEPLOY.md` §1.4) if operators / the frontend need LAN
-  access, or leave loopback-only for SSH administration.
-- **E2** — resolved hold not persisted to the hold store: **Core fix** (breaks
-  the freeze, needs authorization) vs **above-Core reconciliation on startup**
-  (no Core touch). **Decision pending.** Last P0 item.
-- **Optional:** hard-kill restart-safety test (E1 is unit-tested); re-run the
-  CAP-05 LLM exercise under auth against `dozzle` to confirm the agent path
+  point** (loopback + auth only). **Owner decision (2026-09-07): install Caddy.**
+  Artifacts are cutover-ready (`deploy/Caddyfile` already targets the verified
+  host IP `192.168.223.128`; `bind-loopback.conf` already live). Remaining:
+  `sudo apt install caddy` (candidate `2.6.2`), copy the Caddyfile, `systemctl
+  restart caddy`, `caddy trust` + import the CA on operator machines
+  (`DEPLOY.md` §1.4). This is a root operator step — not yet run.
+- **E2 — CLOSED (2026-09-07).** Owner chose **above-Core reconciliation on
+  startup** over a Core fix. New `app/ops/reconcile.py`
+  (`reconcile_holds_against_records`), called in the `app/main.py` lifespan
+  after `register_default_adapters()`: a `pending` hold whose approval **record**
+  is terminal (`approved`/`rejected`) is corrected in place and re-persisted via
+  the store's atomic (E1) path. Read-only where consistent; fail-open; never
+  invents a resolution. No `app/core/**` change. `app/ops/testing/
+  test_reconcile.py` (9 tests); full suite **263 passed**; `import app.main`
+  clean. Also covers the hold↔record half of **E6** (now PARTIAL). **Not yet
+  deployed to live** — needs a `systemctl restart rmt-control-center.service`.
+- **Optional:** hard-kill restart-safety test (E1 + E2 are unit-tested); re-run
+  the CAP-05 LLM exercise under auth against `dozzle` to confirm the agent path
   end-to-end with tokens.
 - Stray live grant `f34f62cfc626` (restart/uptime-kuma, `ragb`) from the S2-lite
   verification — single-use, 5-min TTL, self-expires; no action.
 - Then P1: S3 enforcement, E3/E4/E5, D3, O1/O3, V1/V2, R1/R3.
+
+---
+
+## Session note — E2 close-out (above-Core startup reconciliation) + S4 decision
+
+**Date:** 2026-09-07. Above-Core / operational. C01–C07 remain closed/frozen;
+no C08. **No `app/core/**` file touched.**
+
+### Owner decisions
+- **E2** → **above-Core reconciliation on startup** (not the Core fix).
+- **S4** → **install the Caddy TLS reverse proxy** (cutover still pending — a
+  root operator step).
+
+### E2 — implemented
+- **New `app/ops/reconcile.py`** — `reconcile_holds_against_records()`:
+  - Walks `approval_hold_storage.get_all()`. For a hold still `PENDING`, looks
+    up `approval_record_storage.get_by_id(hold.approval_id)`; if the record's
+    decision is terminal (`approved` / `rejected`) the record store is
+    authoritative (Core updates it reliably on resolution), so the hold is
+    corrected in place (`status`, and `approved_by` when unset) and the store is
+    re-persisted **once** via `_persist()` (the store exposes no public
+    `update()`; same atomic E1 write path `ApprovalRecordStorage.update` uses).
+  - **Bounded:** acts only on a record-backed terminal contradiction. A hold
+    with no record, or a still-`pending` record, is left exactly as-is — it
+    never *invents* a resolution (e.g. does not reject merely-expired holds).
+  - **Fail-open:** any error is logged (`rmt.ops.reconcile`) and swallowed;
+    reconciliation never blocks startup.
+  - Returns `{"checked", "reconciled", "ids"}` for testability.
+- **`app/main.py`** — one call in the lifespan startup, right after
+  `register_default_adapters()`, before the collector task.
+- **New `app/ops/testing/test_reconcile.py`** — 9 tests: stale→approved and
+  stale→rejected (in-memory **and** reload-from-disk), no-record untouched,
+  non-terminal record untouched, already-resolved not recounted, existing
+  `approved_by` preserved, mixed batch (only the stale one corrected),
+  no disk write when nothing is stale, fail-open on a storage error.
+- Mirrors CAP-04's existing read-side compensation
+  (`operational_loop._hold_is_still_actionable`) — same record-store-authoritative
+  rule, applied write-side once at boot. Also closes the hold↔record half of
+  **E6** (authorization-store cross-check still open → E6 now PARTIAL, P2).
+
+### Validation
+- Full suite **263 passed** (254 + 9), `272s` (the long tail is the
+  operational-loop cadence tests' real sleeps, not new work). `import app.main`
+  clean. 122 frozen-Core intelligence tests unchanged.
+
+### Not done here
+- **Live deploy of E2** — needs `sudo systemctl restart
+  rmt-control-center.service` on the new code. Reconciliation is a no-op on a
+  clean store, so the restart is safe; it will log a `WARNING` + corrected count
+  only if a stale hold is actually found.
+- **S4 Caddy install** — root/LAN-facing operator step (`DEPLOY.md` §1.4). Host
+  LAN IP verified as `192.168.223.128` (already in `deploy/Caddyfile`); apt
+  candidate `caddy 2.6.2-6ubuntu0.24.04.3`.
+
+### Files changed
+- `projects/homelab-control-center/backend/app/ops/reconcile.py` (new)
+- `projects/homelab-control-center/backend/app/ops/testing/test_reconcile.py` (new)
+- `projects/homelab-control-center/backend/app/main.py` (import + 1 startup call)
+- `docs/RMT_PRODUCTION_READINESS.md` (E2 → READY, E6 → PARTIAL, R1 evidence,
+  status table, W2/§6/§7/§8, header blurb)
+- `HANDOFF.md`, `RMT_CONTEXT.md` (state + next action)

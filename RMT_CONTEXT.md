@@ -218,12 +218,14 @@ escalation; adding any edge escalates the matching allowed op automatically.
   `docs/RMT_CAPABILITIES_EVIDENCE.md` §CAP-05 + the `HANDOFF.md` session note.
 
 **Next action:** the next above-Core capability is to be selected by the owner
-from the candidate directions (engineering intelligence expansion; frontend
-governed-evidence view / productization; notifications for held
-remediations/proposals; populate real `HOMELAB_DEPENDENCIES` edges if any exist,
-which activates T13 for real; widen `continue_remediation` above-Core
-Learn/verify attribution beyond `REMEDIATION_POLICY` — the 2026-09-07 5B-exercise
-finding). A **production-readiness gap matrix** exists
+from the candidate directions. **Full menu: `docs/RMT_ABOVE_CORE_ROADMAP.md`**
+(2026-09-07) — the fit profile (what RMT governs effectively), plus Tier 0
+operational-readiness completion, Tier 1 homelab depth, Tier 2 new domains on
+the frozen Core (AI Agent Governance Gateway, Cloud/IaC Ops, Kubernetes Ops,
+Financial/Approval Control, Data & ML Ops), Tier 3 platform surface, and the
+lone Core-change candidate (E3), each scoped Objective/Boundary/DoD. Nothing
+there is authorized until the owner selects it and an approved per-capability
+proposal exists. A **production-readiness gap matrix** exists
 (`docs/RMT_PRODUCTION_READINESS.md`, 2026-09-07): above-Core / operational, does
 not reopen C01–C07. Threat model set to **(b) trusted LAN, few operators**.
 **P0 batch implemented + DEPLOYED 2026-09-07** (`docs/RMT_PROD_P0_PROPOSAL.md`,
@@ -237,16 +239,23 @@ Validation: **254 tests pass** (214 + 40); Core intelligence 126 (122 unchanged
 + 4). **Live on :8000 since 12:36 UTC** — `auth.conf` (tokens `ragb`/`ops2`,
 `sudo cat` to read) + `bind-loopback.conf` deployed; verified: unauth → 401,
 authed → 200, `granted_by` = operator, app on `127.0.0.1:8000` only, evidence
-intact, CAP-04 loop + agent still healthy. **Remaining P0 (deferred to next
-session):** (1) **S4 Caddy proxy NOT installed** — RMT has no LAN entry point
-(loopback + auth only); owner decides if LAN access is needed. (2) **E2**
-(resolved hold not persisted to the hold store — Core-fix vs above-Core
-reconciliation decision pending). Then P1 (S3 enforcement, E3/E4/E5, D3, O1/O3,
-V1/V2, R1/R3). Monitoring / exercise calls now require a token header. Two recorded **frozen-Core notes** await owner consideration only
-(Core is frozen): (1) a *failed* adapter execution produces no verification
-evidence; (2) `approve_held_action` does not reliably persist the approval
-**hold** store on resolution — the approval **record** store is authoritative
-(CAP-04's guard uses it). CAP-04, CAP-05 (5A) and CAP-05 (5B) are all enabled on
+intact, CAP-04 loop + agent still healthy. **E2 CLOSED 2026-09-07** — owner
+chose **above-Core reconciliation** over a Core fix: new `app/ops/reconcile.py`
+(`reconcile_holds_against_records`), called in the `app/main.py` startup
+lifespan, corrects any `pending` hold whose approval **record** is terminal
+against the authoritative record store and re-persists atomically; fail-open,
+never invents a resolution, no `app/core/**` change. Also covers the
+hold↔record half of **E6** (now PARTIAL). Full suite **263 passed** (254 + 9
+`test_reconcile.py`). Not yet deployed to live (needs a service restart).
+**Remaining P0:** **S4 Caddy proxy** — owner chose to **install** it; artifacts
+cutover-ready (`deploy/Caddyfile` targets verified host IP `192.168.223.128`,
+`bind-loopback.conf` already live), the `apt install caddy` + config + `caddy
+trust` cutover (`DEPLOY.md` §1.4) is a pending root operator step. Then P1 (S3
+enforcement, E3/E4/E5, D3, O1/O3, V1/V2, R1/R3). Monitoring / exercise calls now
+require a token header. One recorded **frozen-Core note** awaits owner
+consideration only (Core is frozen): a *failed* adapter execution produces no
+verification evidence (E3). *(The former note (2) — `approve_held_action` not
+persisting the **hold** store — is resolved above-Core by E2.)* CAP-04, CAP-05 (5A) and CAP-05 (5B) are all enabled on
 the live server (2026-09-07); the CAP-04 loop is idle at `no_remediation` and
 the agent surface sits at `0` grants. Do not begin implementation of a new
 capability until the owner selects and authorizes it. Do not reopen C01–C07; do
