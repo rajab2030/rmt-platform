@@ -244,9 +244,8 @@ chose **above-Core reconciliation** over a Core fix: new `app/ops/reconcile.py`
 (`reconcile_holds_against_records`), called in the `app/main.py` startup
 lifespan, corrects any `pending` hold whose approval **record** is terminal
 against the authoritative record store and re-persists atomically; fail-open,
-never invents a resolution, no `app/core/**` change. Also covers the
-hold↔record half of **E6** (now PARTIAL). Full suite **263 passed** (254 + 9
-`test_reconcile.py`). Committed 2026-09-08 (`b485365`). **E2 is live** — the
+never invents a resolution, no `app/core/**` change. Full suite **263 passed**
+(254 + 9 `test_reconcile.py`). Committed 2026-09-08 (`b485365`). **E2 is live** — the
 2026-09-08 host reboot auto-started the service from the working tree; the
 startup reconcile ran and corrected the two stale holds (`316257fc` →
 `approved`, `79d6383a` → `rejected`), leaving the genuinely-unresolved
@@ -258,11 +257,19 @@ host. Verified on `192.168.223.128`: `https://` → 200 CA-validated, `http://` 
 off-loopback, CAP-04 loop healthy through the proxy. Remaining: import the Caddy
 root CA on other operator machines.
 **P0 IS FULLY CLOSED (2026-09-08)** — S1, S2-lite, E1, E2, O2, S4 all live and
-verified. Next: **P1** (S3 enforcement, E3/E4/E5, D3, O1/O3, V1/V2, R1/R3).
-Monitoring / exercise calls now require a token header. One recorded **frozen-Core note** awaits owner
-consideration only (Core is frozen): a *failed* adapter execution produces no
-verification evidence (E3). *(The former note (2) — `approve_held_action` not
-persisting the **hold** store — is resolved above-Core by E2.)* CAP-04, CAP-05 (5A) and CAP-05 (5B) are all enabled on
+verified. **E6 + R1 also closed 2026-09-08:** `reconcile.py` extended to
+`reconcile_governance_stores` (E2 hold correction **+** `audit_authorizations`,
+a read-only startup integrity audit of the execution-authorization store against
+holds/records — logs `missing_record` / `contradicts_rejection` /
+`record_not_terminal` / `hold_still_pending`, never writes; the authz store is
+Core-owned append-only so read-only by design). `test_reconcile.py` now 18 tests
+(9 E2 + 9 E6). Hard-kill restart test PASSED — all six evidence stores
+byte-identical on reload. E1/E2/E6 all closed → restart provably faithful.
+Next: **P1** (S3 enforcement, **E3 above-Core wrapper only — no Core fix**,
+E4/E5, D3, O1/O3, V1/V2, R3). Monitoring / exercise calls now require a token
+header. **Owner directive 2026-09-08: no Core modification or fix** — recorded
+frozen-Core gaps get an above-Core mitigation or an explicit accept-and-record,
+never a freeze deviation. CAP-04, CAP-05 (5A) and CAP-05 (5B) are all enabled on
 the live server (2026-09-07); the CAP-04 loop is idle at `no_remediation` and
 the agent surface sits at `0` grants. Do not begin implementation of a new
 capability until the owner selects and authorizes it. Do not reopen C01–C07; do

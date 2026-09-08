@@ -1183,3 +1183,79 @@ E3 as an **above-Core wrapper only** (emit a distinguishable `adapter_failure` /
 Then S3 approver≠grantor enforcement, E4 retention/rotation, E5 RMT-store
 backup, E6 authorization cross-check (closes R1), D3 systemd sandboxing,
 O1/O3, V1/V2, R3 platform-recovery runbook.
+
+---
+
+## Session note — E6 authorization-store integrity audit (closes E6 + R1)
+
+**Date:** 2026-09-08. Above-Core / operational. No `app/core/**` change. Owner
+directive in force: **no Core modification or fix.**
+
+### The gap
+E2 (`reconcile.py`) reconciled the hold ↔ record stores on startup but not the
+**authorization** store — E6 stayed PARTIAL and kept R1 at PARTIAL.
+
+### Design finding
+The execution-authorization store is **Core-owned and effectively append-only**:
+`create_manual_authorization` / `create_execution_authorization` mint an
+`ExecutionAuthorization` already in its final `approved` status, and the Core
+never mutates it afterwards (the execution engine only *reads* it to gate the
+boundary). There is **no authoritative "true status"** to reconcile an
+authorization *to* — so E6 for authorizations is a **read-only integrity audit
+(log/flag)**, not a correction. That also matches the E6 required-action
+wording ("log/flag divergences").
+
+### Implemented — `app/ops/reconcile.py`
+- **New `audit_authorizations()`** — walks `execution_authorization_storage`;
+  for each authz with an `approval_id`, cross-checks the approval **record** and
+  **hold** stores and logs (`WARNING`) any inconsistency:
+  - `missing_record` — authz references an approval id with no record (orphan);
+  - `contradicts_rejection` — authz exists but its record is `rejected`
+    (should be impossible: rejection mints no authorization);
+  - `record_not_terminal` — authz exists but its approval was never finally
+    decided (`pending` / `manual_required`);
+  - `hold_still_pending` — the linked hold is still `pending` after E2 ran.
+  Returns `{"checked", "divergences", "details":[…]}`. **Never writes**, never
+  raises (fail-open).
+- **New `reconcile_governance_stores()`** — runs `reconcile_holds_against_records`
+  (E2) first, then `audit_authorizations` (E6) against the now-corrected holds.
+- **`app/main.py`** — startup lifespan call changed
+  `reconcile_holds_against_records()` → `reconcile_governance_stores()`; comment
+  updated.
+- **`app/ops/testing/test_reconcile.py`** — +9 E6 tests (all-consistent,
+  each of the four divergence classes, unlinked authz skipped, read-only
+  (`_persist` never called), fail-open, and an E2→E6 ordering test proving the
+  hold is corrected before the audit so it isn't falsely flagged). File now
+  **18 tests** (9 E2 + 9 E6).
+
+### Verified against the live stores
+`reconcile_governance_stores()`: holds `{checked 7, reconciled 0}` (clean);
+authorizations `{checked 18, divergences 1}` — one real historical orphan
+(`14be2cb0`, approval `3df558e8`, a 2026-09-02 `test-container` authz with no
+record), logged at `WARNING`. `authorizations.json` **byte-identical**
+afterward (read-only confirmed).
+
+### Validation
+`test_reconcile.py` 18 passed; ops + Core-intelligence 180 passed; **full app
+suite 272 passed** (263 + 9). `import app.main` clean. 122 frozen-Core
+intelligence tests unchanged.
+
+### Matrix effect
+- **E6 → READY** (P2 line: "D5, E6 done").
+- **R1 → READY** — E1 + E2 + E6 all closed, hard-kill restart test passed
+  → a restart is provably faithful. P1 list drops R1.
+- **E3** reframed to **above-Core wrapper only** (no Core-fix option) per the
+  owner directive; §6 out-of-scope updated — no matrix item now touches Core.
+
+### Not deployed to live
+New/changed code (`reconcile.py`, `main.py`) — a `sudo systemctl restart
+rmt-control-center.service` picks it up. Safe: the E6 audit is read-only and the
+E2 half is a no-op on the current clean store (it will log the one orphan
+`WARNING`).
+
+### Next (P1, all above-Core)
+E3 (above-Core execution-result wrapper: emit a distinguishable
+`adapter_failure` / `state_mismatch` evidence record when `result.success` is
+False — same layer as `verify_docker_execution`), S3 approver≠grantor
+enforcement, E4 retention/rotation, E5 RMT-store backup, D3 systemd sandboxing,
+O1/O3, V1/V2, R3 platform-recovery runbook.

@@ -8,7 +8,7 @@ from app.schemas.container import Container
 from app.ops import ops_config
 from app.ops.auth import OperatorIdentity, require_operator
 from app.ops.notifications import notify_held
-from app.ops.reconcile import reconcile_holds_against_records
+from app.ops.reconcile import reconcile_governance_stores
 
 from app.monitor import get_history
 from app.collector import collect_metrics
@@ -97,11 +97,12 @@ async def lifespan(app: FastAPI):
 
     register_default_adapters()
 
-    # E2: a resolved manual-approval hold is not persisted to the hold store by
-    # the Core. Reconcile it against the authoritative approval record store on
-    # startup so a restart is faithful. Read-only + fail-open; see
+    # E2 + E6: on startup, correct the approval hold store against the
+    # authoritative record store (a resolved hold is not persisted by the Core),
+    # then audit the execution-authorization store against holds + records for
+    # inconsistent approval linkage (log-only). Fail-open; see
     # app/ops/reconcile.py.
-    reconcile_holds_against_records()
+    reconcile_governance_stores()
 
     collector_task = asyncio.create_task(
         collect_metrics()

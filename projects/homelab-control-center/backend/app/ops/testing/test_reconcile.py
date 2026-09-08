@@ -1,9 +1,14 @@
-"""RMT-PROD P0 (E2) -- startup hold/record reconciliation.
+"""RMT-PROD P0 (E2 + E6) -- startup governance-store reconciliation / audit.
 
-The Core resolves a manual-approval hold in the approval *record* store but not
-the *hold* store, so after a restart a resolved hold reloads as ``pending``.
+E2: the Core resolves a manual-approval hold in the approval *record* store but
+not the *hold* store, so after a restart a resolved hold reloads as ``pending``.
 ``reconcile_holds_against_records`` corrects that once at startup, using the
 record store as the source of truth, and is strictly bounded + fail-open.
+
+E6: ``audit_authorizations`` is a read-only integrity check of the
+execution-authorization store against the approval record + hold stores -- it
+flags inconsistent approval linkage in the log but never writes.
+``reconcile_governance_stores`` runs E2 then E6.
 """
 import pytest
 
@@ -17,8 +22,16 @@ from app.core.intelligence.actions.approval_storage import (
     ApprovalHoldStorage,
     ApprovalRecordStorage,
 )
+from app.core.intelligence.actions.authorization import ExecutionAuthorization
+from app.core.intelligence.actions.authorization_storage import (
+    AuthorizationStorage,
+)
 from app.core.intelligence.actions.models import ActionRequest, ActionType
-from app.ops.reconcile import reconcile_holds_against_records
+from app.ops.reconcile import (
+    audit_authorizations,
+    reconcile_governance_stores,
+    reconcile_holds_against_records,
+)
 
 
 def _action(component="uptime-kuma"):
@@ -51,6 +64,17 @@ def _record(approval_id, decision, approved_by="ragb"):
     )
 
 
+def _authz(approval_id, authz_type="manual", authorization_id=None):
+    kwargs = dict(
+        action_id="a-1",
+        authorization_type=authz_type,
+        approval_id=approval_id,
+    )
+    if authorization_id is not None:
+        kwargs["authorization_id"] = authorization_id
+    return ExecutionAuthorization(**kwargs)
+
+
 @pytest.fixture
 def stores(tmp_path, monkeypatch):
     """Isolated, file-backed hold + record stores wired into approval_service."""
@@ -65,6 +89,17 @@ def stores(tmp_path, monkeypatch):
         approval_service, "approval_record_storage", record_storage
     )
     return hold_storage, record_storage, hold_path
+
+
+@pytest.fixture
+def authz_store(stores, tmp_path, monkeypatch):
+    """A file-backed authorization store wired into approval_service, on top of
+    the isolated hold + record stores from ``stores``."""
+    storage = AuthorizationStorage(file_path=tmp_path / "authorizations.json")
+    monkeypatch.setattr(
+        approval_service, "execution_authorization_storage", storage
+    )
+    return storage
 
 
 def _reload(path):
@@ -179,3 +214,117 @@ def test_fail_open_on_storage_error(stores, monkeypatch):
     # must not raise
     summary = reconcile_holds_against_records()
     assert summary["reconciled"] == 0
+
+
+# --------------------------------------------------------------------------- #
+# E6 -- authorization store integrity audit (read-only)
+# --------------------------------------------------------------------------- #
+
+
+def test_audit_all_consistent(authz_store, stores):
+    hold_storage, record_storage, _p = stores
+    hold_storage.save(_hold("h1", status=ApprovalStatus.APPROVED))
+    record_storage.save(_record("h1", "approved"))
+    authz_store.save(_authz("h1"))
+
+    summary = audit_authorizations()
+
+    assert summary == {"checked": 1, "divergences": 0, "details": []}
+
+
+def test_audit_flags_missing_record(authz_store, stores):
+    authz_store.save(_authz("orphan", authorization_id="az-1"))
+
+    summary = audit_authorizations()
+
+    assert summary["checked"] == 1
+    assert summary["divergences"] == 1
+    d = summary["details"][0]
+    assert d["issue"] == "missing_record"
+    assert d["authorization_id"] == "az-1"
+    assert d["approval_id"] == "orphan"
+
+
+def test_audit_flags_contradicts_rejection(authz_store, stores):
+    _hold_storage, record_storage, _p = stores
+    record_storage.save(_record("h1", "rejected"))
+    authz_store.save(_authz("h1"))
+
+    summary = audit_authorizations()
+
+    assert summary["divergences"] == 1
+    assert summary["details"][0]["issue"] == "contradicts_rejection"
+    assert summary["details"][0]["record_decision"] == "rejected"
+
+
+def test_audit_flags_record_not_terminal(authz_store, stores):
+    _hold_storage, record_storage, _p = stores
+    record_storage.save(_record("h1", "manual_required"))
+    authz_store.save(_authz("h1"))
+
+    summary = audit_authorizations()
+
+    assert summary["divergences"] == 1
+    assert summary["details"][0]["issue"] == "record_not_terminal"
+
+
+def test_audit_flags_hold_still_pending(authz_store, stores):
+    hold_storage, record_storage, _p = stores
+    hold_storage.save(_hold("h1", status=ApprovalStatus.PENDING))
+    record_storage.save(_record("h1", "approved"))
+    authz_store.save(_authz("h1"))
+
+    summary = audit_authorizations()
+
+    assert summary["divergences"] == 1
+    assert summary["details"][0]["issue"] == "hold_still_pending"
+
+
+def test_audit_ignores_unlinked_authorization(authz_store, stores):
+    authz_store.save(_authz(None, authz_type="automatic"))
+
+    summary = audit_authorizations()
+
+    assert summary == {"checked": 1, "divergences": 0, "details": []}
+
+
+def test_audit_is_read_only(authz_store, stores, monkeypatch):
+    authz_store.save(_authz("orphan"))
+    calls = []
+    monkeypatch.setattr(authz_store, "_persist", lambda: calls.append(1))
+
+    audit_authorizations()
+
+    assert calls == []
+
+
+def test_audit_fail_open_on_storage_error(authz_store, monkeypatch):
+    monkeypatch.setattr(
+        authz_store,
+        "get_all",
+        lambda: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    summary = audit_authorizations()  # must not raise
+    assert summary == {"checked": 0, "divergences": 0, "details": []}
+
+
+def test_reconcile_governance_stores_runs_e2_then_e6(authz_store, stores):
+    """E2 corrects the hold first, so E6 does not then flag it as
+    ``hold_still_pending`` -- plus an independent orphan authz is flagged."""
+    hold_storage, record_storage, hold_path = stores
+    hold_storage.save(_hold("h1", status=ApprovalStatus.PENDING))
+    record_storage.save(_record("h1", "approved"))
+    authz_store.save(_authz("h1"))          # linked to the (stale) hold
+    authz_store.save(_authz("orphan", authorization_id="az-orphan"))
+
+    result = reconcile_governance_stores()
+
+    # E2 corrected the stale hold, durably
+    assert result["holds"]["reconciled"] == 1
+    assert _reload(hold_path)[0].status is ApprovalStatus.APPROVED
+    # E6 saw the corrected hold -> only the true orphan is a divergence
+    assert result["authorizations"]["divergences"] == 1
+    assert result["authorizations"]["details"][0]["issue"] == "missing_record"
+    assert result["authorizations"]["details"][0]["authorization_id"] == (
+        "az-orphan"
+    )

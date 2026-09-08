@@ -127,10 +127,10 @@ substrate is currently weaker than the governance logic on top of it.
 |---|---|---|---|---|---|
 | **E1** | Atomic, concurrency-safe evidence writes | **DONE** — `DurableStore._persist` writes a sibling `.tmp`, `flush` + `os.fsync`, then `os.replace` (atomic on POSIX); `_load` discards stale `.tmp`. Byte-identical committed output; owner-authorized frozen-Core hardening deviation. `test_durable_store_atomic.py` (interrupted-write leaves prior file intact). | **READY** | — | **P0** |
 | **E2** | Hold state persisted on resolution | **DONE (above-Core)** — owner chose reconciliation over a Core fix. `app/ops/reconcile.py::reconcile_holds_against_records`, run once in the `app/main.py` startup lifespan, brings the hold store back into agreement with the authoritative approval **record** store: a `pending` hold whose record shows a terminal decision (`approved`/`rejected`) is corrected in place and re-persisted via the store's atomic (E1) write path. Read-only where nothing diverges; fail-open (never blocks startup). Never invents a resolution. No `app/core/**` change. `app/ops/testing/test_reconcile.py` — 9 tests; full suite 263 passed. | **READY** | — | **P0** |
-| **E3** | Failed-execution verification evidence | A failed adapter execution produces **no** verification record — not even `verification_failure` / `state_mismatch`. `AGENTS.md` §11 lists "adapter invoked and failed" as an outcome that should be distinguishable. (Recorded frozen-Core note.) | **GAP** | Emit a distinguishable verification/evidence record on adapter failure (Core fix on the freeze, or an above-Core wrapper on the execution result). | **P1** |
+| **E3** | Failed-execution verification evidence | A failed adapter execution produces **no** verification record — not even `verification_failure` / `state_mismatch`. `AGENTS.md` §11 lists "adapter invoked and failed" as an outcome that should be distinguishable. (Recorded frozen-Core note.) | **GAP** | Emit a distinguishable evidence record on adapter failure via an **above-Core execution-result wrapper** (no `app/core/**` change — owner directive: no Core fix). | **P1** |
 | **E4** | Retention / rotation / size management | The six JSON stores grow unbounded and are fully rewritten each save (O(n) per write). | **GAP** | Define a retention window + archival/rotation; this is also resolved by an E1 migration to SQLite. | **P1** |
 | **E5** | Evidence backup & restore (RMT stores) | `docs/recovery/RECOVERY_RUNBOOK.md` + the `scripts/` backup engine cover the **Docker stack** (volumes, stack config). The RMT governance stores and `data/observability.db` are not in a documented backup/restore path. | **GAP** | Add the RMT evidence stores + SQLite DB to the backup engine and the recovery runbook, with a restore-integrity check. | **P1** |
-| **E6** | Startup integrity / reconciliation | The hold ↔ record half is now reconciled on load (E2 fix, `app/ops/reconcile.py`): a divergence is corrected against the authoritative record store and logged (`WARNING`). The authorization store is not yet cross-checked. | **PARTIAL** | Extend the startup reconciliation to the authorization store. | **P2** |
+| **E6** | Startup integrity / reconciliation | **DONE (above-Core, 2026-09-08).** `app/ops/reconcile.py::reconcile_governance_stores` runs on startup: (1) E2 — corrects a stale `pending` hold against the authoritative record store; (2) **E6 — `audit_authorizations()` cross-checks every `ExecutionAuthorization` against the approval record + hold stores** and logs (`WARNING`) any inconsistent linkage — `missing_record`, `contradicts_rejection`, `record_not_terminal`, `hold_still_pending`. The authorization store is Core-owned + append-only (the Core never mutates an authorization after creation), so this half is **read-only by design** — it surfaces divergence, never rewrites Core evidence. Verified against the live store: 18 checked, 1 flagged (a historical 2026-09-02 `test-container` orphan authz with no record), `authorizations.json` byte-identical afterward. `test_reconcile.py` — 18 tests (9 E2 + 9 E6). | **READY** | — | **P2** |
 
 ### Group D — Deployment & Configuration
 
@@ -168,7 +168,7 @@ able to *tell a human*.
 
 | ID | Requirement | Current verified evidence | Status | Required action | Priority |
 |---|---|---|---|---|---|
-| **R1** | Restart safety — state rebuilt correctly from disk | **Hard-kill restart test PASSED (2026-09-08).** `systemctl kill -s KILL` on the whole cgroup, then restart: all six durable evidence stores reloaded **byte-for-byte identical** (sha256 + record counts unchanged), no `.tmp` residue (E1), hold ↔ record stores in agreement / reconcile a clean no-op (E2), CAP-04 loop + auth + Caddy proxy all healthy on the new PID. Only the E6 authorization-store cross-check now remains. | **PARTIAL** | Close the E6 remainder (extend startup reconciliation to the authorization store). | **P1** |
+| **R1** | Restart safety — state rebuilt correctly from disk | **DONE (2026-09-08).** Hard-kill restart test PASSED: `systemctl kill -s KILL` on the whole cgroup, then restart — all six durable evidence stores reloaded **byte-for-byte identical** (sha256 + record counts unchanged), no `.tmp` residue (E1), hold ↔ record stores in agreement / reconcile a clean no-op (E2), CAP-04 loop + auth + Caddy proxy all healthy on the new PID. E6 authorization cross-check now also runs on startup (`reconcile_governance_stores`). E1/E2/E6 all closed → a restart is provably faithful. | **READY** | — | **P1** |
 | **R2** | Homelab stack disaster recovery | `docs/recovery/RECOVERY_RUNBOOK.md` + backup engine + `verify-recovery.sh` — a tested procedure with checksums and manifests. | **READY** | Keep exercised. | — |
 | **R3** | RMT platform recovery procedure | No procedure to rebuild the RMT service itself (venv, unit, drop-ins, evidence stores, SQLite DB) on a fresh host. | **GAP** | A runbook + script to stand up the service from the repo + a restored evidence set. | **P1** |
 | **R4** | High availability / no single point of failure | Single uvicorn process, single host. | **ACCEPTED** | Acceptable at homelab scale; record the RTO expectation (a restart / redeploy, minutes). Revisit only if RMT governs something that cannot tolerate that window. | — |
@@ -209,8 +209,8 @@ able to *tell a human*.
 
 **P0 is fully closed (2026-09-08).** All six blocking items — S1, S2-lite, E1,
 E2, O2, S4 — are live and verified. Next work is P1.
-| **P1** | S3, E3, E4, E5, D3, O1, O3, V1, V2, R1, R3 | pending (D1, D2 done) |
-| **P2** | S5, S6, S7, D4, D6, O4, V3, V4 | pending (D5 done; E6 now PARTIAL) |
+| **P1** | S3, E3, E4, E5, D3, O1, O3, V1, V2, R3 | pending (D1, D2, R1 done) |
+| **P2** | S5, S6, S7, D4, D6, O4, V3, V4 | pending (D5, E6 done) |
 | **ACCEPTED** | R4 (single-instance) | recorded |
 
 ---
@@ -224,12 +224,13 @@ where noted.
 decision. Nothing else should be exposed until S1 + S4 are done.
 
 **W2 — Evidence substrate.** E1 (atomic writes / SQLite migration) is the
-keystone; it also resolves E4 and de-risks E6. **E2 is closed** by an above-Core
-startup reconciliation (`app/ops/reconcile.py`) — the owner chose that over a
-Core fix, so no freeze deviation; it also covers the hold↔record half of E6.
-**E3** still touches the frozen Core (a failed adapter execution produces no
-verification record) — a separate owner decision (Core fix vs above-Core
-wrapper). E5 folds the RMT stores into the existing backup engine.
+keystone; it also resolves E4. **E2 and E6 are closed** by an above-Core startup
+reconciliation + audit (`app/ops/reconcile.py::reconcile_governance_stores`) —
+the owner chose that over a Core fix, so no freeze deviation. **E3** (a failed
+adapter execution produces no verification record) is fixed **above-Core only**
+— an execution-result wrapper that emits a distinguishable evidence record on
+adapter failure; no `app/core/**` change. E5 folds the RMT stores into the
+existing backup engine.
 
 **W3 — Deployment reproducibility.** D1 (lock deps) → D2 (deploy/rollback
 runbook) → D3 (unit hardening). Enables R3 (platform recovery).
@@ -265,9 +266,10 @@ Not required for this platform to be production-ready at its current purpose:
 - **High availability / clustering.** Recorded as ACCEPTED (R4).
 - **Multi-tenancy.**
 - **A hosted / internet-facing product.** If that changes, re-run §2 as case (c).
-- **Reopening C01–C07 or adding a Core milestone.** E2 was closed above-Core
-  (no Core touch). **E3** is now the only remaining item that would touch frozen
-  Core, and only as an explicit, separately-authorized owner decision.
+- **Reopening C01–C07 or adding a Core milestone.** Owner directive: **no Core
+  modification or fix.** E2 and E6 were closed above-Core; E3 is to be fixed
+  above-Core only (an execution-result wrapper). No item in this matrix touches
+  the frozen Core.
 - **Replacing the governance architecture.** It is sound; this document is about
   the operational substrate under it.
 
@@ -312,10 +314,17 @@ trusted on the host. Verified on `192.168.223.128`: `https://` → 200
 200, app refuses `:8000` off-loopback, CAP-04 loop healthy through the proxy.
 Remaining housekeeping only: import the Caddy root CA on other operator machines.
 
-**P0 is fully closed.** The P1/P2 items remain for a more robust posture but are
-not individually blocking. Next: P1 — S3 enforcement, E3 (failed-execution
-verification evidence — the lone remaining frozen-Core item), E4/E5, D3, O1/O3,
-V1/V2, R1/R3.
+**E6 + R1 (2026-09-08): closed.** `reconcile_governance_stores` extends the
+startup pass with a read-only authorization-store integrity audit
+(`audit_authorizations`); the hard-kill restart test passed with every evidence
+store byte-identical on reload. E1/E2/E6 all closed → a restart is provably
+faithful.
+
+**P0 is fully closed** and the restart-safety bar (R1) is met. The remaining
+P1/P2 items are for a more robust posture but are not individually blocking.
+Next: P1 — S3 enforcement, E3 (failed-execution verification evidence — fixed
+**above-Core only**, an execution-result wrapper; no Core change), E4/E5, D3,
+O1/O3, V1/V2, R3.
 
 ---
 
