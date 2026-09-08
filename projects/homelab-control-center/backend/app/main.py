@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -8,6 +9,11 @@ from app.schemas.container import Container
 from app.ops import ops_config
 from app.ops.auth import OperatorIdentity, require_operator
 from app.ops.execution_evidence import record_failed_execution_evidence
+from app.ops.logging_config import (
+    RequestContextMiddleware,
+    configure_logging,
+    log_event,
+)
 from app.ops.notifications import notify_held
 from app.ops.reconcile import reconcile_governance_stores
 from app.ops.retention import archive_aged_evidence
@@ -54,6 +60,9 @@ from app.core.intelligence.execution.adapters.registry import (
 import asyncio
 
 
+logger = logging.getLogger("rmt.http")
+
+
 OPERATION_TO_ACTION_TYPE = {
     "start": ActionType.START,
     "stop": ActionType.STOP,
@@ -79,12 +88,38 @@ def _resolve_adapter_name() -> str:
 
     return "simulation"
 
+
+def _log_governed(event: str, *, principal: str, result, **ctx) -> None:
+    """O1: one structured line per governed HTTP mutation, correlated by the
+    ids the durable evidence already uses. `result` may not be a dict."""
+    r = result if isinstance(result, dict) else {}
+    log_event(
+        logger,
+        event,
+        principal=principal,
+        governed_status=r.get("status"),
+        action_id=r.get("action_id"),
+        execution_id=r.get("execution_id"),
+        **ctx,
+    )
+
+
 collector_task = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global collector_task
+
+    # O1: own the `rmt` logger tree (JSON to stdout -> journald) before any
+    # other startup step so the reconcile / retention / loop lines are captured.
+    configure_logging()
+    log_event(
+        logger,
+        "startup",
+        loop_enabled=loop_config.LOOP_ENABLED,
+        auth_enabled=ops_config.auth_enabled(),
+    )
 
     # S1: refuse to start with an unauthenticated mutating surface.
     if ops_config.auth_enabled() and not ops_config.operator_tokens():
@@ -143,6 +178,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# O1: added last => outermost. Binds a request id (honours inbound
+# X-Request-ID), echoes it on the response, logs one `http_request` line.
+app.add_middleware(RequestContextMiddleware)
 
 
 app.include_router(observability_router)
@@ -285,6 +324,14 @@ def execute(
         source="http_execute",
     )
 
+    _log_governed(
+        "governed_execute",
+        principal=operator.name,
+        result=result,
+        operation=operation,
+        target=target,
+        approval_id=result.get("approval_id") if isinstance(result, dict) else None,
+    )
     return result
 
 
@@ -318,6 +365,13 @@ def approve(
     )
     # E3: distinguishable evidence when the adapter was invoked and failed.
     record_failed_execution_evidence(result, source="http_approve")
+    _log_governed(
+        "governed_approve",
+        principal=operator.name,
+        result=result,
+        approval_id=approval_id,
+        approved=approved,
+    )
     return result
 
 
@@ -351,6 +405,13 @@ def homelab_remediate(
     # a no-op when the above-Core Docker verify already recorded an outcome.
     record_failed_execution_evidence(result, source="http_remediate")
 
+    _log_governed(
+        "homelab_remediate",
+        principal=operator.name,
+        result=result,
+        component=component,
+        approval_id=result.get("approval_id") if isinstance(result, dict) else None,
+    )
     return result
 
 
@@ -390,6 +451,13 @@ def homelab_approve(
     # E3: covers a non-REMEDIATION_POLICY component, where continue_remediation
     # early-returns before the above-Core Docker verify; a no-op otherwise.
     record_failed_execution_evidence(result, source="http_homelab_approve")
+    _log_governed(
+        "homelab_approve",
+        principal=operator.name,
+        result=result,
+        approval_id=approval_id,
+        approved=approved,
+    )
     return result
 
 

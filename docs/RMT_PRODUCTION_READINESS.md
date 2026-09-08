@@ -150,7 +150,7 @@ able to *tell a human*.
 
 | ID | Requirement | Current verified evidence | Status | Required action | Priority |
 |---|---|---|---|---|---|
-| **O1** | Structured application logging + rotation | No logging framework in `app/main.py` or `app/core/**` (no `logging.getLogger`, loguru, structlog). Output is uvicorn's default to the journal. | **GAP** | Introduce structured logging (request id, action id, decision, principal) at the governed-lifecycle boundaries; ensure journald retention / rotation is set. | **P1** |
+| **O1** | Structured application logging + rotation | **DONE (2026-09-08).** `app/ops/logging_config.py` — stdlib `logging`, **no dependency**. `configure_logging()` owns the `rmt` logger tree: one JSON line per record to stdout → journald, `propagate=False`, idempotent; `RMT_LOG_LEVEL` (default `INFO`), `RMT_LOG_JSON` (default `true`). `RequestContextMiddleware` binds a per-request `request_id` (honours inbound `X-Request-ID`, echoes it on the response) and logs one `http_request` line (method, path, status, duration_ms, principal). `log_event()` emits one structured line at each governed-lifecycle boundary — the 4 mutating routes (`governed_execute` / `governed_approve` / `homelab_remediate` / `homelab_approve`), the CAP-04 loop (`loop_remediation` / `loop_quarantine` / `loop_cycle_error`), and every agent proposal that reaches the adapter (`agent_proposal_outcome`) — correlated by `action_id` / `execution_id` / `approval_id`. `require_operator` stashes the resolved name on `request.state.principal`. No `app/core/**` change. `test_logging_config.py` — 16 tests. **Rotation:** journald (`DEPLOY.md` §5 — `SystemMaxUse=` / `MaxRetentionSec=`), operator step. | **READY** | Set a journald cap on the host (`DEPLOY.md` §5). | **P1** |
 | **O2** | Alert on held remediation / agent proposal | **DONE + LIVE (log sink)** — `app/ops/notifications.py` `notify_held` (webhook via stdlib `urllib`, fail-open, per-key de-dupe) hooked at `/execute`, `/homelab/remediate`, the CAP-04 loop, and the agent adapter. Deployed with `RMT_NOTIFY_WEBHOOK_URL` **unset** → held actions log to the journal only. `test_notifications.py`. | **READY** *(routing to a real sink pending)* | Set `RMT_NOTIFY_WEBHOOK_URL` in `auth.conf` when a chat/email sink exists. | **P0** |
 | **O3** | Alert on loop quarantine / cycle error / service down | **DONE (above-Core, 2026-09-08).** `app/ops/notifications.py::notify_ops` (same fail-open, de-duped webhook sink as O2) fires on **loop quarantine** and **loop cycle error** — hooked in `app/homelab/operational_loop.py`. **Service-down** is out-of-band: new unauthenticated `GET /health` probe (`status: ok`/`degraded` from the loop state) + `backend/scripts/rmt-heartbeat.sh`, a cron inverted dead-man's-switch that pings `RMT_HEARTBEAT_URL` only while `/health` answers 200. `test_notifications.py` + `test_health.py` + `test_operational_loop.py` cover it. No `app/core/**` change. | **READY** | Set `RMT_NOTIFY_WEBHOOK_URL`; cron `rmt-heartbeat.sh` with a monitor URL. | **P1** |
 | **O4** | Platform self-metrics | No request-rate / error-rate / hold-queue-depth metrics for the RMT process. | **GAP** | Expose a metrics endpoint or periodic self-report (holds outstanding, cycles, error counts). | **P2** |
@@ -193,11 +193,11 @@ able to *tell a human*.
 | S — Security & Access Control | 2 | 1 | 4 | 0 | 0 |
 | E — Evidence Durability & Integrity | 1 | 0 | 5 | 0 | 0 |
 | D — Deployment & Configuration | 3 | 1 | 2 | 0 | 0 |
-| O — Observability & Alerting | 1 | 0 | 3 | 0 | 0 |
+| O — Observability & Alerting | 3 | 0 | 1 | 0 | 0 |
 | V — Validation & Change Safety | 1 | 3 | 0 | 0 | 0 |
 | R — Resilience & Recovery | 1 | 1 | 1 | 1 | 0 |
 | G — Governance Process | 4 | 0 | 0 | 0 | 0 |
-| **Total** | **13** | **6** | **15** | **1** | **0** |
+| **Total** | **15** | **6** | **13** | **1** | **0** |
 
 ### By priority
 
@@ -209,7 +209,7 @@ able to *tell a human*.
 
 **P0 is fully closed (2026-09-08).** All six blocking items — S1, S2-lite, E1,
 E2, O2, S4 — are live and verified. Next work is P1.
-| **P1** | D3, O1, V1, R3 | pending (D1, D2, R1, E3, S3, E4, E5, O3, V2 done) |
+| **P1** | D3, V1, R3 | pending (D1, D2, R1, E3, S3, E4, E5, O3, V2, O1 done) |
 | **P2** | S5, S6, S7, D4, D6, O4, V3, V4 | pending (D5, E6 done) |
 | **ACCEPTED** | R4 (single-instance) | recorded |
 
@@ -238,8 +238,7 @@ evidence stores + `observability.db` (`backend/scripts/rmt-evidence-*`,
 **W3 — Deployment reproducibility.** D1 (lock deps) → D2 (deploy/rollback
 runbook) → D3 (unit hardening). Enables R3 (platform recovery).
 
-**W4 — Operability.** O2 (P0, because the loop runs unattended) → O1 → O3 →
-D4 → O4.
+**W4 — Operability.** O2, O3, **O1 done** → D4 → O4.
 
 **W5 — Validation.** **V2 (CI) done** → V1 (real e2e) → V3 → V4.
 
@@ -338,7 +337,11 @@ closed**: `notify_ops` alerts on loop quarantine + cycle error; `GET /health` +
 `rmt-heartbeat.sh` cover service-down. **V2 (2026-09-08) closed**:
 `backend/scripts/ci.sh` (clean-venv-from-lock + errors-only ruff + full suite,
 324 passed) and a dormant `.github/workflows/ci.yml` that runs it once the repo
-has a remote. Next: P1 — D3, O1, V1, R3.
+has a remote. **O1 (2026-09-08) closed**: `app/ops/logging_config.py` — stdlib
+structured JSON logging to stdout/journald, per-request `request_id` +
+`http_request` line, one `log_event` line at every governed-lifecycle boundary
+(routes / CAP-04 loop / agent adapter); `RMT_LOG_LEVEL` / `RMT_LOG_JSON`;
+journald handles rotation. Next: P1 — D3, V1, R3.
 
 ---
 

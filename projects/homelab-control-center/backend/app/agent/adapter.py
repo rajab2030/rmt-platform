@@ -14,6 +14,7 @@ Flow:
 No new mutation path. No ``app/core/**`` change. The agent never calls an
 adapter directly, never mints authorization, never continues a hold.
 """
+import logging
 import uuid
 
 from app.core.intelligence.actions.models import ActionRequest
@@ -22,6 +23,7 @@ from app.core.intelligence.actions.service import execute_governed_action
 from app.homelab.remediation import resolve_adapter_name, record_learning
 from app.homelab.verification import verify_docker_execution
 from app.ops.execution_evidence import record_failed_execution_evidence
+from app.ops.logging_config import log_event
 from app.ops.notifications import notify_held
 from app.ops.separation import record_hold_provenance
 
@@ -30,8 +32,27 @@ from app.agent.authority import authority_store
 from app.agent.contract import AgentProposal, AgentOutcome
 from app.agent.dependency_guard import escalate_for_dependency_cascade
 
+logger = logging.getLogger("rmt.agent")
 
 _ACCEPTED = {"executed", "manual_approval_required"}
+
+
+def _log_outcome(outcome: AgentOutcome, *, operation: str, target: str) -> AgentOutcome:
+    """O1: one structured line per agent proposal that reached the adapter."""
+    log_event(
+        logger,
+        "agent_proposal_outcome",
+        agent_id=outcome.proposal.identity.agent_id,
+        operation=operation,
+        target=target,
+        decision=outcome.decision or None,
+        governed_status=outcome.governed_status or None,
+        approval_id=outcome.approval_id,
+        execution_id=outcome.execution_id,
+        escalated=outcome.escalated or None,
+        verification_status=outcome.verification_status,
+    )
+    return outcome
 
 
 def _default_requires_approval() -> bool:
@@ -51,8 +72,12 @@ def propose_and_govern(proposal: AgentProposal) -> AgentOutcome:
 
     ok, why = authority_store.check(proposal.grant_id, operation, target)
     if not ok:
-        return AgentOutcome(
-            proposal=proposal, decision="no_authority", detail=why
+        return _log_outcome(
+            AgentOutcome(
+                proposal=proposal, decision="no_authority", detail=why
+            ),
+            operation=operation,
+            target=target,
         )
 
     escalate, esc_reason = escalate_for_dependency_cascade(target, operation)
@@ -73,11 +98,15 @@ def propose_and_govern(proposal: AgentProposal) -> AgentOutcome:
             action, adapter_name=resolve_adapter_name()
         )
     except Exception as exc:  # defensive: the surface must not 500
-        return AgentOutcome(
-            proposal=proposal,
-            decision="error",
-            escalated=escalate,
-            detail=repr(exc),
+        return _log_outcome(
+            AgentOutcome(
+                proposal=proposal,
+                decision="error",
+                escalated=escalate,
+                detail=repr(exc),
+            ),
+            operation=operation,
+            target=target,
         )
 
     status = str(result.get("status", "unknown"))
@@ -116,7 +145,7 @@ def propose_and_govern(proposal: AgentProposal) -> AgentOutcome:
             detail=esc_reason or result.get("reason", "") or "",
             source="agent_adapter",
         )
-        return outcome
+        return _log_outcome(outcome, operation=operation, target=target)
 
     if status == "executed":
         outcome.decision = "allow"
@@ -142,7 +171,7 @@ def propose_and_govern(proposal: AgentProposal) -> AgentOutcome:
             target, result, confidence=proposal.intent.confidence
         )
         outcome.learn_recorded = True
-        return outcome
+        return _log_outcome(outcome, operation=operation, target=target)
 
     # policy_denied / authorization_not_created / rejected / unknown --
     # rejected before anything happened; grant left intact.
@@ -151,4 +180,4 @@ def propose_and_govern(proposal: AgentProposal) -> AgentOutcome:
         if status in ("policy_denied", "authorization_not_created")
         else "rejected"
     )
-    return outcome
+    return _log_outcome(outcome, operation=operation, target=target)

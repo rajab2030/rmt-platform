@@ -1649,3 +1649,65 @@ D3 systemd hardening, O1 structured logging, V1 real end-to-end test, R3
 platform-recovery runbook. D3 and R3 are the good candidates to hand the
 standby agent (DeepSeek Flash v4) as a scoped draft brief; this session stays
 the sole writer and integrator.
+
+---
+
+## Session note — O1 structured logging
+
+**Date:** 2026-09-08. Above-Core / operational. **No `app/core/**` change.**
+
+### Implemented — `app/ops/logging_config.py` (new; stdlib `logging`, no dependency)
+- `configure_logging()` — owns the `rmt` logger tree: one line per record to
+  **stdout** (systemd → journald), `JsonFormatter` by default (`ts`, `level`,
+  `logger`, `msg`, `request_id`, + inlined `extra` fields), `TextFormatter`
+  when `RMT_LOG_JSON=false`. `propagate=False` so uvicorn's root does not
+  double-print. **Idempotent** — one handler; level refreshed from env on each
+  call. Called first thing in the `app/main.py` lifespan.
+- `request_id_var` (`ContextVar`) + `RequestContextMiddleware` (added last in
+  `main.py` → outermost): mints a 16-hex id per request, honours an inbound
+  `X-Request-ID`, echoes it on the response, logs exactly one `http_request`
+  line (method, path, status, duration_ms, principal) — including on a handler
+  exception (logged at ERROR, then re-raised). Every `rmt.*` line during the
+  request carries the same `request_id`.
+- `log_event(logger, event, /, level=INFO, **fields)` — one structured line for
+  a governed-lifecycle boundary; `None` values and reserved `LogRecord` keys
+  are dropped.
+
+### Instrumented boundaries (above-Core only)
+- `app/main.py` — `_log_governed(...)` after each of the 4 governed mutations:
+  `governed_execute` / `governed_approve` / `homelab_remediate` /
+  `homelab_approve`, carrying `principal`, `governed_status`, `action_id`,
+  `execution_id`, `approval_id`.
+- `app/homelab/operational_loop.py` — `loop_remediation` (one per real
+  remediation attempt), `loop_quarantine` (WARNING), `loop_cycle_error`
+  (ERROR), beside the existing `notify_ops` hooks.
+- `app/agent/adapter.py` — `agent_proposal_outcome` on every path that reaches
+  the adapter (`no_authority`, `error`, hold, executed, deny/reject) via a
+  `_log_outcome(...)` helper.
+- `app/ops/auth.py` — `require_operator` gained a `request: Request` param and
+  stashes `request.state.principal = identity.name` (transparent to callers)
+  so the middleware can attribute the request line.
+
+### Config (dynamic, `app/ops/ops_config.py`)
+`RMT_LOG_LEVEL` (default `INFO`), `RMT_LOG_JSON` (default `true`). Rotation is
+journald's job — `DEPLOY.md` §5 (`SystemMaxUse=` / `MaxRetentionSec=` drop-in);
+`CONFIG.md` has the logging section.
+
+### Validation
+`test_logging_config.py` — **16 passed** (formatter shape, extra-field inlining,
+request-id binding, JSON single-line, text fallback, idempotent configure,
+level-from-env + refresh, `log_event` drops none/reserved + respects level,
+middleware mints/echoes/honours id + one line + error path + var reset).
+Regression batch (auth + ops + loop + agent + http entrypoints) **183 passed**.
+Full gate below. `import app.main` clean. 122 frozen-Core tests unchanged.
+
+### Matrix effect
+**O1 → READY.** O group now 3 READY (O1/O2/O3) / 0 PARTIAL / 1 GAP (O4). P1
+now: **D3, V1, R3**.
+
+### Not deployed
+`logging_config.py` + `main.py` + `operational_loop.py` + `agent/adapter.py` +
+`ops/auth.py` + `ops_config.py` — needs a service restart (same restart that
+picks up the earlier undeployed `b485365..HEAD` batch). Then set a journald cap
+(`DEPLOY.md` §5). Default `INFO`/JSON means more journal volume than today's
+uvicorn-default output — bounded by the journald cap.
