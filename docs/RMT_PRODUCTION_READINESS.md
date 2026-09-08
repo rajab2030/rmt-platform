@@ -23,14 +23,19 @@ deployable, observable, and recoverable.
 
 > **P0 batch implemented + deployed 2026-09-07** (`docs/RMT_PROD_P0_PROPOSAL.md`,
 > APPROVED). S1 + S2-lite (auth + operator identity), E1 (atomic evidence
-> writes), O2 (held-action alerting) are **code-complete, merged (254 tests
-> pass), and LIVE** on `:8000` (service restarted 2026-09-07 12:36 UTC).
+> writes), O2 (held-action alerting) are **code-complete, merged, and LIVE** on
+> `:8000` (service restarted 2026-09-07 12:36 UTC).
 > Verified on live: unauth → 401, authed → 200, `granted_by` records the
 > authenticated operator, evidence files parse with no `.tmp` residue.
+> **E2 is now closed** (owner chose the **above-Core reconciliation** path):
+> `app/ops/reconcile.py` reconciles the hold store against the authoritative
+> approval-record store on startup — no `app/core/**` change. Full suite **263
+> passed** (254 + 9 `test_reconcile.py`).
 > **S4:** loopback bind is **live** (`127.0.0.1:8000` only); the Caddy TLS
-> reverse proxy is **not yet installed** — RMT currently has no LAN-facing
-> entry point (loopback + auth only). **E2 remains open** (Core-fix vs
-> above-Core reconciliation — decision pending). Status cells below reflect this.
+> reverse proxy is **not yet installed** — owner chose to install it; the
+> artifacts are cutover-ready (`deploy/Caddyfile`, `DEPLOY.md` §1.4) and the
+> install is a root operator step. Until then RMT has no LAN-facing entry point
+> (loopback + auth only). Status cells below reflect this.
 
 ### Relationship to the Core Gap Matrix
 
@@ -117,11 +122,11 @@ substrate is currently weaker than the governance logic on top of it.
 | ID | Requirement | Current verified evidence | Status | Required action | Priority |
 |---|---|---|---|---|---|
 | **E1** | Atomic, concurrency-safe evidence writes | **DONE** — `DurableStore._persist` writes a sibling `.tmp`, `flush` + `os.fsync`, then `os.replace` (atomic on POSIX); `_load` discards stale `.tmp`. Byte-identical committed output; owner-authorized frozen-Core hardening deviation. `test_durable_store_atomic.py` (interrupted-write leaves prior file intact). | **READY** | — | **P0** |
-| **E2** | Hold state persisted on resolution | `approve_held_action` sets `hold.status` in memory and persists only the approval **record** store, never the **hold** store. After a restart a resolved hold reloads as `pending`. (Recorded frozen-Core note.) | **GAP** | Fix in Core (owner decision on the freeze) **or** an above-Core reconciliation on load; until then the **record** store is authoritative and consumers must cross-check it (CAP-04's guard already does). | **P0** |
+| **E2** | Hold state persisted on resolution | **DONE (above-Core)** — owner chose reconciliation over a Core fix. `app/ops/reconcile.py::reconcile_holds_against_records`, run once in the `app/main.py` startup lifespan, brings the hold store back into agreement with the authoritative approval **record** store: a `pending` hold whose record shows a terminal decision (`approved`/`rejected`) is corrected in place and re-persisted via the store's atomic (E1) write path. Read-only where nothing diverges; fail-open (never blocks startup). Never invents a resolution. No `app/core/**` change. `app/ops/testing/test_reconcile.py` — 9 tests; full suite 263 passed. | **READY** | — | **P0** |
 | **E3** | Failed-execution verification evidence | A failed adapter execution produces **no** verification record — not even `verification_failure` / `state_mismatch`. `AGENTS.md` §11 lists "adapter invoked and failed" as an outcome that should be distinguishable. (Recorded frozen-Core note.) | **GAP** | Emit a distinguishable verification/evidence record on adapter failure (Core fix on the freeze, or an above-Core wrapper on the execution result). | **P1** |
 | **E4** | Retention / rotation / size management | The six JSON stores grow unbounded and are fully rewritten each save (O(n) per write). | **GAP** | Define a retention window + archival/rotation; this is also resolved by an E1 migration to SQLite. | **P1** |
 | **E5** | Evidence backup & restore (RMT stores) | `docs/recovery/RECOVERY_RUNBOOK.md` + the `scripts/` backup engine cover the **Docker stack** (volumes, stack config). The RMT governance stores and `data/observability.db` are not in a documented backup/restore path. | **GAP** | Add the RMT evidence stores + SQLite DB to the backup engine and the recovery runbook, with a restore-integrity check. | **P1** |
-| **E6** | Startup integrity / reconciliation | No check that hold ↔ record ↔ authorization stores agree on load; E2 means they can silently disagree. | **GAP** | On startup, reconcile hold status against the record store and log/flag divergences. | **P2** |
+| **E6** | Startup integrity / reconciliation | The hold ↔ record half is now reconciled on load (E2 fix, `app/ops/reconcile.py`): a divergence is corrected against the authoritative record store and logged (`WARNING`). The authorization store is not yet cross-checked. | **PARTIAL** | Extend the startup reconciliation to the authorization store. | **P2** |
 
 ### Group D — Deployment & Configuration
 
@@ -159,7 +164,7 @@ able to *tell a human*.
 
 | ID | Requirement | Current verified evidence | Status | Required action | Priority |
 |---|---|---|---|---|---|
-| **R1** | Restart safety — state rebuilt correctly from disk | Stores reload on init, but E2 means a resolved hold can reload as `pending`; CAP-04's guard compensates above-Core. | **PARTIAL** | Close E1/E2/E6; then a restart is provably faithful. | **P1** |
+| **R1** | Restart safety — state rebuilt correctly from disk | Stores reload on init; E1 (atomic writes) and E2 (startup hold/record reconciliation) are closed, so a resolved hold no longer reloads as `pending`. The E6 authorization cross-check remains, and a hard-kill restart test has not been run. | **PARTIAL** | Close the E6 remainder; run a hard-kill restart test with evidence intact. | **P1** |
 | **R2** | Homelab stack disaster recovery | `docs/recovery/RECOVERY_RUNBOOK.md` + backup engine + `verify-recovery.sh` — a tested procedure with checksums and manifests. | **READY** | Keep exercised. | — |
 | **R3** | RMT platform recovery procedure | No procedure to rebuild the RMT service itself (venv, unit, drop-ins, evidence stores, SQLite DB) on a fresh host. | **GAP** | A runbook + script to stand up the service from the repo + a restored evidence set. | **P1** |
 | **R4** | High availability / no single point of failure | Single uvicorn process, single host. | **ACCEPTED** | Acceptable at homelab scale; record the RTO expectation (a restart / redeploy, minutes). Revisit only if RMT governs something that cannot tolerate that window. | — |
@@ -195,10 +200,10 @@ able to *tell a human*.
 | Priority | Items | State |
 |---|---|---|
 | **P0** | S1 auth · S2-lite identity · E1 atomic writes · O2 alerting | **code-complete + LIVE & verified** (2026-09-07 12:36 UTC) |
-| **P0** | S4 transport | loopback bind **LIVE**; Caddy TLS proxy **not installed** — owner decision on whether LAN access is needed |
-| **P0** | E2 hold persistence | **open** — Core-fix vs above-Core reconciliation, decision pending |
+| **P0** | S4 transport | loopback bind **LIVE**; owner chose to install the Caddy TLS proxy — artifacts cutover-ready (`deploy/Caddyfile`, `DEPLOY.md` §1.4), install is a pending root operator step |
+| **P0** | E2 hold persistence | **DONE (above-Core reconciliation)** — `app/ops/reconcile.py`, wired into startup; `test_reconcile.py` 9 tests, full suite 263 passed |
 | **P1** | S3, E3, E4, E5, D3, O1, O3, V1, V2, R1, R3 | pending (D1, D2 done) |
-| **P2** | S5, S6, S7, D4, D6, O4, V3, V4, E6 | pending (D5 done) |
+| **P2** | S5, S6, S7, D4, D6, O4, V3, V4 | pending (D5 done; E6 now PARTIAL) |
 | **ACCEPTED** | R4 (single-instance) | recorded |
 
 ---
@@ -212,9 +217,12 @@ where noted.
 decision. Nothing else should be exposed until S1 + S4 are done.
 
 **W2 — Evidence substrate.** E1 (atomic writes / SQLite migration) is the
-keystone; it also resolves E4 and de-risks E6. E2 + E3 touch the frozen Core —
-a separate owner decision (Core fix vs above-Core mitigation). E5 folds the RMT
-stores into the existing backup engine.
+keystone; it also resolves E4 and de-risks E6. **E2 is closed** by an above-Core
+startup reconciliation (`app/ops/reconcile.py`) — the owner chose that over a
+Core fix, so no freeze deviation; it also covers the hold↔record half of E6.
+**E3** still touches the frozen Core (a failed adapter execution produces no
+verification record) — a separate owner decision (Core fix vs above-Core
+wrapper). E5 folds the RMT stores into the existing backup engine.
 
 **W3 — Deployment reproducibility.** D1 (lock deps) → D2 (deploy/rollback
 runbook) → D3 (unit hardening). Enables R3 (platform recovery).
@@ -250,9 +258,9 @@ Not required for this platform to be production-ready at its current purpose:
 - **High availability / clustering.** Recorded as ACCEPTED (R4).
 - **Multi-tenancy.**
 - **A hosted / internet-facing product.** If that changes, re-run §2 as case (c).
-- **Reopening C01–C07 or adding a Core milestone.** E2 / E3 are the only items
-  that touch frozen Core, and only as an explicit, separately-authorized owner
-  decision.
+- **Reopening C01–C07 or adding a Core milestone.** E2 was closed above-Core
+  (no Core touch). **E3** is now the only remaining item that would touch frozen
+  Core, and only as an explicit, separately-authorized owner decision.
 - **Replacing the governance architecture.** It is sound; this document is about
   the operational substrate under it.
 
@@ -260,8 +268,8 @@ Not required for this platform to be production-ready at its current purpose:
 
 1. **Owner fixes the threat model** (§2 (a) / (b) / (c)).
 2. Close **P0** as one focused effort: S1 + S4 (auth + bind/TLS), E1 (atomic
-   evidence writes), O2 (held-action alert). E2 needs the Core-vs-above-Core
-   decision.
+   evidence writes), O2 (held-action alert), E2 (startup hold/record
+   reconciliation). **Done** except the S4 Caddy install (a root operator step).
 3. Re-verify: full suite green, live exercise repeated under auth, restart test
    with evidence intact.
 4. Then W3 / W4 / W5 in bounded steps, updating this matrix's Status column as
@@ -276,18 +284,23 @@ working, evidenced control plane, live-exercised end to end.
 
 **P0 batch (2026-09-07): authentication + operator identity (S1/S2-lite),
 atomic governance-evidence writes (E1), and held-action alerting (O2) are
-code-complete, merged (254 tests pass, 122 frozen-Core tests unchanged), and
-LIVE on `:8000`** (service restarted 12:36 UTC; unauth → 401, authed → 200,
-`granted_by` = authenticated operator, evidence intact). The app now binds
-loopback only.
+code-complete, merged, and LIVE on `:8000`** (service restarted 12:36 UTC;
+unauth → 401, authed → 200, `granted_by` = authenticated operator, evidence
+intact). The app now binds loopback only.
+
+**E2 (2026-09-07): closed via above-Core startup reconciliation.** The owner
+chose reconciliation over a Core fix. `app/ops/reconcile.py` runs once in the
+`app/main.py` startup lifespan and brings the approval hold store back into
+agreement with the authoritative record store (a stale `pending` hold whose
+record shows `approved`/`rejected` is corrected and re-persisted atomically).
+No `app/core/**` change. Full suite **263 passed** (254 + 9); 122 frozen-Core
+tests unchanged.
 
 **Remaining for the P0 bar (threat model b):**
-1. **S4 proxy** — decide whether LAN access is needed; if so install Caddy
-   (`deploy/Caddyfile`, `DEPLOY.md` §1.4). Loopback + auth is already a safe
-   resting state for SSH-only administration.
-2. **E2** — a resolved hold is not persisted to the hold store (record store
-   authoritative). Core-fix (breaks freeze, needs authorization) vs above-Core
-   reconciliation on startup. Decision pending.
+1. **S4 proxy** — owner chose to install Caddy. Artifacts are cutover-ready
+   (`deploy/Caddyfile`, `DEPLOY.md` §1.4); the install (`apt install caddy`,
+   copy config, `systemctl restart caddy`, `caddy trust`) is a pending root
+   operator step. Loopback + auth is a safe resting state until then.
 
 The P1/P2 items remain for a robust posture but are not individually blocking.
 
