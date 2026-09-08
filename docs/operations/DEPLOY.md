@@ -276,6 +276,20 @@ Optional: raise verbosity with a drop-in
   `backend/scripts/rmt-rebuild.sh` + `docs/operations/RMT_PLATFORM_RECOVERY.md`
   drive a cold start from repo + an E5 evidence backup. Scratch-dir drill
   passed; a from-cold VM rebuild is still recommended once.
-- **S5** — CORS origin list in `app/main.py` is hardcoded (and currently points
-  at a stale `192.168.235.128`); move to config.
-- See `docs/RMT_PRODUCTION_READINESS.md` for the full matrix.
+- **P2 batch — DONE (2026-09-08).** All eight closed:
+  - **S5** CORS from `RMT_CORS_ORIGINS` (+ scoped methods/headers) — set it in a
+    drop-in to the deployed frontend origin (`CONFIG.md`).
+  - **S6** secrets pattern — `docs/operations/SECRETS.md`.
+  - **S7** rate limiting on `/execute` + `/agent/act*` (`RMT_RATELIMIT_*`).
+  - **D4** `backend/scripts/rmt-watchdog.sh` — cron every 1–2 min
+    (`RMT_WATCHDOG_NOTIFY_URL=…`); restarts on sustained-unreachable `/health`.
+  - **D6** `/health` `runtime` block + startup mismatch WARNING;
+    `docs/operations/PREREQUISITES.md`.
+  - **O4** `GET /metrics` (Prometheus text, unauthenticated) — point a scraper
+    at it, directly or via Caddy.
+  - **V3** env-dependent routes now return 503 (not 500) when git/Docker is
+    absent; both modes tested.
+  - **V4** `backend/scripts/rmt-smoke.sh` — run after every restart / drop-in
+    change (`RMT_SMOKE_TOKEN=…`; expects `runtime.resolved_adapter == docker`).
+- See `docs/RMT_PRODUCTION_READINESS.md` for the full matrix (now all READY
+  except the ACCEPTED `R4`).

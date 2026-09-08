@@ -18,6 +18,9 @@ rmt-control-center.service`.
 | `RMT_OPERATOR_TOKENS` | *(empty)* | `name:token` pairs, comma-separated. **With auth enabled and this empty, the app refuses to start.** The matched `name` is recorded as `authorized_by` / `approved_by` / `granted_by` in the evidence. | `auth.conf` |
 | `RMT_AUTH_SEPARATION` | `false` | **S3.** When `true`, `/approve` and `/homelab/approve` return **403** if the operator continuing an *agent-originated* hold is the one who granted the agent's authority (or is the proposing agent id). Non-agent holds are unaffected. Fails closed. With one operator, agent-hold approvals need a second identity — enable only when you have one. | `auth.conf` |
 | `RMT_CORS_ORIGINS` | `http://localhost:5173` | **S5.** Comma-separated list of browser origins allowed to call the API. Default is the local Vite dev origin only (the old hardcoded `192.168.235.128` is gone). Set to the deployed frontend origin(s). Methods are scoped to `GET, POST` and headers to `Authorization, X-API-Key, Content-Type, X-Request-ID` (no longer `*`). | `auth.conf` or a `cors.conf` drop-in |
+| `RMT_RATELIMIT_ENABLED` | `true` | **S7.** Per-principal fixed-window rate limiting on the expensive routes. `false` disables it. | `auth.conf` |
+| `RMT_RATELIMIT_EXECUTE_PER_MINUTE` | `30` | **S7.** Max `POST /execute` calls per operator per 60s → **429** + `Retry-After`. | `auth.conf` |
+| `RMT_RATELIMIT_AGENT_PER_MINUTE` | `20` | **S7.** Max `POST /agent/act`, `/agent/act/llm`, `/agent/authority/grant` per operator per 60s → **429**. Read-only agent routes are not limited. | `auth.conf` |
 
 ## Notifications — `app/ops/ops_config.py` (P0: O2 held actions · P1: O3 ops alerts)
 
@@ -51,6 +54,25 @@ steps are not logged here.
 |---|---|---|---|
 | `RMT_HEARTBEAT_URL` | *(required)* | Cron pings this only while `GET /health` returns 200 — an inverted dead-man's switch. If the service is down the ping stops and the external monitor alerts. | crontab line |
 | `RMT_HEALTH_URL` | `http://127.0.0.1:8000/health` | Local probe the heartbeat script checks. | crontab line |
+
+### D4 health watchdog — `backend/scripts/rmt-watchdog.sh` (not read by the app)
+
+| Variable | Default | Effect | Set by |
+|---|---|---|---|
+| `RMT_WATCHDOG_HEALTH_URL` | `http://127.0.0.1:8000/health` | Probe the watchdog polls. | crontab / timer |
+| `RMT_WATCHDOG_FAILS_BEFORE_RESTART` | `3` | Consecutive **unreachable** polls before `systemctl restart`. | crontab / timer |
+| `RMT_WATCHDOG_RESTART_ON_DEGRADED` | `false` | Also count sustained `status: degraded` toward a restart (off by default — a restart doesn't clear a quarantine). | crontab / timer |
+| `RMT_WATCHDOG_NOTIFY_URL` | *(optional)* | Webhook for the watchdog's own alerts (JSON POST). | crontab / timer |
+| `RMT_WATCHDOG_SERVICE` | `rmt-control-center.service` | Unit to restart. | crontab / timer |
+
+### V4 post-deploy smoke — `backend/scripts/rmt-smoke.sh` (not read by the app)
+
+| Variable | Default | Effect |
+|---|---|---|
+| `RMT_SMOKE_BASE_URL` | `http://127.0.0.1:8000` | Target. |
+| `RMT_SMOKE_TOKEN` | *(optional)* | Operator token — enables the authed check. |
+| `RMT_SMOKE_EXPECT_ADAPTER` | `docker` | Asserted against `/health` `runtime.resolved_adapter` (+ `adapter_degraded == false`). |
+| `RMT_SMOKE_EXPECT_LOOP` | `any` | `running` \| `stopped` \| `any`. |
 
 ## CAP-04 continuous operational loop — `app/homelab/loop_config.py`
 

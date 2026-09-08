@@ -139,3 +139,24 @@ def cors_origins() -> list[str]:
     if not raw:
         return ["http://localhost:5173"]
     return [o.strip() for o in raw.split(",") if o.strip()]
+
+
+# --- S7: abuse / rate protection on the expensive mutating routes -----------
+
+
+def ratelimit_enabled() -> bool:
+    """Per-principal fixed-window rate limiting on ``/execute`` and the agent
+    ``act`` / ``grant`` routes. Default on; ``RMT_RATELIMIT_ENABLED=false``
+    disables it entirely. Dynamic."""
+    return _env_bool("RMT_RATELIMIT_ENABLED", True)
+
+
+def ratelimit_execute_per_min() -> int:
+    """Max ``POST /execute`` calls per operator per 60s (default 30)."""
+    return _env_int("RMT_RATELIMIT_EXECUTE_PER_MINUTE", 30)
+
+
+def ratelimit_agent_per_min() -> int:
+    """Max agent state-changing calls (``/agent/act``, ``/agent/act/llm``,
+    ``/agent/authority/grant``) per operator per 60s (default 20)."""
+    return _env_int("RMT_RATELIMIT_AGENT_PER_MINUTE", 20)

@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 
 from app.schemas.container import Container
 
@@ -17,6 +18,7 @@ from app.ops.logging_config import (
 from app.ops.notifications import notify_held
 from app.ops.reconcile import reconcile_governance_stores
 from app.ops.retention import archive_aged_evidence
+from app.ops.ratelimit import rate_limit_execute
 from app.ops.runtime_info import runtime_status, warn_on_capability_mismatch
 from app.ops.separation import check_separation
 
@@ -238,10 +240,24 @@ def health():
     }
 
 
+@app.get("/metrics")
+def metrics():
+    """O4: platform self-metrics in Prometheus text format. Unauthenticated
+    (like /health) so a scraper can reach it; read-only derivation from the
+    operational-loop status and the durable evidence stores -- no new evidence,
+    no write path."""
+    from app.ops.metrics import CONTENT_TYPE, render_prometheus
+
+    return PlainTextResponse(render_prometheus(), media_type=CONTENT_TYPE)
+
+
 @app.get("/containers", response_model=list[Container])
 def containers():
     from app.docker_api import get_containers
-    return get_containers()
+    try:
+        return get_containers()
+    except Exception as exc:  # V3: Docker socket unreachable -> 503, not 500
+        raise HTTPException(status_code=503, detail=f"docker unavailable: {exc}")
 
 
 @app.get("/modules")
@@ -261,15 +277,23 @@ def config():
 
 @app.get("/platform/state")
 def platform_state():
-    return get_platform_state(
-        DockerPlatformStateProvider()
-    )
+    try:
+        return get_platform_state(
+            DockerPlatformStateProvider()
+        )
+    except FileNotFoundError as exc:  # V3: `git` not on PATH -> 503, not 500
+        raise HTTPException(status_code=503, detail=f"git unavailable: {exc}")
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"platform state unavailable: {exc}")
 
 
 @app.get("/containers/{name}/stats")
 def container_stats(name: str):
     from app.docker_api import get_container_stats
-    return get_container_stats(name)
+    try:
+        return get_container_stats(name)
+    except Exception as exc:  # V3: Docker socket unreachable -> 503, not 500
+        raise HTTPException(status_code=503, detail=f"docker unavailable: {exc}")
 
 
 @app.get("/monitor/history")
@@ -277,7 +301,7 @@ def history():
     return get_history()
 
 
-@app.post("/execute")
+@app.post("/execute", dependencies=[Depends(rate_limit_execute)])
 def execute(
     operation: str,
     target: str,
