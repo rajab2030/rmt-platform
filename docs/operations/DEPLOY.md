@@ -23,7 +23,8 @@ Above-Core / operational. Does not change C01–C07.
 | Reverse proxy | Caddy, config `projects/homelab-control-center/deploy/Caddyfile` |
 
 Existing drop-ins: `cap04-loop.conf` (CAP-04 loop on), `cap05-agent.conf`
-(agent 5A+5B on). This runbook adds `auth.conf` and `bind-loopback.conf`.
+(agent 5A+5B on), `auth.conf` (S1 tokens), `bind-loopback.conf` (S4).
+Add `hardening.conf` (D3) — see §5.1; optional `logging.conf` (O1 verbosity).
 
 ---
 
@@ -177,7 +178,41 @@ Old tokens stop working at the restart. Removing an operator = delete their
 
 ---
 
-## 5. Log retention (O1)
+## 5. Hardening (D3) & log retention (O1)
+
+### 5.1 Service sandboxing — `hardening.conf`
+
+The unit runs as a non-root user but has no systemd confinement. The drop-in
+`projects/homelab-control-center/deploy/systemd/hardening.conf` adds restart
+backoff, resource ceilings (`MemoryMax=512M`, `CPUQuota=200%`, `TasksMax=128`),
+`NoNewPrivileges`, `ProtectSystem=full`, `PrivateTmp`, the kernel-surface
+protections, and `SystemCallFilter=@system-service`.
+`systemd-analyze security` drops from **9.2 UNSAFE** to **4.1 OK**.
+
+```
+sudo install -m 0644 \
+  projects/homelab-control-center/deploy/systemd/hardening.conf \
+  /etc/systemd/system/rmt-control-center.service.d/hardening.conf
+sudo systemctl daemon-reload && sudo systemctl restart rmt-control-center.service
+
+# watch the FIRST restart
+systemctl is-active rmt-control-center.service
+curl -sk https://192.168.223.128/health | python3 -c "import sys,json;print(json.load(sys.stdin)['status'])"
+journalctl -u rmt-control-center.service -n 50 --no-pager   # no EPERM / traceback
+systemd-analyze security rmt-control-center.service         # ~4.1
+```
+
+Rollback: `sudo rm …/hardening.conf && sudo systemctl daemon-reload && sudo
+systemctl restart rmt-control-center.service`.
+
+**Deliberately deferred** (apply one at a time, `systemd-analyze security` +
+`/health` after each): `ProtectSystem=strict` +
+`ReadWritePaths=…/backend`; `ProcSubset=pid`; localhost-only
+`IPAddressAllow`/`IPAddressDeny` once the notify sink is decided.
+`ProtectHome` must stay `no` — evidence + `data/observability.db` live under
+`/home`. `MemoryDenyWriteExecute` is not recommended for this stack.
+
+### 5.2 Log retention — journald
 
 The backend logs structured JSON to **stdout**; systemd routes it to
 **journald**. Retention/rotation is journald's job — the app does not write or
@@ -227,8 +262,10 @@ Optional: raise verbosity with a drop-in
   (`docs/operations/CONFIG.md` → O3 section).
 - **O1 — DONE (2026-09-08).** Structured JSON logging to stdout/journald
   (`app/ops/logging_config.py`); `RMT_LOG_LEVEL` / `RMT_LOG_JSON`. **Set a
-  journald cap** — see §5.
+  journald cap** — see §5.2.
+- **D3 — DONE (2026-09-08).** `deploy/systemd/hardening.conf` — sandboxing +
+  resource ceilings + restart backoff (9.2 → 4.1 on `systemd-analyze
+  security`). **Install it** — see §5.1.
 - **S5** — CORS origin list in `app/main.py` is hardcoded (and currently points
   at a stale `192.168.235.128`); move to config.
-- **D3** — systemd sandboxing / resource limits on the unit.
 - See `docs/RMT_PRODUCTION_READINESS.md` for the full matrix.

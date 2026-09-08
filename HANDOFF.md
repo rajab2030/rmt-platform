@@ -1711,3 +1711,73 @@ now: **D3, V1, R3**.
 picks up the earlier undeployed `b485365..HEAD` batch). Then set a journald cap
 (`DEPLOY.md` §5). Default `INFO`/JSON means more journal volume than today's
 uvicorn-default output — bounded by the journald cap.
+
+---
+
+## Session note — D3 service hardening
+
+**Date:** 2026-09-08. Above-Core / operational. **No code change** — a systemd
+drop-in + docs only. C01–C07 frozen; no C08.
+
+### The gap
+`/etc/systemd/system/rmt-control-center.service` had only `Restart=always` /
+`RestartSec=5` — no sandboxing, no resource ceilings, no restart backoff.
+`systemd-analyze security` scored it **9.2 UNSAFE**.
+
+### Recon that shaped the choices
+- Runs as `User=rmt-lab` (already non-root); `rmt-lab` is in `docker` (socket
+  access is a supplementary group — **not** dropped by `NoNewPrivileges`).
+- Evidence JSON stores are `Path(__file__).parent / *.json` **inside the
+  package tree**; `observability.db` is `data/observability.db` under
+  `WorkingDirectory` — both under `/home` ⇒ `ProtectHome` must stay `no`,
+  `ProtectSystem` `full` not `strict`.
+- **No `psutil`, no `/proc` reads** in app code (metrics come from the Docker
+  API) ⇒ `ProtectProc=invisible` is safe.
+- Idle RSS ~70 MB, ~7 tasks ⇒ `MemoryMax=512M` / `TasksMax=128` are generous.
+- systemd 255 ⇒ `RestartSteps` / `RestartMaxDelaySec` available.
+
+### Delivered — `projects/homelab-control-center/deploy/systemd/hardening.conf`
+Drop-in (same pattern as `bind-loopback.conf`). `[Unit]`
+`StartLimitIntervalSec=300` / `StartLimitBurst=5`; `[Service]`
+`RestartSteps=5` / `RestartMaxDelaySec=60`; `MemoryHigh=384M` `MemoryMax=512M`
+`CPUQuota=200%` `TasksMax=128`; `NoNewPrivileges` `LockPersonality`
+`RestrictRealtime` `RestrictSUIDSGID` `RestrictNamespaces` `RemoveIPC`
+`UMask=0077`; `ProtectSystem=full` `ProtectHome=no` `PrivateTmp=yes`;
+`ProtectControlGroups/KernelTunables/KernelModules/KernelLogs/Clock/Hostname`,
+`ProtectProc=invisible`; `SystemCallArchitectures=native`
+`SystemCallFilter=@system-service` (`SystemCallErrorNumber=EPERM`);
+`RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK`.
+
+### Verified (no sudo needed)
+- `systemd-analyze verify` on the merged unit (base + all 4 existing drop-ins +
+  hardening.conf) — **clean**, no unknown-key warnings (all directives valid
+  for systemd 255).
+- `systemd-analyze security --offline=true` on the merged unit —
+  **9.2 UNSAFE → 4.1 OK**.
+- No `.py` touched ⇒ test suite unaffected (stays at `6f39100`'s gate: ruff
+  clean, 340 passed).
+
+### Deliberately deferred (documented in `DEPLOY.md` §5.1 — apply one at a time,
+`systemd-analyze security` + `/health` after each)
+`ProtectSystem=strict` + `ReadWritePaths=…/backend`; `ProcSubset=pid`;
+localhost-only `IPAddressAllow`/`IPAddressDeny` (once the O2/O3 notify sink is
+decided). `MemoryDenyWriteExecute` — not recommended for a CPython stack.
+
+### Docs
+`DEPLOY.md` — §5 reworked into §5.1 hardening (install / verify / rollback /
+deferrals) + §5.2 journald retention; §0 drop-in list + §6 follow-ups updated.
+`RMT_PRODUCTION_READINESS.md` — **D3 → READY**; the §4 summary table was
+**resynced** (it had drifted badly — said 1 READY for group E when all 6 are
+done, etc.). Now: 24 READY / 7 PARTIAL / 3 GAP / 1 ACCEPTED. Remaining GAP:
+S7, O4 (P2), R3 (P1).
+
+### Matrix effect
+**D3 → READY.** **P1 remaining: V1, R3.**
+
+### Not deployed / operator step
+Install: `sudo install -m 0644
+projects/homelab-control-center/deploy/systemd/hardening.conf
+/etc/systemd/system/rmt-control-center.service.d/hardening.conf && sudo
+systemctl daemon-reload && sudo systemctl restart rmt-control-center.service`,
+then watch the first restart per `DEPLOY.md` §5.1. Folds into the same restart
+that picks up the undeployed `b485365..HEAD` code batch (E6/E3/S3/E4/O3/O1).
