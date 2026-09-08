@@ -300,9 +300,13 @@ close (now done). **O3 also closed 2026-09-08:** `notify_ops` (same webhook
 sink as O2) alerts on CAP-04 loop quarantine + cycle error; new unauthenticated
 `GET /health` (`ok`/`degraded`) + `backend/scripts/rmt-heartbeat.sh` (cron
 inverted dead-man's switch) cover service-down. `test_health.py` +
-`test_notifications.py`/`test_operational_loop.py` extensions. Next: **P1** (D3,
-O1, V1/V2, R3). Monitoring / exercise
-calls now require a token header.
+`test_notifications.py`/`test_operational_loop.py` extensions. **V2 also closed
+2026-09-08:** `backend/scripts/ci.sh` (throwaway venv from `requirements.lock.txt`
++ errors-only `ruff` [`backend/ruff.toml`, `app/core` excluded] + full suite,
+**324 passed**); `.github/workflows/ci.yml` calls it — dormant until the repo
+has a remote. 7 above-Core dead imports removed; no `app/core/**` change. Closes
+D1's clean-venv-from-lock action. Next: **P1** (D3, O1, V1, R3). Monitoring /
+exercise calls now require a token header.
 **Owner directive 2026-09-08: no Core modification or fix** — recorded
 frozen-Core gaps get an above-Core mitigation or an explicit accept-and-record,
 never a freeze deviation. CAP-04, CAP-05 (5A) and CAP-05 (5B) are all enabled on

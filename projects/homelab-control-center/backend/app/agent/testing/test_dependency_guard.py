@@ -6,8 +6,6 @@
 as independent, so the guard is a no-op today; it fires the moment an edge is
 added to either source.
 """
-import pytest
-
 import app.homelab.dependencies as deps_mod
 import app.agent.dependency_guard as guard_mod
 from app.agent import loop_config

@@ -1,0 +1,23 @@
+# RMT Control Center backend -- CI lint config (production-readiness item V2).
+#
+# Deliberately minimal: this gate catches real defects, not style.
+#   F   -- pyflakes: undefined names, unused imports, bad f-strings, shadowing
+#   E9  -- syntax / IndentationError / IOError-class parse failures
+# Style, formatting, and import ordering are intentionally NOT enforced here;
+# widen `select` in a separate, reviewed change if that is ever wanted.
+#
+# `app/core/**` is excluded on purpose: the RMT Core is frozen and independently
+# validated by its own 122-test suite (see docs/RMT_CORE_TARGET_STATE.md). It is
+# not modifiable by above-Core work, so blocking CI on lint findings inside it
+# would be incoherent.
+
+target-version = "py312"
+line-length = 100
+
+extend-exclude = [
+    "app/core",
+    ".venv",
+]
+
+[lint]
+select = ["F", "E9"]

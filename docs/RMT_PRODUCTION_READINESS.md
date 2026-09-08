@@ -136,7 +136,7 @@ substrate is currently weaker than the governance logic on top of it.
 
 | ID | Requirement | Current verified evidence | Status | Required action | Priority |
 |---|---|---|---|---|---|
-| **D1** | Pinned, reproducible dependency set | **DONE** — `backend/requirements.txt` now pins every direct dep (+ `pytest`, `httpx2` as test-only); `backend/requirements.lock.txt` is the full 33-package transitive lock (`pip freeze`). | **READY** | Verify a clean venv builds from the lock in CI (V2). | **P1** |
+| **D1** | Pinned, reproducible dependency set | **DONE** — `backend/requirements.txt` now pins every direct dep (+ `pytest`, `httpx2` as test-only); `backend/requirements.lock.txt` is the full 33-package transitive lock (`pip freeze`). | **READY** | — (V2 `ci.sh` now builds a clean venv from the lock on every run). | **P1** |
 | **D2** | Deploy + rollback runbook for the RMT service | **DONE** — `docs/operations/DEPLOY.md` (first-time P0 cutover, routine redeploy, rollback, token rotation, restart-safety check) + `docs/operations/CONFIG.md` (every `RMT_*` var — also closes **D5**). | **READY** | Exercise it on the next redeploy. | **P1** |
 | **D3** | Service hardening | The unit has only `Restart=always` / `RestartSec=5`. No `MemoryMax`, `CPUQuota`, `NoNewPrivileges`, `ProtectSystem`, `ProtectHome`, `PrivateTmp`, restart backoff. | **GAP** | Add systemd sandboxing + resource limits; `StartLimitIntervalSec` / burst; run as the least-privileged user with only the Docker socket it needs. | **P1** |
 | **D4** | Health/readiness probe acted upon | `/intelligence/health` returns 200 (D1 correction, C07). Nothing external watches it; `Restart=always` only restarts on process exit, not on unhealthy. | **PARTIAL** | Wire a watchdog (systemd `WatchdogSec` + `sd_notify`, or an external check) that restarts on sustained unhealthy. | **P2** |
@@ -160,7 +160,7 @@ able to *tell a human*.
 | ID | Requirement | Current verified evidence | Status | Required action | Priority |
 |---|---|---|---|---|---|
 | **V1** | Automated end-to-end test on a realistic adapter | The 214-test suite mocks the execution adapter. The only true end-to-end proof (LLM → propose → approve → docker → verify) is the **manual** live exercises recorded in `HANDOFF.md`. | **PARTIAL** | Add an automated end-to-end test against a disposable real container (or a high-fidelity fake) covering fault → held → approve → execute → verify. | **P1** |
-| **V2** | CI on every change | No `.github/workflows` (or other CI config) in the repo. | **GAP** | CI that runs the full suite (Core 122 + app 214) + a lint on every push; block merge on red. | **P1** |
+| **V2** | CI on every change | **DONE (2026-09-08).** `backend/scripts/ci.sh` — one gate: throwaway venv built strictly from `requirements.lock.txt` (reproducible install) → `ruff check` (errors-only: `F`, `E9`; `backend/ruff.toml`; `app/core` excluded — it keeps its own 122-test gate) → the full backend suite. Exit non-zero on any step. `.github/workflows/ci.yml` calls it on push / PR to `main`/`master` — **inert until the repo has a remote**, then it gates automatically with no further change. Verified green from a clean venv: ruff clean, **324 passed**. 7 pre-existing dead imports removed (all above-Core; no `app/core/**` touch). Also closes the D1 open action (clean-venv-from-lock build). | **READY** | Push the repo to a remote so the workflow runs; add branch protection when it does. | **P1** |
 | **V3** | Coverage of environment-dependent routes | `/platform/state` (git) and `/containers*` (docker socket) were validated only opportunistically; `test_http_entrypoints.py` had to be corrected once for adapter-mode drift. | **PARTIAL** | Add explicit tests for both adapter modes (git/docker present and absent). | **P2** |
 | **V4** | Regression guard on live-config changes | Enabling a capability on live is a manual drop-in + restart + manual exercise. | **PARTIAL** | A post-deploy smoke script (assert route presence, flags, loop idle, suite green) run automatically after each restart. | **P2** |
 
@@ -194,10 +194,10 @@ able to *tell a human*.
 | E — Evidence Durability & Integrity | 1 | 0 | 5 | 0 | 0 |
 | D — Deployment & Configuration | 3 | 1 | 2 | 0 | 0 |
 | O — Observability & Alerting | 1 | 0 | 3 | 0 | 0 |
-| V — Validation & Change Safety | 0 | 3 | 1 | 0 | 0 |
+| V — Validation & Change Safety | 1 | 3 | 0 | 0 | 0 |
 | R — Resilience & Recovery | 1 | 1 | 1 | 1 | 0 |
 | G — Governance Process | 4 | 0 | 0 | 0 | 0 |
-| **Total** | **12** | **6** | **16** | **1** | **0** |
+| **Total** | **13** | **6** | **15** | **1** | **0** |
 
 ### By priority
 
@@ -209,7 +209,7 @@ able to *tell a human*.
 
 **P0 is fully closed (2026-09-08).** All six blocking items — S1, S2-lite, E1,
 E2, O2, S4 — are live and verified. Next work is P1.
-| **P1** | D3, O1, V1, V2, R3 | pending (D1, D2, R1, E3, S3, E4, E5, O3 done) |
+| **P1** | D3, O1, V1, R3 | pending (D1, D2, R1, E3, S3, E4, E5, O3, V2 done) |
 | **P2** | S5, S6, S7, D4, D6, O4, V3, V4 | pending (D5, E6 done) |
 | **ACCEPTED** | R4 (single-instance) | recorded |
 
@@ -241,7 +241,7 @@ runbook) → D3 (unit hardening). Enables R3 (platform recovery).
 **W4 — Operability.** O2 (P0, because the loop runs unattended) → O1 → O3 →
 D4 → O4.
 
-**W5 — Validation.** V2 (CI) → V1 (real e2e) → V3 → V4.
+**W5 — Validation.** **V2 (CI) done** → V1 (real e2e) → V3 → V4.
 
 ### Dependency view
 
@@ -335,7 +335,10 @@ live JSON stores on startup (`RMT_EVIDENCE_RETENTION_DAYS`, default 90; archives
 to `<name>.archive.jsonl`). **E5 (2026-09-08) closed**: dedicated
 backup/verify/restore scripts + `RMT_EVIDENCE_RECOVERY.md`. **O3 (2026-09-08)
 closed**: `notify_ops` alerts on loop quarantine + cycle error; `GET /health` +
-`rmt-heartbeat.sh` cover service-down. Next: P1 — D3, O1, V1/V2, R3.
+`rmt-heartbeat.sh` cover service-down. **V2 (2026-09-08) closed**:
+`backend/scripts/ci.sh` (clean-venv-from-lock + errors-only ruff + full suite,
+324 passed) and a dormant `.github/workflows/ci.yml` that runs it once the repo
+has a remote. Next: P1 — D3, O1, V1, R3.
 
 ---
 

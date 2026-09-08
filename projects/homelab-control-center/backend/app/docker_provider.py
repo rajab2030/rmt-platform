@@ -14,8 +14,6 @@ from app.schemas.platform import (
     DockerHealth,
 )
 
-from app.core.platform_state.provider import PlatformStateProvider
-
 
 class DockerPlatformStateProvider:
     """Docker implementation of PlatformStateProvider."""

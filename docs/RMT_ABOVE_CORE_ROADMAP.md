@@ -128,6 +128,10 @@ should not go live until Tier 0 is done.**
 
 ### T0-4 — CI: finite validation + clean-venv build gate (V1 / V2)
 
+- **Status (2026-09-08):** **V2 DONE.** `backend/scripts/ci.sh` (clean venv from
+  `requirements.lock.txt` + errors-only `ruff` + full suite, 324 passed) +
+  `.github/workflows/ci.yml` calling it — dormant until the repo has a remote.
+  **V1 (real end-to-end test against a live adapter) still open** — remains P1.
 - **Objective:** the validation suite and a `requirements.lock.txt` clean-build
   run automatically on every change.
 - **In scope:** a CI workflow (suite + lockfile build + `import app.main`);

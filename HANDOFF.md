@@ -1589,3 +1589,63 @@ clean.
 ### Not deployed
 `notifications.py` + `operational_loop.py` + `main.py` — needs a service
 restart. `GET /health` is inert config-wise (no new env the app reads).
+
+---
+
+## Session note — V2 CI gate + resume after a power cut
+
+**Date:** 2026-09-08. Above-Core / operational. No `app/core/**` change.
+
+### Resume check (power cut ended the previous session after the O3 commit)
+Working tree clean at `706612d`, no stash, `git fsck` clean, live service
+`active` (`/health` 200). Re-ran the full suite: **324 passed** — identical to
+the O3 baseline. Nothing was lost.
+
+### V2 — implemented
+- **New `backend/scripts/ci.sh`** — the CI gate, one command:
+  1. build a throwaway venv strictly from `requirements.lock.txt` (reproducible
+     install — this also closes the D1 open action);
+  2. `ruff check .` — errors-only (`backend/ruff.toml`: `select = ["F", "E9"]`,
+     `extend-exclude = ["app/core", ".venv"]`);
+  3. the full backend suite (`PYTHONPATH=. pytest -q`, includes the 122
+     frozen-Core tests).
+  Exit non-zero on any step. `--fast` reuses `backend/.venv` for a quick local
+  check.
+- **New `backend/ruff.toml`** — minimal lint config. `app/core/**` is excluded
+  on purpose: it is frozen and validated by its own 122-test suite, and is not
+  modifiable by above-Core work, so a lint finding there could not be actioned.
+- **New `.github/workflows/ci.yml`** — `runs-on: ubuntu-latest`, Python 3.12,
+  `working-directory: projects/homelab-control-center/backend`, `run: scripts/ci.sh`.
+  **The repo has no remote yet, so this is inert.** Once the repo is pushed to
+  GitHub it gates every push / PR to `main`/`master` with no further change; add
+  branch protection then.
+- **7 pre-existing dead imports removed** so an errors-only lint passes clean —
+  all above-Core, no `app/core/**` touch:
+  `app/main.py` (duplicate `load_settings` import — F811),
+  `app/docker_provider.py`, `app/engineering/service.py`,
+  `app/agent/testing/test_dependency_guard.py`,
+  `app/engineering/testing/test_engineering.py` (×2),
+  `app/homelab/testing/test_remediation.py` (all F401).
+  ruff on the frozen Core still shows ~17 F401 (mostly intentional `__init__`
+  re-exports) — left untouched, and excluded from the gate.
+
+### Validation
+`scripts/ci.sh` from a clean checkout-equivalent: **ruff clean**, **324
+passed** in a fresh lock-built venv. `import app.main` unaffected. 122
+frozen-Core intelligence tests unchanged.
+
+### Matrix effect
+**V2 → READY.** V group now 1 READY / 3 PARTIAL / 0 GAP. P1 now: **D3, O1, V1,
+R3**. D1's open action (clean-venv-from-lock build) is closed by `ci.sh`.
+
+### Not deployed
+Nothing to deploy — `ci.sh` / `ruff.toml` / the workflow are dev/CI artifacts,
+not part of the running service. The earlier undeployed commits
+(`b485365..HEAD`: E6, E3, S3, E4, O3 + `/health`) still need one
+`sudo systemctl restart rmt-control-center.service`.
+
+### Next (P1, all above-Core)
+D3 systemd hardening, O1 structured logging, V1 real end-to-end test, R3
+platform-recovery runbook. D3 and R3 are the good candidates to hand the
+standby agent (DeepSeek Flash v4) as a scoped draft brief; this session stays
+the sole writer and integrator.
