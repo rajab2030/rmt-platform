@@ -315,9 +315,17 @@ CAP-04 loop, the agent adapter), correlated by action/execution/approval id.
 2026-09-08:** `projects/homelab-control-center/deploy/systemd/hardening.conf` --
 a systemd drop-in (sandboxing + `MemoryMax=512M`/`CPUQuota`/`TasksMax` ceilings
 + restart backoff), **no code change**; `systemd-analyze security` 9.2 UNSAFE ->
-4.1 OK (verified offline). Install is an operator step (`DEPLOY.md` §5.1).
-`RMT_PRODUCTION_READINESS.md` §4 summary table resynced (24 READY / 7 PARTIAL /
-3 GAP). Next: **P1** (V1, R3). Monitoring / exercise calls now require a token
+4.1 OK (verified offline). Install is an operator step (`DEPLOY.md` §5.1). **V1 also closed 2026-09-08:**
+`app/homelab/testing/test_e2e_docker.py` (`@pytest.mark.e2e`, `pytest.ini`
+registers the marker) drives the **real** `DockerExecutionAdapter` against a
+disposable `alpine` container -- fault -> observe -> held -> approve -> real
+`docker restart` -> `verify_docker_execution` `verified_success` -> correlated
+evidence; a 2nd test covers the real adapter-failure -> E3 path. Auto-skips
+without Docker. Finding: `app/ops/execution_evidence.py` binds its own
+`verification_storage` ref (now also patched in the isolation fixture); 2 stray
+records cleaned from the dev-host `verifications.json`.
+`RMT_PRODUCTION_READINESS.md` §4 resynced (25 READY / 6 PARTIAL / 3 GAP).
+**R3 is the last open P1.** Monitoring / exercise calls now require a token
 header.
 **Owner directive 2026-09-08: no Core modification or fix** — recorded
 frozen-Core gaps get an above-Core mitigation or an explicit accept-and-record,
