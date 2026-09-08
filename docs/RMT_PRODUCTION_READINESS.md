@@ -170,7 +170,7 @@ able to *tell a human*.
 |---|---|---|---|---|---|
 | **R1** | Restart safety — state rebuilt correctly from disk | **DONE (2026-09-08).** Hard-kill restart test PASSED: `systemctl kill -s KILL` on the whole cgroup, then restart — all six durable evidence stores reloaded **byte-for-byte identical** (sha256 + record counts unchanged), no `.tmp` residue (E1), hold ↔ record stores in agreement / reconcile a clean no-op (E2), CAP-04 loop + auth + Caddy proxy all healthy on the new PID. E6 authorization cross-check now also runs on startup (`reconcile_governance_stores`). E1/E2/E6 all closed → a restart is provably faithful. | **READY** | — | **P1** |
 | **R2** | Homelab stack disaster recovery | `docs/recovery/RECOVERY_RUNBOOK.md` + backup engine + `verify-recovery.sh` — a tested procedure with checksums and manifests. | **READY** | Keep exercised. | — |
-| **R3** | RMT platform recovery procedure | No procedure to rebuild the RMT service itself (venv, unit, drop-ins, evidence stores, SQLite DB) on a fresh host. | **GAP** | A runbook + script to stand up the service from the repo + a restored evidence set. | **P1** |
+| **R3** | RMT platform recovery procedure | **DONE (2026-09-08).** The canonical base unit + the four non-secret drop-ins (`cap04-loop`, `cap05-agent`, `bind-loopback`, `hardening`) are now captured in `projects/homelab-control-center/deploy/systemd/` (+ `README.md` inventory; secret `auth.conf` stays out of git). `backend/scripts/rmt-rebuild.sh` orchestrates the cold start: prereq check (py3.12 / git / sqlite3 / rsync / docker group / systemd / caddy) → `.venv` **from `requirements.lock.txt`** → `rmt-evidence-restore.sh <E5 backup>` → `rmt_evidence_verify.py` (aborts on structural failure) → full suite → install unit + non-secret drop-ins + `daemon-reload`, then pauses for the manual secret/CA checklist before `enable --now` + a `/health` poll. `--drill DIR` runs steps 2–5 + a throwaway instance against an rsync'd copy with **zero** live-host changes. Runbook: `docs/operations/RMT_PLATFORM_RECOVERY.md`. **Scratch-dir drill PASSED (2026-09-08):** venv from lock → evidence restored from a fresh backup → `rmt_evidence_verify.py` `RESULT: OK` (only the known-benign `14be2cb0` orphan WARN) → **342 passed** in 315s → throwaway instance on `:8011` answered `/health` `{"status":"ok"}`; live service on `:8000` untouched throughout. | **READY** | Run a genuine from-cold rebuild on a fresh VM once (exercises the systemd + Caddy + cron steps the drill skips). | **P1** |
 | **R4** | High availability / no single point of failure | Single uvicorn process, single host. | **ACCEPTED** | Acceptable at homelab scale; record the RTO expectation (a restart / redeploy, minutes). Revisit only if RMT governs something that cannot tolerate that window. | — |
 
 ### Group G — Governance Process (already production-grade)
@@ -186,7 +186,8 @@ able to *tell a human*.
 
 ## 4. Status Summary
 
-*(Resynced 2026-09-08 after the E1–E6 / S3 / O1 / O3 / V2 / D3 closures.)*
+*(Resynced 2026-09-08 after the E1–E6 / S3 / O1 / O3 / V2 / D3 / V1 / R3
+closures.)*
 
 | Group | READY | PARTIAL | GAP | ACCEPTED | N/A |
 |---|---|---|---|---|---|
@@ -195,12 +196,12 @@ able to *tell a human*.
 | D — Deployment & Configuration | 4 | 2 | 0 | 0 | 0 |
 | O — Observability & Alerting | 3 | 0 | 1 | 0 | 0 |
 | V — Validation & Change Safety | 2 | 2 | 0 | 0 | 0 |
-| R — Resilience & Recovery | 2 | 0 | 1 | 1 | 0 |
+| R — Resilience & Recovery | 3 | 0 | 0 | 1 | 0 |
 | G — Governance Process | 4 | 0 | 0 | 0 | 0 |
-| **Total** | **25** | **6** | **3** | **1** | **0** |
+| **Total** | **26** | **6** | **2** | **1** | **0** |
 
-Remaining: **GAP** — S7, O4 (both P2), **R3 (the last P1)**. **PARTIAL** — S5,
-S6, D4, D6, V3, V4 (all P2).
+Remaining: **GAP** — S7, O4 (both P2). **PARTIAL** — S5, S6, D4, D6, V3, V4
+(all P2). **Every P0 and P1 item is closed.**
 
 ### By priority
 
@@ -211,8 +212,8 @@ S6, D4, D6, V3, V4 (all P2).
 | **P0** | E2 hold persistence | **DONE (above-Core reconciliation)** — `app/ops/reconcile.py`, wired into startup; live since the 2026-09-08 reboot (corrected the two stale holds `316257fc` / `79d6383a`); `test_reconcile.py` 9 tests, full suite 263 passed |
 
 **P0 is fully closed (2026-09-08).** All six blocking items — S1, S2-lite, E1,
-E2, O2, S4 — are live and verified. Next work is P1.
-| **P1** | R3 | pending (D1, D2, R1, E3, S3, E4, E5, O3, V2, O1, D3, V1 done) |
+E2, O2, S4 — are live and verified.
+| **P1** | — | **all closed** (D1, D2, R1, E3, S3, E4, E5, O3, V2, O1, D3, V1, R3) |
 | **P2** | S5, S6, S7, D4, D6, O4, V3, V4 | pending (D5, E6 done) |
 | **ACCEPTED** | R4 (single-instance) | recorded |
 
@@ -240,7 +241,10 @@ evidence stores + `observability.db` (`backend/scripts/rmt-evidence-*`,
 
 **W3 — Deployment reproducibility.** D1 (lock deps), D2 (deploy/rollback
 runbook), **D3 (unit hardening — `deploy/systemd/hardening.conf`, 9.2 → 4.1)**
-all done. Enables R3 (platform recovery).
+all done. **R3 (bare-host rebuild) closed** — base unit + non-secret drop-ins
+captured in `deploy/systemd/`; `backend/scripts/rmt-rebuild.sh` +
+`docs/operations/RMT_PLATFORM_RECOVERY.md` drive a cold start from repo + an E5
+evidence backup; scratch-dir drill passed.
 
 **W4 — Operability.** O2, O3, **O1 done** → D4 → O4.
 
@@ -293,8 +297,8 @@ Not required for this platform to be production-ready at its current purpose:
 
 ## 8. Final Verdict
 
-**CORE: COMPLETE & FROZEN. OPERATIONAL PRODUCTION-READINESS: P0 COMPLETE
-(2026-09-08); P1 NEXT.**
+**CORE: COMPLETE & FROZEN. OPERATIONAL PRODUCTION-READINESS: P0 + P1 COMPLETE
+(2026-09-08). Only P2 hardening remains.**
 
 The RMT Core architecture is validated and frozen. The running platform is a
 working, evidenced control plane, live-exercised end to end.
@@ -351,7 +355,14 @@ backoff, no code change; `systemd-analyze security` 9.2 UNSAFE → 4.1 OK
 (install pending). **V1 (2026-09-08) closed**: `test_e2e_docker.py` drives the
 real `DockerExecutionAdapter` against a disposable `alpine` container through
 fault → held → approve → restart → verify → evidence (auto-skips without
-Docker). **R3 is the last open P1.**
+Docker). **R3 (2026-09-08) closed**: bare-host rebuild — the canonical base
+systemd unit and the four non-secret drop-ins are captured in `deploy/systemd/`,
+and `backend/scripts/rmt-rebuild.sh` (+ `docs/operations/RMT_PLATFORM_RECOVERY.md`)
+drives a cold start from the repo + an E5 evidence backup through venv-from-lock
+→ evidence restore → integrity check → suite → unit install → service up. A
+scratch-dir drill passed end to end (342 passed; throwaway `/health` → `ok`;
+live service untouched). **All P0 and P1 items are now closed; only P2 hardening
+remains.**
 
 ---
 

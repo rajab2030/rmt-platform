@@ -324,9 +324,23 @@ evidence; a 2nd test covers the real adapter-failure -> E3 path. Auto-skips
 without Docker. Finding: `app/ops/execution_evidence.py` binds its own
 `verification_storage` ref (now also patched in the isolation fixture); 2 stray
 records cleaned from the dev-host `verifications.json`.
-`RMT_PRODUCTION_READINESS.md` §4 resynced (25 READY / 6 PARTIAL / 3 GAP).
-**R3 is the last open P1.** Monitoring / exercise calls now require a token
-header.
+**R3 also closed 2026-09-08** (the last open P1): bare-host rebuild. The
+canonical base systemd unit + the four non-secret drop-ins (`cap04-loop`,
+`cap05-agent`, `bind-loopback`, `hardening`) are now captured in
+`projects/homelab-control-center/deploy/systemd/` (+ `README.md`; secret
+`auth.conf` stays out of git). `backend/scripts/rmt-rebuild.sh` drives the cold
+start (prereqs -> `.venv` from `requirements.lock.txt` -> `rmt-evidence-restore.sh`
+of an E5 backup -> `rmt_evidence_verify.py` -> full suite -> unit + drop-in
+install -> `/health` poll), with `--drill DIR` doing it all against an rsync'd
+copy + a throwaway instance and **zero** live-host changes. Runbook:
+`docs/operations/RMT_PLATFORM_RECOVERY.md`. **Scratch-dir drill PASSED**: venv
+from lock -> evidence restored -> verify `RESULT: OK` -> 342 passed -> throwaway
+`:8011` `/health` `ok`; live `:8000` untouched. Recommended once: a real
+from-cold VM rebuild (exercises the systemd/Caddy/cron steps the drill skips).
+No `app/core/**` change; no code change. `RMT_PRODUCTION_READINESS.md` §4
+resynced (26 READY / 6 PARTIAL / 2 GAP). **All P0 and P1 items are now closed;
+only P2 hardening remains** (S5, S6, S7, D4, D6, O4, V3, V4 — none blocking).
+Monitoring / exercise calls now require a token header.
 **Owner directive 2026-09-08: no Core modification or fix** — recorded
 frozen-Core gaps get an above-Core mitigation or an explicit accept-and-record,
 never a freeze deviation. CAP-04, CAP-05 (5A) and CAP-05 (5B) are all enabled on

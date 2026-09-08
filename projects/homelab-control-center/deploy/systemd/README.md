@@ -1,0 +1,38 @@
+# RMT Control Center — deploy artifacts
+
+Everything needed to stand the RMT backend service up on a host. Above-Core /
+operational; no `app/core/**` dependency.
+
+## systemd unit + drop-ins
+
+The service is one **base unit** plus **drop-in overrides**. systemd merges the
+base unit with every `*.conf` in `rmt-control-center.service.d/`, in filename
+order, `[Section]` by `[Section]`. An empty `ExecStart=` clears the base value
+before a replacement.
+
+| File | Item | In git? | Purpose |
+|---|---|---|---|
+| `rmt-control-center.service` | R3 | ✅ | base unit — user, workdir, `ExecStart` (0.0.0.0:8000), `Restart=always` |
+| `cap04-loop.conf` | CAP-04 | ✅ | `RMT_HOMELAB_LOOP_ENABLED=true` |
+| `cap05-agent.conf` | CAP-05 | ✅ | `RMT_AGENT_ENABLED` / `RMT_AGENT_LLM_ENABLED=true` |
+| `bind-loopback.conf` | S4 | ✅ | rebinds `ExecStart` to `127.0.0.1:8000` (Caddy is the only LAN listener) |
+| `hardening.conf` | D3 | ✅ | sandboxing + resource ceilings + restart backoff (`systemd-analyze security` 9.2 → 4.1) |
+| `auth.conf` | S1/S2-lite/O2 | ❌ **secret** | `RMT_OPERATOR_TOKENS=…` and optional `RMT_NOTIFY_WEBHOOK_URL`. Template: `auth.conf.example`. Mode `0600`, root-owned. **Never commit the populated file.** |
+| `logging.conf` | O1 | ❌ optional | `RMT_LOG_LEVEL=DEBUG` etc. — only if raising verbosity from the `INFO` default |
+
+**Expected live drop-in inventory:** `cap04-loop.conf`, `cap05-agent.conf`,
+`auth.conf`, `bind-loopback.conf`, `hardening.conf`. `docs/operations/CONFIG.md`
+lists every `RMT_*` variable and which drop-in sets it.
+
+## Reverse proxy
+
+`Caddyfile` — the Caddy `2.6.2` TLS reverse proxy config. Goes to
+`/etc/caddy/Caddyfile`. `tls internal`; export the root CA and trust it on each
+operator workstation (`caddy trust`, or copy
+`/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt`).
+
+## Rebuilding on a fresh host
+
+`../../backend/scripts/rmt-rebuild.sh` orchestrates the whole cold start (venv
+from the lockfile → evidence restore → integrity check → suite → unit install →
+service up). Runbook: `docs/operations/RMT_PLATFORM_RECOVERY.md` (R3).

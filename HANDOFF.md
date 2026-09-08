@@ -80,6 +80,16 @@ Work performed and evidence:
 **C01–C07: CLOSED.** **RMT Core Target State: ACHIEVED.** **RMT Core Platform
 Freeze: REACHED** (freeze commit `46a4441`). There is no C08.
 
+**Operational production-readiness (`docs/RMT_PRODUCTION_READINESS.md`): P0 + P1
+COMPLETE (2026-09-08).** All P0 (S1/S2-lite, E1, E2, O2, S4) and all P1 (D1, D2,
+R1, E3, S3, E4, E5, O3, V2, O1, D3, V1, **R3**) items are closed. **R3 was the
+last P1** — bare-host rebuild: base unit + non-secret drop-ins captured in
+`deploy/systemd/`, `backend/scripts/rmt-rebuild.sh` +
+`docs/operations/RMT_PLATFORM_RECOVERY.md`, scratch-dir drill passed (see the
+session note at the end of this file). Only **P2 hardening** remains (S5, S6, S7,
+D4, D6, O4, V3, V4 — none blocking). Recommended once: a genuine from-cold VM
+rebuild to exercise the systemd + Caddy + cron steps the drill skips.
+
 **Immediate next action:** the next phase is **not Core development** and must not
 reopen C01–C07. The **First Real RMT Capability — Homelab Operations** is now
 realized: the frozen RMT Core acts as the intelligent control plane for the real
@@ -1840,3 +1850,91 @@ P1.**
 ### Not deployed
 New test files only — nothing to deploy. The e2e test runs wherever Docker is
 reachable (this host, a Docker-capable CI runner) and skips elsewhere.
+
+---
+
+## Session note — R3 RMT platform recovery (bare-host rebuild)
+
+**2026-09-08.** R3 was the last open P1. Above-Core / operational; no
+`app/core/**` change; no code change at all (deploy artifacts + one script +
+docs).
+
+### Problem
+No procedure to rebuild the RMT **service itself** on a fresh host. Two concrete
+gaps found in recon:
+1. The base systemd unit existed **only** at
+   `/etc/systemd/system/rmt-control-center.service` — not in the repo.
+2. Two live drop-ins (`cap04-loop.conf`, `cap05-agent.conf`) were on the host
+   but **not** in `deploy/systemd/` — a rebuild would silently come up without
+   the CAP-04 loop / agent surface.
+The pieces for the evidence half (E5 `rmt-evidence-*`, `rmt_evidence_verify.py`)
+and the P0/D3 install steps (`DEPLOY.md` §1) existed but were not sequenced for
+a cold start.
+
+### Delivered
+- **`projects/homelab-control-center/deploy/systemd/`** — now the canonical home
+  for the unit + non-secret drop-ins:
+  - `rmt-control-center.service` (base unit, captured verbatim from the host +
+    header)
+  - `cap04-loop.conf`, `cap05-agent.conf` (previously uncaptured)
+  - `bind-loopback.conf`, `hardening.conf` (were already here)
+  - `README.md` — drop-in inventory + merge semantics; **`auth.conf` stays out
+    of git** (secret; `auth.conf.example` is the template)
+- **`backend/scripts/rmt-rebuild.sh`** — orchestrates the cold start:
+  prereqs (py3.12 / git / sqlite3 / rsync / docker group / systemd / caddy —
+  hard-fail on core tools, WARN on soft) → `.venv` **from
+  `requirements.lock.txt`** (same reproducible install as `ci.sh`) →
+  `rmt-evidence-restore.sh <E5 backup>` → `rmt_evidence_verify.py` (**aborts on
+  structural failure**) → full suite → install unit + the four non-secret
+  drop-ins + `daemon-reload`, then **pauses** for the manual secret/CA checklist
+  (`auth.conf`, `caddy trust`, journald cap, cron) before `enable --now` + a
+  `/health` poll.
+  - **`--drill DIR`** — rsyncs the project into `DIR`, runs venv → restore →
+    verify → suite → a throwaway `uvicorn` on `--port` (default 8001,
+    `RMT_AUTH_ENABLED=false`), then tears it down. `--skip-systemd` implied;
+    **zero** changes to the live host / unit / evidence.
+  - other flags: `--repo`, `--port`, `--skip-systemd`, `--skip-suite`, `--yes`.
+- **`docs/operations/RMT_PLATFORM_RECOVERY.md`** — the R3 runbook (fast path via
+  the script, manual fallback, the drill, post-rebuild verification). References
+  `DEPLOY.md` §1 and `RMT_EVIDENCE_RECOVERY.md` rather than duplicating.
+- Cross-refs updated: `docs/recovery/RECOVERY_RUNBOOK.md`,
+  `docs/operations/RMT_EVIDENCE_RECOVERY.md` §4, `docs/operations/DEPLOY.md`
+  §0/§6, `docs/RMT_PRODUCTION_READINESS.md` (R3 row → READY, summary, verdict).
+- `.gitignore` — added `backups/rmt-evidence/` (runtime evidence backups are not
+  source).
+
+### Validation — scratch-dir drill PASSED (2026-09-08)
+`rmt-evidence-backup.sh` → fresh backup
+`~/homelab/backups/rmt-evidence/2026-09-08T21-54-28Z`, then:
+
+```
+./scripts/rmt-rebuild.sh --evidence <that backup> --drill <scratch> --port 8011
+```
+
+- prereqs ok (user in `docker` group)
+- rsync staged the project into the scratch tree
+- `.venv` built from `requirements.lock.txt`
+- `rmt-evidence-restore.sh` restored the 6 stores + `observability.db` into the
+  copy (`--force`, nothing serving it)
+- `rmt_evidence_verify.py` → **`RESULT: OK`** (only the known-benign `14be2cb0`
+  orphan-authorization WARN — documented in `RMT_EVIDENCE_RECOVERY.md` §2)
+- full suite → **342 passed** in 315s
+- throwaway `uvicorn` on `127.0.0.1:8011` → `GET /health` → `{"status":"ok", …}`
+- exit 0; **live service on `:8000` untouched** throughout (verified: pid
+  unchanged, loop still cycling, no `*.pre-restore.*` / `*.tmp` residue in the
+  real tree, `git status` clean apart from the new/edited files)
+- scratch tree removed afterward
+
+### Residual
+A genuine from-cold rebuild on a fresh VM (no `--drill`) is still recommended
+once — it exercises the systemd unit-install, Caddy, and cron steps the drill
+deliberately skips. Recorded as the R3 "Required action".
+
+### Matrix effect
+**R3 → READY.** R group 3 READY / 0 PARTIAL / 0 GAP / 1 ACCEPTED. **All P0 and
+P1 items closed; only P2 hardening remains** (S5, S6, S7, D4, D6, O4, V3, V4 —
+none blocking).
+
+### Not deployed
+Deploy artifacts + a script + docs. The base unit + drop-ins are the canonical
+copies for a future rebuild; nothing about the running service changed.

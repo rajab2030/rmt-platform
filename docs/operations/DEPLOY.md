@@ -14,8 +14,8 @@ Above-Core / operational. Does not change C01–C07.
 
 | Piece | Location |
 |---|---|
-| Service unit | `/etc/systemd/system/rmt-control-center.service` |
-| Drop-ins | `/etc/systemd/system/rmt-control-center.service.d/*.conf` |
+| Service unit | `/etc/systemd/system/rmt-control-center.service` — canonical copy in git: `deploy/systemd/rmt-control-center.service` |
+| Drop-ins | `/etc/systemd/system/rmt-control-center.service.d/*.conf` — canonical copies (except secret `auth.conf`) in `deploy/systemd/` |
 | Code | `/home/rmt-lab/homelab/projects/homelab-control-center/backend` |
 | venv | `…/backend/.venv` |
 | Governance evidence | `…/backend/app/core/intelligence/**/*.json` |
@@ -25,6 +25,11 @@ Above-Core / operational. Does not change C01–C07.
 Existing drop-ins: `cap04-loop.conf` (CAP-04 loop on), `cap05-agent.conf`
 (agent 5A+5B on), `auth.conf` (S1 tokens), `bind-loopback.conf` (S4).
 Add `hardening.conf` (D3) — see §5.1; optional `logging.conf` (O1 verbosity).
+See `deploy/systemd/README.md` for the full drop-in inventory.
+
+**Bare-host rebuild** (the machine is gone, not a code redeploy): follow
+`docs/operations/RMT_PLATFORM_RECOVERY.md` (R3) — `backend/scripts/rmt-rebuild.sh`
+drives venv → evidence restore → integrity check → suite → unit install → start.
 
 ---
 
@@ -266,6 +271,11 @@ Optional: raise verbosity with a drop-in
 - **D3 — DONE (2026-09-08).** `deploy/systemd/hardening.conf` — sandboxing +
   resource ceilings + restart backoff (9.2 → 4.1 on `systemd-analyze
   security`). **Install it** — see §5.1.
+- **R3 — DONE (2026-09-08).** Bare-host rebuild: the base unit + the four
+  non-secret drop-ins are captured in `deploy/systemd/`;
+  `backend/scripts/rmt-rebuild.sh` + `docs/operations/RMT_PLATFORM_RECOVERY.md`
+  drive a cold start from repo + an E5 evidence backup. Scratch-dir drill
+  passed; a from-cold VM rebuild is still recommended once.
 - **S5** — CORS origin list in `app/main.py` is hardcoded (and currently points
   at a stale `192.168.235.128`); move to config.
 - See `docs/RMT_PRODUCTION_READINESS.md` for the full matrix.

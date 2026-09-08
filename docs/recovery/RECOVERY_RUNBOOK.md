@@ -15,8 +15,10 @@ does **not** cover:
   verification stores + `observability.db`) → `docs/operations/RMT_EVIDENCE_RECOVERY.md`
   (RMT-PROD **E5**: `rmt-evidence-backup.sh` / `rmt_evidence_verify.py` /
   `rmt-evidence-restore.sh`).
-- The **RMT service** itself (venv, systemd unit, drop-ins) →
-  `docs/operations/DEPLOY.md`; a full bare-host rebuild is **R3** (open).
+- The **RMT service** itself (venv, systemd unit, drop-ins) → routine
+  redeploy / rollback: `docs/operations/DEPLOY.md`; a full bare-host rebuild
+  (RMT-PROD **R3**): `docs/operations/RMT_PLATFORM_RECOVERY.md` +
+  `backend/scripts/rmt-rebuild.sh`.
 
 ---
 

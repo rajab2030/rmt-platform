@@ -1,0 +1,35 @@
+# RMT Platform Control Center -- canonical base systemd unit.
+#
+# production-readiness R3 (platform recovery): this is the authoritative copy of
+# the unit that runs the RMT backend. The live file lives at
+#   /etc/systemd/system/rmt-control-center.service
+# and is reproduced from here by scripts/rmt-rebuild.sh on a fresh host.
+#
+# Install (bare-host rebuild does this for you):
+#   sudo install -m 0644 deploy/systemd/rmt-control-center.service \
+#     /etc/systemd/system/rmt-control-center.service
+#   sudo systemctl daemon-reload
+#
+# Drop-ins layered on top of this base (deploy/systemd/*.conf), in effect order:
+#   cap04-loop.conf    RMT_HOMELAB_LOOP_ENABLED=true          (CAP-04 loop on)
+#   cap05-agent.conf   RMT_AGENT_ENABLED / RMT_AGENT_LLM_ENABLED=true
+#   auth.conf          S1/S2-lite operator tokens             (SECRET -- not in git)
+#   bind-loopback.conf S4: rebinds ExecStart to 127.0.0.1 only
+#   hardening.conf     D3: sandboxing + resource ceilings + restart backoff
+#
+# The ExecStart here binds 0.0.0.0:8000; bind-loopback.conf clears and replaces
+# it with 127.0.0.1:8000 in production (Caddy is the only LAN-facing listener).
+
+[Unit]
+Description=RMT Platform Control Center Backend
+After=network.target
+
+[Service]
+User=rmt-lab
+WorkingDirectory=/home/rmt-lab/homelab/projects/homelab-control-center/backend
+ExecStart=/home/rmt-lab/homelab/projects/homelab-control-center/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

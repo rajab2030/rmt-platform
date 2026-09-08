@@ -135,7 +135,7 @@ instance on `:8001` and hit `/`. Record the result in
 | Concern | Runbook |
 |---|---|
 | Homelab Docker stack (volumes, compose, images) | `docs/recovery/RECOVERY_RUNBOOK.md` |
-| RMT service itself (venv, unit, drop-ins) | `docs/operations/DEPLOY.md` (§2 redeploy, §3 rollback); full bare-host rebuild is **R3**, still open |
+| RMT service itself (venv, unit, drop-ins) | `docs/operations/DEPLOY.md` (§2 redeploy, §3 rollback); full bare-host rebuild is **R3** — `docs/operations/RMT_PLATFORM_RECOVERY.md` + `backend/scripts/rmt-rebuild.sh` (consumes an E5 backup for the evidence half) |
 | RMT governance evidence (this doc) | E5 |
 
 The homelab unified backup (`scripts/homelab-backup.sh`) already copies the
