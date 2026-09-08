@@ -17,6 +17,7 @@ rmt-control-center.service`.
 | `RMT_AUTH_ENABLED` | `true` | Master switch. `false` is a **local-dev only** escape hatch — leaves every mutating route open. | `auth.conf` |
 | `RMT_OPERATOR_TOKENS` | *(empty)* | `name:token` pairs, comma-separated. **With auth enabled and this empty, the app refuses to start.** The matched `name` is recorded as `authorized_by` / `approved_by` / `granted_by` in the evidence. | `auth.conf` |
 | `RMT_AUTH_SEPARATION` | `false` | **S3.** When `true`, `/approve` and `/homelab/approve` return **403** if the operator continuing an *agent-originated* hold is the one who granted the agent's authority (or is the proposing agent id). Non-agent holds are unaffected. Fails closed. With one operator, agent-hold approvals need a second identity — enable only when you have one. | `auth.conf` |
+| `RMT_CORS_ORIGINS` | `http://localhost:5173` | **S5.** Comma-separated list of browser origins allowed to call the API. Default is the local Vite dev origin only (the old hardcoded `192.168.235.128` is gone). Set to the deployed frontend origin(s). Methods are scoped to `GET, POST` and headers to `Authorization, X-API-Key, Content-Type, X-Request-ID` (no longer `*`). | `auth.conf` or a `cors.conf` drop-in |
 
 ## Notifications — `app/ops/ops_config.py` (P0: O2 held actions · P1: O3 ops alerts)
 
@@ -84,6 +85,12 @@ steps are not logged here.
 
 `runtime.engine: docker` — the execution adapter. Resolves to `simulation` when
 the Docker adapter is not registered. See `RMT_CONTEXT.md` §13.
+
+**D6:** the resolved mode is visible at runtime — `GET /health` carries a
+`runtime` block (`configured_engine`, `resolved_adapter`, `docker_available`,
+`git_available`, `adapter_degraded`, `notes`), and a configured/resolved
+mismatch is logged as a `WARNING` at startup. Full host-capability list:
+`docs/operations/PREREQUISITES.md`.
 
 ---
 

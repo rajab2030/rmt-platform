@@ -17,6 +17,7 @@ from app.ops.logging_config import (
 from app.ops.notifications import notify_held
 from app.ops.reconcile import reconcile_governance_stores
 from app.ops.retention import archive_aged_evidence
+from app.ops.runtime_info import runtime_status, warn_on_capability_mismatch
 from app.ops.separation import check_separation
 
 from app.monitor import get_history
@@ -131,6 +132,12 @@ async def lifespan(app: FastAPI):
 
     register_default_adapters()
 
+    # D6: log a WARNING if the configured runtime engine (config.yaml
+    # runtime.engine) cannot actually be provided on this host -- e.g. 'docker'
+    # requested but the daemon is unreachable, so governed actions would
+    # silently run on the simulation adapter.
+    warn_on_capability_mismatch(logger)
+
     # E2 + E6: on startup, correct the approval hold store against the
     # authoritative record store (a resolved hold is not persisted by the Core),
     # then audit the execution-authorization store against holds + records for
@@ -168,15 +175,14 @@ app = FastAPI(
 )
 
 
+# S5: origins from RMT_CORS_ORIGINS (default: local Vite dev origin only);
+# methods/headers scoped to what the API and its browser client actually use.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://192.168.235.128:5173",
-        "http://localhost:5173",
-    ],
+    allow_origins=ops_config.cors_origins(),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=ops_config.CORS_ALLOW_METHODS,
+    allow_headers=ops_config.CORS_ALLOW_HEADERS,
 )
 
 # O1: added last => outermost. Binds a request id (honours inbound
@@ -226,6 +232,9 @@ def health():
             "last_cycle_error": loop.get("last_cycle_error"),
             "quarantined_components": quarantined,
         },
+        # D6: capability-sensitive runtime state (adapter mode, git). Advisory
+        # only -- an `adapter_degraded` here does not flip `status`.
+        "runtime": runtime_status(),
     }
 
 
