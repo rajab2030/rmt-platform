@@ -168,7 +168,7 @@ able to *tell a human*.
 
 | ID | Requirement | Current verified evidence | Status | Required action | Priority |
 |---|---|---|---|---|---|
-| **R1** | Restart safety — state rebuilt correctly from disk | Stores reload on init; E1 (atomic writes) and E2 (startup hold/record reconciliation) are closed, so a resolved hold no longer reloads as `pending`. The E6 authorization cross-check remains, and a hard-kill restart test has not been run. | **PARTIAL** | Close the E6 remainder; run a hard-kill restart test with evidence intact. | **P1** |
+| **R1** | Restart safety — state rebuilt correctly from disk | **Hard-kill restart test PASSED (2026-09-08).** `systemctl kill -s KILL` on the whole cgroup, then restart: all six durable evidence stores reloaded **byte-for-byte identical** (sha256 + record counts unchanged), no `.tmp` residue (E1), hold ↔ record stores in agreement / reconcile a clean no-op (E2), CAP-04 loop + auth + Caddy proxy all healthy on the new PID. Only the E6 authorization-store cross-check now remains. | **PARTIAL** | Close the E6 remainder (extend startup reconciliation to the authorization store). | **P1** |
 | **R2** | Homelab stack disaster recovery | `docs/recovery/RECOVERY_RUNBOOK.md` + backup engine + `verify-recovery.sh` — a tested procedure with checksums and manifests. | **READY** | Keep exercised. | — |
 | **R3** | RMT platform recovery procedure | No procedure to rebuild the RMT service itself (venv, unit, drop-ins, evidence stores, SQLite DB) on a fresh host. | **GAP** | A runbook + script to stand up the service from the repo + a restored evidence set. | **P1** |
 | **R4** | High availability / no single point of failure | Single uvicorn process, single host. | **ACCEPTED** | Acceptable at homelab scale; record the RTO expectation (a restart / redeploy, minutes). Revisit only if RMT governs something that cannot tolerate that window. | — |
@@ -277,8 +277,9 @@ Not required for this platform to be production-ready at its current purpose:
 2. Close **P0** as one focused effort: S1 + S4 (auth + bind/TLS), E1 (atomic
    evidence writes), O2 (held-action alert), E2 (startup hold/record
    reconciliation). **DONE (2026-09-08)** — all six live and verified.
-3. Re-verify: full suite green, live exercise repeated under auth, restart test
-   with evidence intact.
+3. Re-verify: full suite green (**263 passed, 2026-09-08**), live exercise under
+   auth, hard-kill restart test with evidence intact (**PASSED, 2026-09-08** —
+   all six evidence stores byte-identical on reload; see R1).
 4. Then W3 / W4 / W5 in bounded steps, updating this matrix's Status column as
    each item closes.
 
