@@ -38,6 +38,7 @@ Guarantees (see ``docs/RMT_CAP_04_PROPOSAL.md``):
 No ``app/core/**`` file is touched.
 """
 import asyncio
+import logging
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -45,11 +46,14 @@ from datetime import datetime, timezone
 from app.homelab import loop_config
 from app.homelab.remediation import REMEDIATION_POLICY, remediate_component
 from app.homelab.observer import observe_container_state
+from app.ops.logging_config import log_event
 from app.ops.notifications import notify_held, notify_ops
 from app.core.intelligence.memory.models import MemoryRecord
 from app.core.intelligence.memory.service import remember
 import app.core.intelligence.actions.approval_service as _approval_service
 from app.core.intelligence.actions.approval import ApprovalStatus
+
+logger = logging.getLogger("rmt.homelab.loop")
 
 
 # Governed-outcome classification (statuses come from
@@ -239,6 +243,12 @@ class HomelabOperationalLoop:
                     self.run_cycle_once()
                 except Exception as exc:  # defensive: never kill the loop
                     self._last_cycle_error = repr(exc)
+                    log_event(
+                        logger,
+                        "loop_cycle_error",
+                        level=logging.ERROR,
+                        error=repr(exc),
+                    )
                     # O3: a loop cycle raised -- tell a human (de-duped).
                     notify_ops(
                         kind="loop_cycle_error",
@@ -355,6 +365,17 @@ class HomelabOperationalLoop:
 
         self._maybe_quarantine(state, now)
 
+        # O1: one structured line per real remediation attempt in the loop.
+        log_event(
+            logger,
+            "loop_remediation",
+            component=component,
+            governed_status=status,
+            approval_id=outcome.get("approval_id"),
+            execution_id=outcome.get("execution_id"),
+            quarantined=state.quarantined or None,
+        )
+
         return {
             "component": component,
             "outcome": status,
@@ -399,6 +420,14 @@ class HomelabOperationalLoop:
                     "last_outcome": state.last_outcome,
                     "attempts_in_window": len(state.attempt_times),
                 },
+            )
+            log_event(
+                logger,
+                "loop_quarantine",
+                level=logging.WARNING,
+                component=state.component,
+                reason=state.quarantine_reason,
+                attempts_in_window=len(state.attempt_times),
             )
             # O3: a component was quarantined -- tell a human (de-duped per
             # component; re-alerts at most once per notify_min_interval).

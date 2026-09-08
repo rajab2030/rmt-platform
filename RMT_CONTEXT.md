@@ -305,8 +305,14 @@ inverted dead-man's switch) cover service-down. `test_health.py` +
 + errors-only `ruff` [`backend/ruff.toml`, `app/core` excluded] + full suite,
 **324 passed**); `.github/workflows/ci.yml` calls it — dormant until the repo
 has a remote. 7 above-Core dead imports removed; no `app/core/**` change. Closes
-D1's clean-venv-from-lock action. Next: **P1** (D3, O1, V1, R3). Monitoring /
-exercise calls now require a token header.
+D1's clean-venv-from-lock action. **O1 also closed 2026-09-08:**
+`app/ops/logging_config.py` -- stdlib structured JSON logging to stdout/journald
+(no dependency), per-request `request_id` + one `http_request` line, and a
+`log_event` line at every governed-lifecycle boundary (4 mutating routes, the
+CAP-04 loop, the agent adapter), correlated by action/execution/approval id.
+`RMT_LOG_LEVEL` / `RMT_LOG_JSON`; rotation is journald's job (`DEPLOY.md` §5).
+`test_logging_config.py` 16 tests; no `app/core/**` change. Next: **P1** (D3,
+V1, R3). Monitoring / exercise calls now require a token header.
 **Owner directive 2026-09-08: no Core modification or fix** — recorded
 frozen-Core gaps get an above-Core mitigation or an explicit accept-and-record,
 never a freeze deviation. CAP-04, CAP-05 (5A) and CAP-05 (5B) are all enabled on

@@ -177,7 +177,34 @@ Old tokens stop working at the restart. Removing an operator = delete their
 
 ---
 
-## 5. Known follow-ups (not in P0)
+## 5. Log retention (O1)
+
+The backend logs structured JSON to **stdout**; systemd routes it to
+**journald**. Retention/rotation is journald's job — the app does not write or
+rotate log files.
+
+Bound the journal (host-wide or per-unit):
+
+```
+# host-wide, persistent journal cap
+sudo mkdir -p /etc/systemd/journald.conf.d
+printf '[Journal]\nSystemMaxUse=500M\nMaxRetentionSec=30day\n' \
+  | sudo tee /etc/systemd/journald.conf.d/rmt.conf
+sudo systemctl restart systemd-journald
+
+# inspect just this service
+journalctl -u rmt-control-center.service -f            # follow
+journalctl -u rmt-control-center.service --since today
+journalctl --vacuum-time=30d                           # one-off trim
+```
+
+Optional: raise verbosity with a drop-in
+`/etc/systemd/system/rmt-control-center.service.d/logging.conf`
+(`Environment=RMT_LOG_LEVEL=DEBUG`) — default is `INFO`, JSON on.
+
+---
+
+## 6. Known follow-ups (not in P0)
 
 - **P0 status:** S1/S2-lite, E1, O2 live 2026-09-07; **E2** and **S4** closed
   2026-09-08. E2 = `app/ops/reconcile.py` runs in the startup lifespan and
@@ -198,6 +225,9 @@ Old tokens stop working at the restart. Removing an operator = delete their
   error (same webhook as O2); `GET /health` + `backend/scripts/rmt-heartbeat.sh`
   cover service-down. **Cron the heartbeat** with a monitor URL
   (`docs/operations/CONFIG.md` → O3 section).
+- **O1 — DONE (2026-09-08).** Structured JSON logging to stdout/journald
+  (`app/ops/logging_config.py`); `RMT_LOG_LEVEL` / `RMT_LOG_JSON`. **Set a
+  journald cap** — see §5.
 - **S5** — CORS origin list in `app/main.py` is hardcoded (and currently points
   at a stale `192.168.235.128`); move to config.
 - **D3** — systemd sandboxing / resource limits on the unit.

@@ -15,7 +15,7 @@ boundary, not full IAM.
 import hmac
 from dataclasses import dataclass
 
-from fastapi import Header, HTTPException, status
+from fastapi import Header, HTTPException, Request, status
 
 from app.ops import ops_config
 
@@ -87,8 +87,19 @@ def resolve_operator(
 
 
 def require_operator(
+    request: Request,
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
 ) -> OperatorIdentity:
-    """FastAPI dependency: the authenticated :class:`OperatorIdentity` or 401."""
-    return resolve_operator(authorization=authorization, x_api_key=x_api_key)
+    """FastAPI dependency: the authenticated :class:`OperatorIdentity` or 401.
+
+    Also stashes the resolved name on ``request.state.principal`` so the O1
+    request-logging middleware can attribute the ``http_request`` line without
+    re-parsing the credential.
+    """
+    identity = resolve_operator(authorization=authorization, x_api_key=x_api_key)
+    try:
+        request.state.principal = identity.name
+    except Exception:  # pragma: no cover -- state is always present in practice
+        pass
+    return identity

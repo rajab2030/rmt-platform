@@ -18,6 +18,10 @@ production-safe setting.
                                 older than this out of the live JSON stores
                                 into ``<name>.archive.jsonl`` (default 90;
                                 ``<= 0`` disables).
+  * ``RMT_LOG_LEVEL``        -- O1: level for the ``rmt`` logger tree
+                                (default ``INFO``).
+  * ``RMT_LOG_JSON``         -- O1: ``true`` (default) => one JSON line per
+                                record; ``false`` => plain text (local dev).
 """
 import os
 
@@ -101,3 +105,16 @@ def notify_timeout_seconds() -> int:
 
 def notify_min_interval_seconds() -> int:
     return _env_int("RMT_NOTIFY_MIN_INTERVAL_SECONDS", 60)
+
+
+# --- O1: structured logging ----------------------------------------------------
+
+
+def log_level() -> str:
+    """Level name for the ``rmt`` logger tree. Default ``INFO``. Dynamic."""
+    return os.environ.get("RMT_LOG_LEVEL", "INFO").strip() or "INFO"
+
+
+def log_json() -> bool:
+    """One JSON line per record (default) vs. plain text for local dev."""
+    return _env_bool("RMT_LOG_JSON", True)

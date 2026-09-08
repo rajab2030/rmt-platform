@@ -26,6 +26,24 @@ rmt-control-center.service`.
 | `RMT_NOTIFY_TIMEOUT_SECONDS` | `5` | Webhook POST timeout. | `auth.conf` |
 | `RMT_NOTIFY_MIN_INTERVAL_SECONDS` | `60` | Per-key de-dupe window (O2: `(kind, component, approval_id)`; O3: `(kind, key)`) — stops re-alerting every cycle. | `auth.conf` |
 
+## Application logging — `app/ops/ops_config.py` (P1: O1 structured logging)
+
+| Variable | Default | Effect | Set by |
+|---|---|---|---|
+| `RMT_LOG_LEVEL` | `INFO` | Level for the `rmt` logger tree (`rmt.http`, `rmt.homelab.loop`, `rmt.agent`, `rmt.ops.*`). | `logging.conf` drop-in (optional) |
+| `RMT_LOG_JSON` | `true` | `true` → one JSON object per line on stdout → journald (`request_id`, `event`, `principal`, `action_id`/`execution_id`/`approval_id`, `governed_status`, `duration_ms`). `false` → plain text (local dev). | `logging.conf` drop-in (optional) |
+
+Every governed HTTP mutation (`/execute`, `/approve`, `/homelab/remediate`,
+`/homelab/approve`), every CAP-04 loop remediation, loop quarantine / cycle
+error, and every agent proposal that reaches the adapter emits one structured
+line, correlated by the same ids the durable evidence uses. Each request also
+gets one `http_request` line and an `X-Request-ID` response header (an inbound
+`X-Request-ID` is honoured). Nothing is read from `app/core/**`; Core-internal
+steps are not logged here.
+
+**Log retention / rotation** is journald's job, not the app's — see
+`DEPLOY.md` §5 (`journalctl --vacuum` or a `journald.conf` `SystemMaxUse=`).
+
 ### O3 service-down heartbeat — `backend/scripts/rmt-heartbeat.sh` (not read by the app)
 
 | Variable | Default | Effect | Set by |
