@@ -1,9 +1,36 @@
 # RMT-D4 — Financial / Approval Control (Banking Risk · Budget Control) — Proposal
 
-**Status:** **DRAFT rev-2 (2026-09-08) — for owner review. Not authorized. No
-implementation begins until the owner approves the scope.**
+**Status:** **DRAFT rev-2 (2026-09-08) — HOLD. Not authorized. Do not start.**
 **Classification:** Above-Core / domain product. No C08. No reopening of
 C01–C07. See **§9** for the one open Core question (`ActionType`).
+
+## Decision (2026-09-08) — HOLD, with a clear path
+
+The E4/E5 substrate gate from rev-1 is now **met** (both closed this session).
+D-4 does **not** proceed yet, for three reasons:
+
+1. **The rest of P1 is still open** — D3 (systemd sandboxing / resource limits),
+   O1/O3 (health + metrics endpoints), V1/V2, R3 (bare-host rebuild runbook). A
+   *financial* capability running unattended belongs on a hardened,
+   observable, rebuildable service. D3 + R3 especially.
+2. **D-4's only genuinely new engineering — the dual-approval / M-of-N layer
+   (§3a) — should be built standalone first.** It is generically useful (every
+   high-assurance approval domain in the roadmap), it is a clean above-Core
+   state machine, and it extends `app/ops/separation.py`. Building it inside
+   D-4 couples a reusable primitive to one domain.
+3. **D-4 is a product-direction call** (does RMT become a financial-approval
+   product?) — the owner's to make, not an engineering default.
+
+**Path to "go":** (a) build the dual-approval primitive standalone; (b) finish
+P1 (D3, O1/O3, R3 at least); (c) owner confirms the product direction and the §9
+`ActionType` choice. Then D-4 is a low-risk ~1-session build (domain module +
+adapter + tier policy + the already-built dual-approval layer + Path-B mapping).
+
+**If a financial *demo* is wanted sooner** (external/showcase reasons): a
+contained **Tier 0 / Tier 1 only** slice — simulated ledger, single approval, no
+dual-approval, clearly labelled a capability demo — is a smaller, defensible
+build on the current substrate. The full D-4 (Tier 2, dual approval) still waits
+for the path above.
 **Source:** `docs/RMT_ABOVE_CORE_ROADMAP.md` §6 **D-4** (Financial / Approval
 Control). This proposal scopes that roadmap item into an implementable
 capability.
