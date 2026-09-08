@@ -194,6 +194,10 @@ Old tokens stop working at the restart. Removing an operator = delete their
   `backend/scripts/rmt-evidence-backup.sh` / `rmt_evidence_verify.py` /
   `rmt-evidence-restore.sh`, runbook `docs/operations/RMT_EVIDENCE_RECOVERY.md`.
   **Wire the cron line** from that runbook.
+- **O3 — DONE (2026-09-08).** `notify_ops` alerts on loop quarantine + cycle
+  error (same webhook as O2); `GET /health` + `backend/scripts/rmt-heartbeat.sh`
+  cover service-down. **Cron the heartbeat** with a monitor URL
+  (`docs/operations/CONFIG.md` → O3 section).
 - **S5** — CORS origin list in `app/main.py` is hardcoded (and currently points
   at a stale `192.168.235.128`); move to config.
 - **D3** — systemd sandboxing / resource limits on the unit.

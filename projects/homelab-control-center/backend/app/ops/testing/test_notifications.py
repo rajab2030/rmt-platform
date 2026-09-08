@@ -84,3 +84,60 @@ def test_dedupe_within_interval(monkeypatch):
         kind="remediation", component="c", approval_id="other", source="t"
     )
     assert len(calls) == 2
+
+
+# --- O3: notify_ops ------------------------------------------------------
+
+
+def test_notify_ops_posts_when_configured(monkeypatch):
+    monkeypatch.setenv("RMT_NOTIFY_WEBHOOK_URL", "http://sink.local/hook")
+    calls = []
+    monkeypatch.setattr(
+        notif.urllib.request,
+        "urlopen",
+        lambda req, timeout=None: calls.append(req) or _Resp(),
+    )
+    notif.notify_ops(
+        kind="loop_quarantine", detail="3 held attempts", key="uptime-kuma",
+        source="cap04_loop",
+    )
+    assert len(calls) == 1
+    assert b"ops_alert" in calls[0].data
+    assert b"loop_quarantine" in calls[0].data
+    assert b"uptime-kuma" in calls[0].data
+
+
+def test_notify_ops_no_webhook_is_log_only(monkeypatch):
+    monkeypatch.delenv("RMT_NOTIFY_WEBHOOK_URL", raising=False)
+    called = []
+    monkeypatch.setattr(
+        notif.urllib.request, "urlopen",
+        lambda *a, **k: called.append(1) or _Resp(),
+    )
+    notif.notify_ops(kind="loop_cycle_error", detail="boom", key="run_cycle")
+    assert called == []
+
+
+def test_notify_ops_fail_open(monkeypatch):
+    monkeypatch.setenv("RMT_NOTIFY_WEBHOOK_URL", "http://sink.local/hook")
+    monkeypatch.setattr(
+        notif.urllib.request, "urlopen",
+        lambda *a, **k: (_ for _ in ()).throw(OSError("refused")),
+    )
+    notif.notify_ops(kind="loop_quarantine", key="x")  # must not raise
+
+
+def test_notify_ops_dedupes_per_kind_and_key(monkeypatch):
+    monkeypatch.setenv("RMT_NOTIFY_WEBHOOK_URL", "http://sink.local/hook")
+    monkeypatch.setenv("RMT_NOTIFY_MIN_INTERVAL_SECONDS", "3600")
+    calls = []
+    monkeypatch.setattr(
+        notif.urllib.request, "urlopen",
+        lambda req, timeout=None: calls.append(req) or _Resp(),
+    )
+    for _ in range(3):
+        notif.notify_ops(kind="loop_quarantine", key="uptime-kuma")
+    assert len(calls) == 1
+    notif.notify_ops(kind="loop_quarantine", key="dozzle")      # other key
+    notif.notify_ops(kind="loop_cycle_error", key="uptime-kuma")  # other kind
+    assert len(calls) == 3

@@ -168,6 +168,32 @@ def root():
     }
 
 
+@app.get("/health")
+def health():
+    """O3: a lightweight, unauthenticated liveness/readiness probe for an
+    external monitor / heartbeat (``scripts/rmt-heartbeat.sh``). Always HTTP
+    200 while the process answers; ``status`` is ``"degraded"`` when the CAP-04
+    loop has a cycle error or a quarantined component."""
+    loop = operational_loop.get_status()
+    quarantined = [
+        name
+        for name, s in loop.get("components", {}).items()
+        if s.get("quarantined")
+    ]
+    degraded = loop.get("last_cycle_error") is not None or bool(quarantined)
+    return {
+        "status": "degraded" if degraded else "ok",
+        "loop": {
+            "enabled": loop.get("enabled"),
+            "running": loop.get("running"),
+            "cycle_count": loop.get("cycle_count"),
+            "last_cycle_at": loop.get("last_cycle_at"),
+            "last_cycle_error": loop.get("last_cycle_error"),
+            "quarantined_components": quarantined,
+        },
+    }
+
+
 @app.get("/containers", response_model=list[Container])
 def containers():
     from app.docker_api import get_containers

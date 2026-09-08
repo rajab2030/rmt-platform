@@ -174,6 +174,8 @@ def test_held_outcome_recorded_not_continued(loop, learn, single_component, monk
 def test_repeated_held_triggers_quarantine(loop, learn, single_component, monkeypatch):
     monkeypatch.setattr(loop_mod.loop_config, "LOOP_COOLDOWN_SECONDS", 0)
     monkeypatch.setattr(loop_mod.loop_config, "LOOP_MAX_ATTEMPTS_PER_WINDOW", 3)
+    ops_alerts = []
+    monkeypatch.setattr(loop_mod, "notify_ops", lambda **k: ops_alerts.append(k))
     calls = _mock_remediate(
         monkeypatch,
         {
@@ -191,6 +193,9 @@ def test_repeated_held_triggers_quarantine(loop, learn, single_component, monkey
     assert state["quarantined"] is True
     assert any(r.event_type == "homelab_loop_quarantine" for r in learn)
     assert len(calls) == 3
+    # O3: a quarantine raised exactly one ops alert, keyed on the component
+    assert [a["kind"] for a in ops_alerts] == ["loop_quarantine"]
+    assert ops_alerts[0]["key"] == "uptime-kuma"
 
     # 4th cycle: quarantined -> observe only, no remediation attempt.
     monkeypatch.setattr(
@@ -241,6 +246,32 @@ def test_cycle_exception_is_contained(loop, learn, monkeypatch):
     assert state_a["consecutive_failures"] == 1
     state_b = loop.get_status()["components"]["b"]
     assert state_b["last_outcome"] == "no_remediation"
+
+
+def test_loop_cycle_error_triggers_ops_alert(loop, monkeypatch):
+    """O3: if run_cycle_once itself raises, run()'s guard records it AND fires
+    a de-duped loop_cycle_error ops alert."""
+    import asyncio
+
+    alerts = []
+    monkeypatch.setattr(loop_mod, "notify_ops", lambda **k: alerts.append(k))
+
+    def boom():
+        raise RuntimeError("cycle boom")
+
+    monkeypatch.setattr(loop, "run_cycle_once", boom)
+
+    async def _stop(_seconds):
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(loop_mod.asyncio, "sleep", _stop)
+
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(loop.run())
+
+    assert loop._last_cycle_error == "RuntimeError('cycle boom')"
+    assert [a["kind"] for a in alerts] == ["loop_cycle_error"]
+    assert alerts[0]["source"] == "cap04_loop"
 
 
 # ---------------------------------------------------------------------------
