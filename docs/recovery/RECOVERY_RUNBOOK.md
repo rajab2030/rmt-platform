@@ -6,6 +6,18 @@ This document defines the tested procedure to recover the HomeLab platform after
 
 The objective is to restore services with verified data integrity and confirmed service availability.
 
+## Scope
+
+This runbook covers the **Docker stack** (volumes, compose config, images). It
+does **not** cover:
+
+- The **RMT governance evidence** (authorization / approval / audit / trace /
+  verification stores + `observability.db`) → `docs/operations/RMT_EVIDENCE_RECOVERY.md`
+  (RMT-PROD **E5**: `rmt-evidence-backup.sh` / `rmt_evidence_verify.py` /
+  `rmt-evidence-restore.sh`).
+- The **RMT service** itself (venv, systemd unit, drop-ins) →
+  `docs/operations/DEPLOY.md`; a full bare-host rebuild is **R3** (open).
+
 ---
 
 ## Recovery Point Location
