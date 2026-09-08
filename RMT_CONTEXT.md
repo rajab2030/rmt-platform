@@ -282,12 +282,22 @@ default off): new `app/ops/separation.py` — `propose_and_govern` records
 approver granted the agent's authority (`approver_is_grantor`) or is the
 proposing agent (`approver_is_proposer`); non-agent holds pass through; the
 check fails **closed**. `GET /agent/status` exposes `separation_of_duties`.
-`test_separation.py` 14 tests. **Full app suite 306 passed** (292 + 14). Also
-fixed a pre-existing `test_auth.py` isolation gap that was polluting the Core
-evidence stores; 22 stray `target: x` records cleaned from
-traces/audit/verifications (11/11/13) via `scripts/clean_test_pollution.py`.
-Next: **P1** (E4/E5, D3, O1/O3, V1/V2, R3). Monitoring / exercise calls now
-require a token header.
+`test_separation.py` 14 tests. Also fixed a pre-existing `test_auth.py`
+isolation gap that was polluting the Core evidence stores; 22 stray `target: x`
+records cleaned from traces/audit/verifications via
+`scripts/clean_test_pollution.py`.
+**E4 + E5 also closed 2026-09-08:** E4 = `app/ops/retention.py::archive_aged_evidence`
+runs on startup (after the reconcile) — evidence older than
+`RMT_EVIDENCE_RETENTION_DAYS` (default 90; `<=0` disables) moves to an
+append-only `<name>.archive.jsonl` beside the store; bounded, idempotent,
+fail-open; `test_retention.py` 10 tests. E5 = `backend/scripts/rmt-evidence-{backup,restore}.sh`
++ `rmt_evidence_verify.py` (stdlib-only structural + cross-store integrity check)
++ `docs/operations/RMT_EVIDENCE_RECOVERY.md`; backup is `VACUUM INTO` hot-safe +
+`sha256`, restore refuses while the service is up. **Full app suite 316 passed**
+(306 + 10). D4 proposal revised to rev-2 (`7dab721`) — S3/E3 recorded done,
+`ActionType` blocker + dual-approval scoped, sequencing = hold D4 until E4/E5
+close (now done). Next: **P1** (D3, O1/O3, V1/V2, R3). Monitoring / exercise
+calls now require a token header.
 **Owner directive 2026-09-08: no Core modification or fix** — recorded
 frozen-Core gaps get an above-Core mitigation or an explicit accept-and-record,
 never a freeze deviation. CAP-04, CAP-05 (5A) and CAP-05 (5B) are all enabled on

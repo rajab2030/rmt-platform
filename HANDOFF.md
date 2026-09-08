@@ -1504,3 +1504,45 @@ window.
 
 ### Next
 **E5** — RMT evidence backup/restore (in progress this session).
+
+---
+
+## Session note — E5 RMT evidence backup / restore
+
+**Date:** 2026-09-08. Above-Core / operational. Scripts + runbook; no app code.
+
+### Delivered — `backend/scripts/`
+- **`rmt-evidence-backup.sh`** — timestamped backup to
+  `~/homelab/backups/rmt-evidence/<UTC>/`: the 6 JSON stores (`stores/`), their
+  `*.archive.jsonl` (E4, `archives/`), a **`VACUUM INTO`** hot-safe
+  `observability.db` snapshot, `manifest.txt` (git commit, host, per-store
+  counts), `checksum.sha256`. Read-only against the live tree — safe while the
+  service runs. `RMT_BACKUP_ROOT` overrides the destination.
+- **`rmt_evidence_verify.py`** — **stdlib only** (runs on a bare host): every
+  store parses as a list, every archive line parses, `observability.db` opens +
+  `intelligence_memory` is queryable → exit 0; structural corruption → exit 1.
+  Cross-store advisories (`authorization` with no record; stale `pending` hold)
+  print `WARN`, never fatal. Works on a backup dir **or** a live backend tree.
+- **`rmt-evidence-restore.sh <backup> [--force]`** — verify checksums → verify
+  integrity → **refuse if `rmt-control-center.service` is active** (`--force`
+  overrides) → move live files aside to `*.pre-restore.<ts>`, copy backup into
+  place → re-verify the live tree.
+
+### Runbook
+`docs/operations/RMT_EVIDENCE_RECOVERY.md` — what's covered, backup + cron line,
+verify semantics, restore procedure (service stopped), a restore-drill, and the
+relationship to `RECOVERY_RUNBOOK.md` (Docker stack) and `DEPLOY.md` (service).
+Pointer added from `docs/recovery/RECOVERY_RUNBOOK.md` (new "Scope" section).
+
+### Exercised
+backup → `sha256sum -c` (all OK) → `rmt_evidence_verify.py` (RESULT: OK) →
+restore refusal while the service is up (exit 1) → restore abort on a tampered
+checksum (exit 1). A full restore-into-a-stopped-copy drill is left as the
+operator step noted in the runbook + the E5 matrix row.
+
+### Matrix effect
+**E5 → READY** (drill + cron line are the remaining operator tasks). P1 now:
+D3, O1, O3, V1, V2, R3.
+
+### Not deployed / operator tasks
+Nothing to deploy (scripts). Operator: add the cron line; run one restore drill.

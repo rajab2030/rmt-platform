@@ -188,8 +188,12 @@ Old tokens stop working at the restart. Removing an operator = delete their
 - **S4 operator CA** — import the Caddy internal root CA on each operator
   workstation: `/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt`
   (or `caddy trust` on that machine). Done on the RMT host itself.
-- **E5** — add the RMT evidence stores + `data/observability.db` to the backup
-  engine and `RECOVERY_RUNBOOK.md`.
+- **E4 / E5 — DONE (2026-09-08).** E4: startup archival keeps the JSON stores
+  bounded (`RMT_EVIDENCE_RETENTION_DAYS`, default 90). E5: dedicated
+  backup/verify/restore for the RMT evidence + `observability.db` —
+  `backend/scripts/rmt-evidence-backup.sh` / `rmt_evidence_verify.py` /
+  `rmt-evidence-restore.sh`, runbook `docs/operations/RMT_EVIDENCE_RECOVERY.md`.
+  **Wire the cron line** from that runbook.
 - **S5** — CORS origin list in `app/main.py` is hardcoded (and currently points
   at a stale `192.168.235.128`); move to config.
 - **D3** — systemd sandboxing / resource limits on the unit.
