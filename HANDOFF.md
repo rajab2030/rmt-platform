@@ -81,14 +81,15 @@ Work performed and evidence:
 Freeze: REACHED** (freeze commit `46a4441`). There is no C08.
 
 **Operational production-readiness (`docs/RMT_PRODUCTION_READINESS.md`): P0 + P1
-COMPLETE (2026-09-08).** All P0 (S1/S2-lite, E1, E2, O2, S4) and all P1 (D1, D2,
-R1, E3, S3, E4, E5, O3, V2, O1, D3, V1, **R3**) items are closed. **R3 was the
-last P1** — bare-host rebuild: base unit + non-secret drop-ins captured in
-`deploy/systemd/`, `backend/scripts/rmt-rebuild.sh` +
-`docs/operations/RMT_PLATFORM_RECOVERY.md`, scratch-dir drill passed (see the
-session note at the end of this file). Only **P2 hardening** remains (S5, S6, S7,
-D4, D6, O4, V3, V4 — none blocking). Recommended once: a genuine from-cold VM
-rebuild to exercise the systemd + Caddy + cron steps the drill skips.
++ P2 ALL COMPLETE (2026-09-08).** Every row of the matrix is **READY** except
+`R4` (no HA), which stays **ACCEPTED** at homelab scale.
+- **P1** (D1, D2, R1, E3, S3, E4, E5, O3, V2, O1, D3, V1, **R3**) — R3 was the
+  last: bare-host rebuild (`deploy/systemd/` unit+drop-ins,
+  `backend/scripts/rmt-rebuild.sh`, `docs/operations/RMT_PLATFORM_RECOVERY.md`),
+  scratch-dir drill passed. Recommended once: a real from-cold VM rebuild.
+- **P2** (S5, S6, S7, D4, D6, O4, V3, V4) — all closed above-Core, no
+  `app/core/**` change, full suite **365 passed**. See the two session notes at
+  the end of this file.
 
 **Immediate next action:** the next phase is **not Core development** and must not
 reopen C01–C07. The **First Real RMT Capability — Homelab Operations** is now
@@ -1938,3 +1939,75 @@ none blocking).
 ### Not deployed
 Deploy artifacts + a script + docs. The base unit + drop-ins are the canonical
 copies for a future rebuild; nothing about the running service changed.
+
+---
+
+## Session note — P2 batch (S5, S6, S7, D4, D6, O4, V3, V4)
+
+**2026-09-08.** Closes every remaining production-readiness item. All
+above-Core; **no `app/core/**` change**; full backend suite **365 passed**;
+`ruff` (F, E9) clean. Owner picked the three branching decisions as recommended
+(O4 = Prometheus `/metrics`; D4 = external check + restart; S6 = document +
+accept).
+
+Landed as three commits:
+1. `RMT-PROD P2 (S5 + D6)` — CORS from config; runtime capability visibility.
+2. `RMT-PROD P2 (S6)` — secrets pattern documented + accepted.
+3. `RMT-PROD P2 (O4, S7, D4, V3, V4)` — metrics, rate limits, watchdog, smoke,
+   env-route coverage.
+
+### Per item
+- **S5** CORS: `RMT_CORS_ORIGINS` (comma-sep) → `ops_config.cors_origins()`,
+  default `["http://localhost:5173"]` — the stale hardcoded
+  `192.168.235.128:5173` is gone. Methods scoped to `GET, POST`, headers to
+  `Authorization, X-API-Key, Content-Type, X-Request-ID` (were `["*"]`).
+  `test_cors.py` (4).
+- **S6** secrets: `docs/operations/SECRETS.md`. No credential exists yet (local
+  Ollama, no key). Standing pattern = root-owned `0600` systemd
+  `EnvironmentFile`; the `systemd`-credentials path is scoped and **mandatory
+  before the first credential**. READY *by policy*. Docs only.
+- **S7** rate limiting: `app/ops/ratelimit.py` — in-process fixed-window,
+  keyed `(principal, bucket)`. `/execute` 30/min, `/agent/act|act/llm|
+  authority/grant` 20/min per operator → **429 + Retry-After**. Dependency
+  depends on `require_operator` so `request.state.principal` is set first.
+  `RMT_RATELIMIT_ENABLED=false` disables. Read-only agent routes untouched.
+  `test_ratelimit.py` (5).
+- **D4** watchdog: `backend/scripts/rmt-watchdog.sh` — cron/timer; N consecutive
+  **unreachable** `/health` polls → `systemctl restart` + alert. `degraded` is
+  alert-only unless `RMT_WATCHDOG_RESTART_ON_DEGRADED=true` (a restart doesn't
+  clear a quarantine). Streak in a state file. Ops tooling only.
+- **D6** runtime parity: `app/ops/runtime_info.py` — `/health` gains a
+  `runtime` block (`configured_engine`, `resolved_adapter`, `docker_available`,
+  `git_available`, `adapter_degraded`, `notes`); a configured/resolved engine
+  mismatch logs a `WARNING` at startup (`warn_on_capability_mismatch`, called
+  after `register_default_adapters()`). Advisory — does **not** flip `/health`
+  `status`. `docs/operations/PREREQUISITES.md`. `test_runtime_info.py` (6).
+- **O4** metrics: `app/ops/metrics.py` + unauthenticated `GET /metrics`
+  (Prometheus text, `text/plain; version=0.0.4`, **no dependency**). Loop
+  cycles/errors/quarantine, hold queue depth by status, approval decisions,
+  verification outcomes, executions by adapter, authorizations, agent grants,
+  `rmt_metrics_scrape_errors_total`. Read-only from the loop status + the six
+  durable stores; every read wrapped (failure → counter, never 500).
+  `test_metrics.py` (4).
+- **V3** env routes: `test_env_routes.py` (5) pins `/containers`,
+  `/containers/{name}/stats`, `/platform/state` in **both** modes. Those three
+  route bodies now return **503** (`"docker unavailable: …"` / `"git
+  unavailable: …"`) instead of an unhandled 500 when the capability is absent.
+- **V4** smoke: `backend/scripts/rmt-smoke.sh` — post-deploy gate: `/health`
+  ok, `runtime.resolved_adapter == RMT_SMOKE_EXPECT_ADAPTER` (default `docker`)
+  + not degraded, `/metrics` up with 0 scrape errors, `/execute` +
+  `/agent/status` → 401 unauth, loop state, optional authed check. Verified
+  against a throwaway instance (9/10; the 10th was a deliberately mis-set
+  expectation on a Docker-capable box).
+
+### Matrix effect
+S group 7/7 READY, D group 6/6, O group 4/4, V group 4/4. **Total 34 READY /
+0 PARTIAL / 0 GAP / 1 ACCEPTED (R4).** `RMT_PRODUCTION_READINESS.md` §4 + §8
+resynced.
+
+### Not deployed
+Live service still runs the pre-P2 code. Deploying picks up: `/metrics` +
+`/health.runtime` + rate limits + 503-not-500 on env routes. New env vars
+(`RMT_CORS_ORIGINS`, `RMT_RATELIMIT_*`) all have safe defaults; new scripts
+(`rmt-watchdog.sh`, `rmt-smoke.sh`) are cron/manual. `CONFIG.md` + `DEPLOY.md`
+§6 updated.
