@@ -10,12 +10,13 @@ rmt-control-center.service`.
 
 ---
 
-## Operator authentication — `app/ops/ops_config.py` (P0: S1 / S2-lite)
+## Operator authentication — `app/ops/ops_config.py` (P0: S1 / S2-lite, P1: S3)
 
 | Variable | Default | Effect | Set by |
 |---|---|---|---|
 | `RMT_AUTH_ENABLED` | `true` | Master switch. `false` is a **local-dev only** escape hatch — leaves every mutating route open. | `auth.conf` |
 | `RMT_OPERATOR_TOKENS` | *(empty)* | `name:token` pairs, comma-separated. **With auth enabled and this empty, the app refuses to start.** The matched `name` is recorded as `authorized_by` / `approved_by` / `granted_by` in the evidence. | `auth.conf` |
+| `RMT_AUTH_SEPARATION` | `false` | **S3.** When `true`, `/approve` and `/homelab/approve` return **403** if the operator continuing an *agent-originated* hold is the one who granted the agent's authority (or is the proposing agent id). Non-agent holds are unaffected. Fails closed. With one operator, agent-hold approvals need a second identity — enable only when you have one. | `auth.conf` |
 
 ## Held-action notifications — `app/ops/ops_config.py` (P0: O2)
 

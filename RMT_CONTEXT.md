@@ -274,9 +274,20 @@ record — callers gate `verify_*` on `result.success`), writes one
 (blocked-before-adapter outcomes untouched), idempotent, fail-open. Wired at
 `/execute`, `/approve`, `/homelab/remediate`, `/homelab/approve` and the agent
 adapter's failure branch. `test_execution_evidence.py` 19 tests + 1 agent
-end-to-end. **Full app suite 292 passed** (272 + 20). All five `AGENTS.md` §11
-outcomes now distinguishable in evidence. Next: **P1** (S3 enforcement, E4/E5,
-D3, O1/O3, V1/V2, R3). Monitoring / exercise calls now require a token header.
+end-to-end. All five `AGENTS.md` §11 outcomes now distinguishable in evidence.
+**S3 also closed 2026-09-08** (above-Core, config-gated by `RMT_AUTH_SEPARATION`,
+default off): new `app/ops/separation.py` — `propose_and_govern` records
+`approval_id → {grant_id, granted_by, agent_id}` on a hold; `/approve` +
+`/homelab/approve` call `check_separation()` first and return **403** if the
+approver granted the agent's authority (`approver_is_grantor`) or is the
+proposing agent (`approver_is_proposer`); non-agent holds pass through; the
+check fails **closed**. `GET /agent/status` exposes `separation_of_duties`.
+`test_separation.py` 14 tests. **Full app suite 306 passed** (292 + 14). Also
+fixed a pre-existing `test_auth.py` isolation gap that was polluting the Core
+evidence stores; 22 stray `target: x` records cleaned from
+traces/audit/verifications (11/11/13) via `scripts/clean_test_pollution.py`.
+Next: **P1** (E4/E5, D3, O1/O3, V1/V2, R3). Monitoring / exercise calls now
+require a token header.
 **Owner directive 2026-09-08: no Core modification or fix** — recorded
 frozen-Core gaps get an above-Core mitigation or an explicit accept-and-record,
 never a freeze deviation. CAP-04, CAP-05 (5A) and CAP-05 (5B) are all enabled on

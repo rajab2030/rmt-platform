@@ -112,7 +112,7 @@ currently enforces who the operator is.
 |---|---|---|---|---|---|
 | **S1** | Authentication on every mutating route | **DONE + LIVE** — `app/ops/auth.py` `require_operator` on all 10 `@app.post` routes + the whole `/agent/*` router; bearer / `X-API-Key` → `RMT_OPERATOR_TOKENS`; app refuses to start if enabled + unconfigured. `auth.conf` deployed with two operator tokens; live-verified 401/200. | **READY** | — | **P0** |
 | **S2** | Operator identity & non-repudiation | **DONE (lite) + LIVE** — `/approve`, `/homelab/approve`, `/agent/authority/grant` take the identity from the authenticated `OperatorIdentity`; body `approved_by` / `granted_by` ignored. `/execute` threads the operator name into `decision_id` / `reason`. Live-verified: grant recorded `granted_by: "ragb"` from the token, body value ignored. | **READY** | — | **P1** |
-| **S3** | Separation of duties | The same caller can `POST /agent/authority/grant` and then `POST /homelab/approve` the resulting hold. Identity is now *recorded* (S2); the rule is not yet *enforced*. | **GAP** | Enforce approver ≠ grantor / proposer for agent-originated holds (config-gated). Fast-follow behind an `RMT_AUTH_SEPARATION` toggle. | **P1** |
+| **S3** | Separation of duties | **DONE (above-Core, 2026-09-08).** `app/ops/separation.py` — when a proposal is held, `propose_and_govern` records `approval_id → {grant_id, granted_by, agent_id}`; `/approve` and `/homelab/approve` call `check_separation(approval_id, operator)` before continuing and return **403** if the approver granted the agent's authority (`approver_is_grantor`) or is the proposing agent id (`approver_is_proposer`). Config-gated by **`RMT_AUTH_SEPARATION`** (default off). Non-agent holds pass through (`not_agent_originated`); the check **fails closed**. `/agent/status` exposes `separation_of_duties`. `test_separation.py` — 15 tests (unit + `/approve` + `/homelab/approve` 403). No `app/core/**` change. | **READY** | — | **P1** |
 | **S4** | Transport security & network exposure | **DONE + LIVE (2026-09-08)** — `bind-loopback.conf` deployed (app listens `127.0.0.1:8000` only, verified unreachable off-loopback) **and** Caddy `2.6.2` TLS reverse proxy installed + enabled, `/etc/caddy/Caddyfile` from `deploy/Caddyfile`, `tls internal` CA trusted on the host. Verified on `192.168.223.128`: `https://` → 200 CA-validated, `http://` → 308 redirect, no-token `POST` → 401, open GET → 200, CAP-04 loop healthy through the proxy. | **READY** | Import the Caddy root CA on other operator machines (`/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt`). | **P0** |
 | **S5** | CORS configuration | `allow_origins` hardcoded to `http://192.168.235.128:5173` + `localhost:5173`, `allow_credentials=True`, `allow_methods/headers=["*"]`. | **PARTIAL** | Move origins to config; scope methods/headers to what the frontend needs. | **P2** |
 | **S6** | Secrets management | Only a local Ollama endpoint today (no key). No secret store exists if a credentialed model / notifier / IdP is added. | **PARTIAL** | Adopt a secrets mechanism (env-file with restricted mode, or a vault) before introducing any credential. | **P2** |
@@ -209,7 +209,7 @@ able to *tell a human*.
 
 **P0 is fully closed (2026-09-08).** All six blocking items — S1, S2-lite, E1,
 E2, O2, S4 — are live and verified. Next work is P1.
-| **P1** | S3, E4, E5, D3, O1, O3, V1, V2, R3 | pending (D1, D2, R1, E3 done) |
+| **P1** | E4, E5, D3, O1, O3, V1, V2, R3 | pending (D1, D2, R1, E3, S3 done) |
 | **P2** | S5, S6, S7, D4, D6, O4, V3, V4 | pending (D5, E6 done) |
 | **ACCEPTED** | R4 (single-instance) | recorded |
 
@@ -220,8 +220,9 @@ E2, O2, S4 — are live and verified. Next work is P1.
 Five coherent workstreams. Not milestone numbers; not mandatory sequence except
 where noted.
 
-**W1 — Access control.** S1 → S2 → S3 (+ S5, S7). Gated by the §2 threat-model
-decision. Nothing else should be exposed until S1 + S4 are done.
+**W1 — Access control.** S1, S2-lite, S3 done (S3 config-gated by
+`RMT_AUTH_SEPARATION`). S5, S7 remain (P2). Gated by the §2 threat-model
+decision. Nothing else should be exposed until S1 + S4 are done — **both are**.
 
 **W2 — Evidence substrate.** E1 (atomic writes / SQLite migration) is the
 keystone; it also resolves E4. **E2 and E6 are closed** by an above-Core startup
@@ -325,7 +326,9 @@ closed** above-Core: `record_failed_execution_evidence` writes a distinguishable
 `adapter_execution_failed` verification record when the adapter was invoked and
 failed, so all five §11 outcomes are now distinguishable in evidence. The
 remaining P1/P2 items are for a more robust posture but are not individually
-blocking. Next: P1 — S3 enforcement, E4/E5, D3, O1/O3, V1/V2, R3.
+blocking. **S3 (2026-09-08) closed** above-Core: `RMT_AUTH_SEPARATION` gates
+`/approve` + `/homelab/approve` so the approver of an agent-raised hold cannot
+be its grantor. Next: P1 — E4/E5, D3, O1/O3, V1/V2, R3.
 
 ---
 

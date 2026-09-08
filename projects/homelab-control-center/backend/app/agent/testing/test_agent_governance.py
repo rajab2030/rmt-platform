@@ -18,13 +18,16 @@ from app.agent.authority import authority_store
 from app.agent.contract import AgentIdentity, AgentIntent, AgentProposal
 from app.agent.adapter import propose_and_govern
 from app.core.intelligence.actions.models import ActionType
+from app.ops import separation as separation_mod
 
 
 @pytest.fixture(autouse=True)
 def _reset():
     authority_store.reset()
+    separation_mod.reset()
     yield
     authority_store.reset()
+    separation_mod.reset()
 
 
 @pytest.fixture
@@ -144,6 +147,12 @@ def test_held_proposal_recorded_not_continued(enabled, captured_governed):
     # no continuation path is imported by the agent adapter
     assert not hasattr(adapter_mod, "continue_remediation")
     assert authority_store.get(g.grant_id).consumed is True
+    # S3: the hold's provenance (grantor + agent) was recorded
+    prov = separation_mod.get_hold_provenance("appr-1")
+    assert prov is not None
+    assert prov.granted_by == "operator"
+    assert prov.grant_id == g.grant_id
+    assert prov.agent_id == "reference-agent"
 
 
 # 4 -----------------------------------------------------------------------

@@ -23,6 +23,7 @@ from app.homelab.remediation import resolve_adapter_name, record_learning
 from app.homelab.verification import verify_docker_execution
 from app.ops.execution_evidence import record_failed_execution_evidence
 from app.ops.notifications import notify_held
+from app.ops.separation import record_hold_provenance
 
 from app.agent import loop_config
 from app.agent.authority import authority_store
@@ -94,6 +95,15 @@ def propose_and_govern(proposal: AgentProposal) -> AgentOutcome:
     if status == "manual_approval_required":
         outcome.decision = "escalated_hold" if escalate else "hold"
         outcome.approval_id = result.get("approval_id")
+        # S3: remember who is behind this agent-raised hold so the approver
+        # can be required to differ from the grantor / proposer.
+        _grant = authority_store.get(proposal.grant_id)
+        record_hold_provenance(
+            outcome.approval_id,
+            grant_id=proposal.grant_id,
+            granted_by=_grant.granted_by if _grant else None,
+            agent_id=proposal.identity.agent_id,
+        )
         record_learning(
             target, result, confidence=proposal.intent.confidence
         )
