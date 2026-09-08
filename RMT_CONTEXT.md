@@ -337,10 +337,21 @@ copy + a throwaway instance and **zero** live-host changes. Runbook:
 from lock -> evidence restored -> verify `RESULT: OK` -> 342 passed -> throwaway
 `:8011` `/health` `ok`; live `:8000` untouched. Recommended once: a real
 from-cold VM rebuild (exercises the systemd/Caddy/cron steps the drill skips).
-No `app/core/**` change; no code change. `RMT_PRODUCTION_READINESS.md` §4
-resynced (26 READY / 6 PARTIAL / 2 GAP). **All P0 and P1 items are now closed;
-only P2 hardening remains** (S5, S6, S7, D4, D6, O4, V3, V4 — none blocking).
-Monitoring / exercise calls now require a token header.
+No `app/core/**` change; no code change. **P2 batch also closed 2026-09-08**
+(all above-Core, no `app/core/**` change, full suite **365 passed**): **S5**
+CORS from `RMT_CORS_ORIGINS` + scoped methods/headers; **S6** secrets pattern
+documented + accepted by policy (`docs/operations/SECRETS.md` — no credential
+exists yet); **S7** `app/ops/ratelimit.py` per-principal fixed-window limits on
+`/execute` + `/agent/act*` → 429; **D4** `backend/scripts/rmt-watchdog.sh`
+restarts on sustained-unreachable `/health`; **D6** `app/ops/runtime_info.py` —
+`/health` `runtime` block + startup adapter-mismatch WARNING +
+`docs/operations/PREREQUISITES.md`; **O4** `app/ops/metrics.py` + unauth
+Prometheus `GET /metrics` (read-only, no dependency); **V3** `test_env_routes.py`
++ env routes now 503-not-500 when git/Docker absent; **V4**
+`backend/scripts/rmt-smoke.sh` post-deploy gate. `RMT_PRODUCTION_READINESS.md`
+§4 resynced — **34 READY / 0 PARTIAL / 0 GAP / 1 ACCEPTED (R4, no HA)**.
+**Every P0, P1 and P2 production-readiness item is now closed.** Monitoring /
+exercise calls now require a token header.
 **Owner directive 2026-09-08: no Core modification or fix** — recorded
 frozen-Core gaps get an above-Core mitigation or an explicit accept-and-record,
 never a freeze deviation. CAP-04, CAP-05 (5A) and CAP-05 (5B) are all enabled on
