@@ -1133,3 +1133,53 @@ Core fix vs above-Core wrapper), E4 retention/rotation, E5 RMT-store backup,
 D3 systemd sandboxing, O1/O3, V1/V2, R1 (hard-kill restart test) / R3 (platform
 recovery runbook). Also open: extend the E6 startup reconciliation to the
 authorization store; S5 CORS to config (stale `192.168.235.128` in `main.py`).
+
+---
+
+## Session note — R1 hard-kill restart-safety test PASSED
+
+**Date:** 2026-09-08. Verification only — no code change. Owner ran the root
+`systemctl kill` / `restart`; assistant captured pre/post state.
+
+### Method
+Pre-kill snapshot (09:42 UTC): sha256 + record count of the six durable
+governance-evidence stores, `.tmp` scan, loop status. Then
+`sudo systemctl kill -s KILL rmt-control-center.service` (SIGKILL to the whole
+cgroup — no graceful shutdown), then `sudo systemctl restart`. Post-restart
+(09:44): new PID 6653 (`NRestarts=1`, up 09:42:46), re-checked everything.
+
+### Result — PASS
+- **All six evidence stores byte-for-byte identical** on reload (same sha256,
+  same counts): `approval_holds` (n=7), `approval_records` (n=19),
+  `authorizations` (n=18), `audit` (n=17), `traces` (n=17), `verifications`
+  (n=13). No corruption / truncation / partial write. → **E1 proven
+  empirically** against the live stores.
+- **No `.tmp` residue** before or after.
+- **hold ↔ record stores in agreement**; `reconcile_holds_against_records()`
+  re-run = `{"checked": 7, "reconciled": 0}` (clean no-op). → **E2 confirmed**.
+- CAP-04 loop restarted clean, idle at `no_remediation`, no cycle error
+  (`cycle_count` resets on restart — in-memory + stateless by design; the
+  persistent per-component flap/quarantine state is what matters and it's
+  healthy).
+- Auth intact (`/agent/status` no token → 401); Caddy proxy intact
+  (`https://192.168.223.128/homelab/loop/status` → 200).
+
+### Not captured
+The E2 reconcile journal line for this boot — `journalctl` needs sudo and this
+shell has no passwordless sudo. On-disk byte-identity is the stronger proof;
+`sudo journalctl -u rmt-control-center.service -b | grep -i reconcile` if the
+log line is wanted for the record.
+
+### Effect on the matrix
+R1: the hard-kill-restart-test clause is satisfied. R1 stays **PARTIAL** only
+because the **E6** authorization-store cross-check is still open (extend
+`app/ops/reconcile.py` to the authorization store). §7 step 3 re-verify list
+updated (full suite 263 + restart test both done, 2026-09-08).
+
+### Next (P1, all above-Core — owner: no Core modification / fix)
+E3 as an **above-Core wrapper only** (emit a distinguishable `adapter_failure` /
+`state_mismatch` evidence record when `result.success` is False — same layer as
+`verify_docker_execution`; no `app/core/**` touch) **or** accept-and-record.
+Then S3 approver≠grantor enforcement, E4 retention/rotation, E5 RMT-store
+backup, E6 authorization cross-check (closes R1), D3 systemd sandboxing,
+O1/O3, V1/V2, R3 platform-recovery runbook.
