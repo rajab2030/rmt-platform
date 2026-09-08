@@ -138,7 +138,7 @@ substrate is currently weaker than the governance logic on top of it.
 |---|---|---|---|---|---|
 | **D1** | Pinned, reproducible dependency set | **DONE** — `backend/requirements.txt` now pins every direct dep (+ `pytest`, `httpx2` as test-only); `backend/requirements.lock.txt` is the full 33-package transitive lock (`pip freeze`). | **READY** | — (V2 `ci.sh` now builds a clean venv from the lock on every run). | **P1** |
 | **D2** | Deploy + rollback runbook for the RMT service | **DONE** — `docs/operations/DEPLOY.md` (first-time P0 cutover, routine redeploy, rollback, token rotation, restart-safety check) + `docs/operations/CONFIG.md` (every `RMT_*` var — also closes **D5**). | **READY** | Exercise it on the next redeploy. | **P1** |
-| **D3** | Service hardening | The unit has only `Restart=always` / `RestartSec=5`. No `MemoryMax`, `CPUQuota`, `NoNewPrivileges`, `ProtectSystem`, `ProtectHome`, `PrivateTmp`, restart backoff. | **GAP** | Add systemd sandboxing + resource limits; `StartLimitIntervalSec` / burst; run as the least-privileged user with only the Docker socket it needs. | **P1** |
+| **D3** | Service hardening | **DONE (2026-09-08).** `projects/homelab-control-center/deploy/systemd/hardening.conf` — a drop-in adding: restart backoff (`StartLimitIntervalSec=300` / `StartLimitBurst=5`, `RestartSteps` / `RestartMaxDelaySec=60`); resource ceilings (`MemoryMax=512M`, `MemoryHigh=384M`, `CPUQuota=200%`, `TasksMax=128` — idle RSS is ~70M); `NoNewPrivileges`, `LockPersonality`, `RestrictRealtime/SUIDSGID/Namespaces`, `RemoveIPC`, `UMask=0077`; `ProtectSystem=full`, `PrivateTmp`, and the kernel-surface protections (`ProtectControlGroups/KernelTunables/KernelModules/KernelLogs/Clock/Hostname`, `ProtectProc=invisible`); `SystemCallArchitectures=native`, `SystemCallFilter=@system-service` (`→EPERM`), `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK`. Docker-socket access survives (supplementary `docker` group, not dropped by `NoNewPrivileges`); no `app/core/**` or code change. `systemd-analyze verify` clean; `systemd-analyze security --offline` **9.2 UNSAFE → 4.1 OK**. `ProtectHome` stays `no` and `ProtectSystem` is `full` not `strict` (evidence JSON + `data/observability.db` live under `/home`); `strict`+`ReadWritePaths`, `ProcSubset=pid`, IP filtering are documented deferrals (`DEPLOY.md` §5.1). | **READY** | Install the drop-in + `daemon-reload` + restart; watch the first restart (`DEPLOY.md` §5.1). | **P1** |
 | **D4** | Health/readiness probe acted upon | `/intelligence/health` returns 200 (D1 correction, C07). Nothing external watches it; `Restart=always` only restarts on process exit, not on unhealthy. | **PARTIAL** | Wire a watchdog (systemd `WatchdogSec` + `sd_notify`, or an external check) that restarts on sustained unhealthy. | **P2** |
 | **D5** | Consolidated configuration reference | **DONE** — `docs/operations/CONFIG.md` lists every `RMT_*` var (auth, notify, CAP-04 loop, agent 5A/5B), default, effect, and which drop-in sets it, plus the expected live drop-in inventory. | **READY** | Keep in sync with `loop_config.py` changes. | **P2** |
 | **D6** | Documented runtime prerequisites & environment parity | Behaviour depends on git presence and Docker-socket reachability (adapter resolves to `simulation` vs `docker`); this has bitten test runs before. | **PARTIAL** | Document required host capabilities; make adapter-mode explicit in `/agent/status` / a health field; fail loudly if a required capability is missing in production mode. | **P2** |
@@ -186,18 +186,21 @@ able to *tell a human*.
 
 ## 4. Status Summary
 
-*(Updated after the P0 batch, 2026-09-07.)*
+*(Resynced 2026-09-08 after the E1–E6 / S3 / O1 / O3 / V2 / D3 closures.)*
 
 | Group | READY | PARTIAL | GAP | ACCEPTED | N/A |
 |---|---|---|---|---|---|
-| S — Security & Access Control | 2 | 1 | 4 | 0 | 0 |
-| E — Evidence Durability & Integrity | 1 | 0 | 5 | 0 | 0 |
-| D — Deployment & Configuration | 3 | 1 | 2 | 0 | 0 |
+| S — Security & Access Control | 4 | 2 | 1 | 0 | 0 |
+| E — Evidence Durability & Integrity | 6 | 0 | 0 | 0 | 0 |
+| D — Deployment & Configuration | 4 | 2 | 0 | 0 | 0 |
 | O — Observability & Alerting | 3 | 0 | 1 | 0 | 0 |
 | V — Validation & Change Safety | 1 | 3 | 0 | 0 | 0 |
-| R — Resilience & Recovery | 1 | 1 | 1 | 1 | 0 |
+| R — Resilience & Recovery | 2 | 0 | 1 | 1 | 0 |
 | G — Governance Process | 4 | 0 | 0 | 0 | 0 |
-| **Total** | **15** | **6** | **13** | **1** | **0** |
+| **Total** | **24** | **7** | **3** | **1** | **0** |
+
+Remaining: **GAP** — S7, O4 (both P2), R3 (P1). **PARTIAL** — S5, S6, D4, D6,
+V1, V3, V4 (V1 is P1; the rest P2).
 
 ### By priority
 
@@ -209,7 +212,7 @@ able to *tell a human*.
 
 **P0 is fully closed (2026-09-08).** All six blocking items — S1, S2-lite, E1,
 E2, O2, S4 — are live and verified. Next work is P1.
-| **P1** | D3, V1, R3 | pending (D1, D2, R1, E3, S3, E4, E5, O3, V2, O1 done) |
+| **P1** | V1, R3 | pending (D1, D2, R1, E3, S3, E4, E5, O3, V2, O1, D3 done) |
 | **P2** | S5, S6, S7, D4, D6, O4, V3, V4 | pending (D5, E6 done) |
 | **ACCEPTED** | R4 (single-instance) | recorded |
 
@@ -235,8 +238,9 @@ dedicated, checksummed, integrity-verified backup/restore path for the RMT
 evidence stores + `observability.db` (`backend/scripts/rmt-evidence-*`,
 `docs/operations/RMT_EVIDENCE_RECOVERY.md`).
 
-**W3 — Deployment reproducibility.** D1 (lock deps) → D2 (deploy/rollback
-runbook) → D3 (unit hardening). Enables R3 (platform recovery).
+**W3 — Deployment reproducibility.** D1 (lock deps), D2 (deploy/rollback
+runbook), **D3 (unit hardening — `deploy/systemd/hardening.conf`, 9.2 → 4.1)**
+all done. Enables R3 (platform recovery).
 
 **W4 — Operability.** O2, O3, **O1 done** → D4 → O4.
 
@@ -341,7 +345,10 @@ has a remote. **O1 (2026-09-08) closed**: `app/ops/logging_config.py` — stdlib
 structured JSON logging to stdout/journald, per-request `request_id` +
 `http_request` line, one `log_event` line at every governed-lifecycle boundary
 (routes / CAP-04 loop / agent adapter); `RMT_LOG_LEVEL` / `RMT_LOG_JSON`;
-journald handles rotation. Next: P1 — D3, V1, R3.
+journald handles rotation. **D3 (2026-09-08) closed**:
+`deploy/systemd/hardening.conf` — sandboxing + resource ceilings + restart
+backoff, no code change; `systemd-analyze security` 9.2 UNSAFE → 4.1 OK
+(install pending). Next: P1 — V1, R3.
 
 ---
 

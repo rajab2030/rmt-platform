@@ -311,8 +311,14 @@ D1's clean-venv-from-lock action. **O1 also closed 2026-09-08:**
 `log_event` line at every governed-lifecycle boundary (4 mutating routes, the
 CAP-04 loop, the agent adapter), correlated by action/execution/approval id.
 `RMT_LOG_LEVEL` / `RMT_LOG_JSON`; rotation is journald's job (`DEPLOY.md` §5).
-`test_logging_config.py` 16 tests; no `app/core/**` change. Next: **P1** (D3,
-V1, R3). Monitoring / exercise calls now require a token header.
+`test_logging_config.py` 16 tests; no `app/core/**` change. **D3 also closed
+2026-09-08:** `projects/homelab-control-center/deploy/systemd/hardening.conf` --
+a systemd drop-in (sandboxing + `MemoryMax=512M`/`CPUQuota`/`TasksMax` ceilings
++ restart backoff), **no code change**; `systemd-analyze security` 9.2 UNSAFE ->
+4.1 OK (verified offline). Install is an operator step (`DEPLOY.md` §5.1).
+`RMT_PRODUCTION_READINESS.md` §4 summary table resynced (24 READY / 7 PARTIAL /
+3 GAP). Next: **P1** (V1, R3). Monitoring / exercise calls now require a token
+header.
 **Owner directive 2026-09-08: no Core modification or fix** — recorded
 frozen-Core gaps get an above-Core mitigation or an explicit accept-and-record,
 never a freeze deviation. CAP-04, CAP-05 (5A) and CAP-05 (5B) are all enabled on
