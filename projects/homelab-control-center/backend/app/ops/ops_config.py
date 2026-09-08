@@ -118,3 +118,24 @@ def log_level() -> str:
 def log_json() -> bool:
     """One JSON line per record (default) vs. plain text for local dev."""
     return _env_bool("RMT_LOG_JSON", True)
+
+
+# --- S5: CORS ----------------------------------------------------------------
+
+# The API exposes only GET (reads) and POST (governed mutations); no browser
+# client needs anything else. Preflight OPTIONS is handled by the middleware.
+CORS_ALLOW_METHODS = ["GET", "POST"]
+
+# The only request headers a browser client sends: the two auth schemes, a JSON
+# body content type, and the O1 correlation id.
+CORS_ALLOW_HEADERS = ["Authorization", "X-API-Key", "Content-Type", "X-Request-ID"]
+
+
+def cors_origins() -> list[str]:
+    """Browser origins allowed to call the API, from ``RMT_CORS_ORIGINS``
+    (comma-separated). Default: the local Vite dev origin only. Set this in a
+    drop-in to the deployed frontend's origin(s). Read dynamically."""
+    raw = os.environ.get("RMT_CORS_ORIGINS", "").strip()
+    if not raw:
+        return ["http://localhost:5173"]
+    return [o.strip() for o in raw.split(",") if o.strip()]
