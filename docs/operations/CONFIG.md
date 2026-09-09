@@ -29,6 +29,23 @@ rmt-control-center.service`.
 | `RMT_NOTIFY_WEBHOOK_URL` | *(empty)* | When set, both `manual_approval_required` (O2) **and** ops alerts (O3: `loop_quarantine`, `loop_cycle_error`) are POSTed as JSON here (fail-open). Unset → logged only. | `auth.conf` |
 | `RMT_NOTIFY_TIMEOUT_SECONDS` | `5` | Webhook POST timeout. | `auth.conf` |
 | `RMT_NOTIFY_MIN_INTERVAL_SECONDS` | `60` | Per-key de-dupe window (O2: `(kind, component, approval_id)`; O3: `(kind, key)`) — stops re-alerting every cycle. | `auth.conf` |
+| `RMT_NOTIFY_FORMAT` | `generic` | **T1-4.** Payload shaping for `RMT_NOTIFY_WEBHOOK_URL`: `generic` (today's JSON, unchanged) · `slack` (`{"text": …}`, Slack/Mattermost incoming-webhook) · `ntfy` (plain body + `Title`/`Priority`/`Tags` headers). Unknown value → `generic`. | `auth.conf` |
+
+### T1-4 held-action escalation — `backend/scripts/rmt-escalate.sh` (not read by the app)
+
+The Core approval-hold TTL is 300 s: a hold nobody approves just expires. This
+cron/timer script reads the read-only `GET /ops/holds` and POSTs a **one-time**
+alert to a second channel for any hold that is still `actionable` past a
+threshold, or that `expired` while never approved. Each `approval_id` escalates
+once (state file).
+
+| Variable | Default | Effect |
+|---|---|---|
+| `RMT_ESCALATE_HOLDS_URL` | `http://127.0.0.1:8000/ops/holds` | Read-only holds view. |
+| `RMT_ESCALATE_TOKEN` | *(required when auth is on)* | Operator token for that route (`Authorization: Bearer`). |
+| `RMT_ESCALATE_WEBHOOK_URL` | *(optional)* | Second-channel webhook (JSON POST). Unset → log only, still one-shot. |
+| `RMT_ESCALATE_AFTER_SECONDS` | `180` | Age at which a still-open hold escalates. Must be `< 300` (Core TTL); the script warns otherwise. |
+| `RMT_ESCALATE_STATE` | `/run/rmt-escalate` (fallback `/tmp`) | State dir for the escalated-id list. |
 
 ## Application logging — `app/ops/ops_config.py` (P1: O1 structured logging)
 
@@ -102,6 +119,16 @@ steps are not logged here.
 | `RMT_AGENT_LLM_TIMEOUT_SECONDS` | `60` | LLM call timeout. | — |
 | `RMT_AGENT_LLM_MAX_TOKENS` | `400` | `num_predict`. | — |
 | `RMT_AGENT_LLM_TEMPERATURE` | `0.1` | Sampling temperature. | — |
+
+## Homelab dependency edges — `app/ops/ops_config.py` (T1-2)
+
+| Variable | Default | Effect | Set by |
+|---|---|---|---|
+| `RMT_HOMELAB_DEPENDENCIES` | *(empty)* | **T1-2.** Operator-declared inter-component dependency edges, `"web:db,cache;api:db"` (`;`-separated `component:dep1,dep2` groups). Unioned into the static all-independent homelab map (`app/homelab/dependencies.py`). A declared edge **activates T13**: an *allowed*-class op (`start`/`create`) on a depended-upon component is forced to human approval. The static map stays all-independent; `GET /agent/status.dependency_map.sources` shows `static` vs `env`. Malformed groups are skipped. | a `deps.conf` drop-in |
+
+The real homelab has **no** inter-container edges (portainer / dozzle /
+uptime-kuma each need only dockerd), so this is unset in production. It exists so
+a genuine edge can be declared without a code change + redeploy.
 
 ## Runtime engine — `config/config.yaml` (not env)
 

@@ -86,6 +86,64 @@ def test_dedupe_within_interval(monkeypatch):
     assert len(calls) == 2
 
 
+# --- T1-4: RMT_NOTIFY_FORMAT payload shaping ---------------------------
+
+
+def _capture(monkeypatch):
+    calls = []
+    monkeypatch.setenv("RMT_NOTIFY_WEBHOOK_URL", "http://sink.local/hook")
+    monkeypatch.setattr(
+        notif.urllib.request,
+        "urlopen",
+        lambda req, timeout=None: calls.append(req) or _Resp(),
+    )
+    return calls
+
+
+def test_generic_format_is_unchanged_json(monkeypatch):
+    calls = _capture(monkeypatch)  # no RMT_NOTIFY_FORMAT -> generic
+    notif.notify_held(
+        kind="remediation", component="uptime-kuma", approval_id="a1",
+        detail="held", source="t",
+    )
+    import json as _json
+    body = _json.loads(calls[0].data)
+    assert body["event"] == "held_for_approval"
+    assert body["component"] == "uptime-kuma"
+    assert calls[0].headers["Content-type"] == "application/json"
+
+
+def test_slack_format_sends_text_object(monkeypatch):
+    monkeypatch.setenv("RMT_NOTIFY_FORMAT", "slack")
+    calls = _capture(monkeypatch)
+    notif.notify_held(
+        kind="agent_proposal", component="dozzle", approval_id="a9",
+        detail="needs a human", source="t",
+    )
+    import json as _json
+    body = _json.loads(calls[0].data)
+    assert set(body) == {"text"}
+    assert "dozzle" in body["text"] and "a9" in body["text"]
+
+
+def test_ntfy_format_sends_plain_body_and_headers(monkeypatch):
+    monkeypatch.setenv("RMT_NOTIFY_FORMAT", "ntfy")
+    calls = _capture(monkeypatch)
+    notif.notify_ops(kind="loop_quarantine", detail="3 held", key="uptime-kuma")
+    req = calls[0]
+    assert b"OPS ALERT" in req.data and b"uptime-kuma" in req.data
+    assert req.headers.get("Tags") == "rotating_light"
+    assert req.headers.get("Priority") == "urgent"
+
+
+def test_unknown_format_falls_back_to_generic(monkeypatch):
+    monkeypatch.setenv("RMT_NOTIFY_FORMAT", "carrier-pigeon")
+    calls = _capture(monkeypatch)
+    notif.notify_held(kind="remediation", component="x", approval_id="a")
+    import json as _json
+    assert _json.loads(calls[0].data)["event"] == "held_for_approval"
+
+
 # --- O3: notify_ops ------------------------------------------------------
 
 

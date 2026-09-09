@@ -407,6 +407,98 @@ authority (`no_grant`) all enforced against the live LLM path. No
 
 ---
 
+## Tier 1 homelab-depth batch — T1-2 / T1-3 / T1-4 (2026-09-09)
+
+**Owner:** selected the "T1 homelab-depth batch" from
+`docs/RMT_ABOVE_CORE_ROADMAP.md` §5; escalation driver = external script +
+read-only route. Scope: `docs/RMT_T1_BATCH_PROPOSAL.md` (APPROVED). Above-Core;
+**no `app/core/**` change**; no new mutation path; no C08.
+
+### T1-2 — Operator-declarable dependency graph → T13 activatable without a redeploy
+
+- **New** `ops_config.homelab_dependency_edges()` parses
+  `RMT_HOMELAB_DEPENDENCIES` (`"web:db;api:db,cache"`). **Modified**
+  `app/homelab/dependencies.py` — the accessors (`dependencies_of` /
+  `dependents_of` / `resolved_map`) union the static all-independent map with
+  the env edges; new `dependency_sources()` splits `static` / `env`. **Modified**
+  `app/agent/dependency_guard.py::dependency_view()` — adds `sources` to
+  `GET /agent/status.dependency_map`. The T13 escalation **rule**
+  (`escalate_for_dependency_cascade`) is untouched.
+- Recon confirmed the real homelab has **no** inter-container edges (portainer /
+  dozzle / uptime-kuma each need only the Docker daemon), so this ships unset in
+  production. It removes the "edit code + redeploy" step that previously stood
+  between an operator and declaring a real edge.
+- **Live exercise (dev host :8000 — recorded here):**
+  `RMT_HOMELAB_DEPENDENCIES` unset → `escalate_for_dependency_cascade("portainer",
+  "start")` = `(False, "")`, `GET /agent/status.dependency_map.sources.env` =
+  `{}`. Set `RMT_HOMELAB_DEPENDENCIES="uptime-kuma:portainer"` → the same call
+  returns `(True, "T13: allowed op 'start' on 'portainer' would propagate to
+  dependent(s) ['uptime-kuma'] …")`, `sources.env` =
+  `{"uptime-kuma": ["portainer"]}`, and a `start portainer` agent proposal is
+  forced to `manual_approval_required` (`decision: escalated_hold`). Unset again
+  → back to `(False, "")`. No container mutated.
+- **Tests:** `app/homelab/testing/test_dependencies.py` (9) + a new
+  operator-env-edge case in `test_dependency_guard.py`.
+
+### T1-3 — Generalized `continue_remediation` Learn/verify attribution
+
+- **Modified** `app/homelab/continuation.py` — the above-Core Docker verify +
+  executed-Learn closure now runs for **any component with a
+  `ComponentContext`** (`get_component_context(...) is not None`), not only
+  `REMEDIATION_POLICY` components. Closes the finding recorded in the
+  CAP-05 (5A+5B) live exercise: a `dozzle`-style agent proposal approved via
+  `POST /homelab/approve` now gets `verified_success` + an executed-Learn record
+  correlated by `approval_id` / `execution_id`, not just the held-state record.
+- A held action whose component has **no** `ComponentContext` (the operator
+  `POST /execute` → hold flow) still passes through to the Core continuation
+  untouched — no Learn record, no Docker verification.
+- **Tests:** `test_continuation.py` — new `dozzle` context-component cases
+  (`verified_success` + `state_mismatch`); the existing no-context negative
+  test still passes unchanged.
+
+### T1-4 — Held-action notification: real-channel shaping + missed-approval escalation
+
+- **New** `RMT_NOTIFY_FORMAT` (`generic` default / `slack` / `ntfy`) in
+  `ops_config` + a `_post()` shaper in `app/ops/notifications.py` — the existing
+  `RMT_NOTIFY_WEBHOOK_URL` can now point straight at a Slack incoming-webhook or
+  an ntfy topic. `generic` output is byte-identical to before. Still fail-open,
+  de-dupe unchanged.
+- **New** `app/ops/held_holds.py::open_holds_view()` (read-only) + **new**
+  route `GET /ops/holds` (operator-authenticated) — classifies every PENDING
+  hold: `age_seconds`, `expires_at`, `expired`, `record_terminal` (the
+  authoritative approval **record** already resolved it), `actionable`, plus S3
+  provenance. Derives from the durable hold + record stores; writes nothing;
+  `[]` on any error.
+- **New** `backend/scripts/rmt-escalate.sh` — cron/timer; reads `/ops/holds` and
+  POSTs a **one-time** alert to `RMT_ESCALATE_WEBHOOK_URL` for a hold that is
+  either still `actionable` past `RMT_ESCALATE_AFTER_SECONDS` (default 180; the
+  script warns if it is not `< 300`, the frozen-Core hold TTL) **or** `expired`
+  while never approved. Each `approval_id` escalates once (state file). Matches
+  the D4 / O3 external-check pattern — **no in-process background task**.
+- **Frozen-Core constraint noted, not worked around:** `APPROVAL_HOLD_TTL_SECONDS
+  = 300`. A hold nobody approves simply expires; the "expired-unapproved" branch
+  of the escalation is the design's answer to that.
+- **Tests:** `app/ops/testing/test_held_holds.py` (12: classification + route
+  auth/shape + fail-open) + `test_notifications.py` new format cases (slack /
+  ntfy / generic-unchanged / unknown→generic).
+
+**Core integrity.** Diff confined to `app/homelab/**`, `app/agent/dependency_guard.py`
+(`dependency_view` only), `app/ops/**`, one read-only route in `app/main.py`, one
+script, and docs. No `app/core/**` change. No new authorization or execution
+path. Learning append-only / read-only. Every new knob defaults to inert.
+
+**Validation.** Full backend suite **389 passed** (365 baseline + 24 new:
+`test_dependencies.py` ×9, `test_dependency_guard.py` +1,
+`test_continuation.py` +2, `test_held_holds.py` ×8, `test_notifications.py` +4).
+Core intelligence suite **122** unchanged. `import app.main` clean; all agent /
+loop flags OFF by default.
+
+**Not deployed.** New env vars have safe defaults; `GET /ops/holds` is additive;
+`rmt-escalate.sh` is cron-only. A redeploy picks them up. The T1-2 live edge
+exercise needs a `deps.conf` drop-in + restart (owner-run) to repeat on live.
+
+---
+
 ## Index
 
 | Capability | Status | Validation | Core integrity |
@@ -417,6 +509,9 @@ authority (`no_grant`) all enforced against the live LLM path. No
 | RMT-CAP-04 — Continuous Homelab Operational Loop | COMPLETED & VERIFIED; live-demonstrated + enabled on live 2026-09-07 | 17 focused + 38 Homelab + 122 Core + 177 full; live run PASS | C01–C07 untouched; no `app/core/**` modified; T13 disposition recorded; duplicate-hold guard hardened against frozen-Core hold-persistence gap |
 | RMT-CAP-05 (5A) — Governed Agent Surface | COMPLETED & VERIFIED (5A); **enabled on live 2026-09-07** + exercised | 20 focused + 122 Core + 38 Homelab + 197 full; live exercise PASS | C01–C07 untouched; diff confined to `app/agent/**` + `app/homelab/dependencies.py` + `app/main.py`; no new mutation path; **T13 CLOSED** (guard live, homelab recorded independent); every proposal human-approval-gated |
 | RMT-CAP-05 (5B) — LLM-Backed Agent Adapter | COMPLETED & VERIFIED 2026-09-07; **enabled on live 2026-09-07** + controlled LLM exercise PASS | 17 focused + 37 agent + 122 Core + 38 Homelab + 214 full; live LLM exercise PASS | C01–C07 untouched; diff confined to `app/agent/**`; LLM proposes only → 5A path unchanged; no new mutation path; no autonomous loop; live exercise recorded a scoped-by-design gap in `continue_remediation` (above-Core Learn/verify closure only for `REMEDIATION_POLICY` components) |
+| Tier 1 batch — T1-2 operator-declarable dependency edges | COMPLETED & VERIFIED 2026-09-09 | `test_dependencies.py` ×9 + `test_dependency_guard.py` +1 + 389 full; dev-host edge exercise PASS | no `app/core/**` change; escalation rule untouched; static map still all-independent; ships unset |
+| Tier 1 batch — T1-3 generalized `continue_remediation` attribution | COMPLETED & VERIFIED 2026-09-09 | `test_continuation.py` +2 + 122 Core + 389 full | no `app/core/**` change; keyed on `ComponentContext`; no-context holds pass straight through; closes the recorded 5B `dozzle` finding |
+| Tier 1 batch — T1-4 held-action channel shaping + escalation | COMPLETED & VERIFIED 2026-09-09 | `test_held_holds.py` ×8 + `test_notifications.py` +4 + 389 full | no `app/core/**` change; `generic` output byte-identical; escalation is out-of-process (`GET /ops/holds` + `rmt-escalate.sh`), no in-process timer; 300 s Core hold TTL a recorded constraint |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.

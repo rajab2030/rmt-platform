@@ -103,10 +103,20 @@ today** — but it is live: adding any edge to either source (e.g.
 `"web": ["db"]`) makes `start db` escalate to human approval automatically. The
 resolved map is inspectable at `GET /agent/status` → `dependency_map`.
 
+**T1-2 (2026-09-09):** a third source is unioned in — the operator-declared env
+var `RMT_HOMELAB_DEPENDENCIES` (`"web:db;api:db,cache"`, parsed by
+`ops_config.homelab_dependency_edges`). A real edge can now be declared via a
+systemd drop-in with **no code change or redeploy**. `GET /agent/status` →
+`dependency_map.sources` splits `static` / `env` / `core_context`. The static
+map is unchanged (all-independent). Live exercise recorded in
+`docs/RMT_CAPABILITIES_EVIDENCE.md` §T1-2.
+
 Tests: `app/agent/testing/test_dependency_guard.py` (real map → no escalation;
-seeded homelab edge → escalation; seeded Core edge → escalation via the union;
-restricted op → not escalated; global disable; end-to-end through
-`propose_and_govern`). The §3b envelope guard test remains as defence in depth.
+seeded homelab edge → escalation; **operator env edge → escalation, unset →
+de-escalation**; seeded Core edge → escalation via the union; restricted op →
+not escalated; global disable; end-to-end through `propose_and_govern`) plus
+`app/homelab/testing/test_dependencies.py` (env parsing + union). The §3b
+envelope guard test remains as defence in depth.
 
 ## 4. What this unblocks
 

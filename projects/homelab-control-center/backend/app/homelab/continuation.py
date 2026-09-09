@@ -13,10 +13,17 @@ executed outcome, so:
   * the above-Core Docker verification (observer-fed) never runs.
 
 ``continue_remediation()`` wraps the frozen Core ``approve_held_action()``
-(calling it unchanged), then, for a Homelab remediation that executed, runs
-the existing above-Core Docker verification and records the executed outcome
-through the existing Core learning/memory capability -- correlated to the run
-via ``approval_id`` and ``execution_id``.
+(calling it unchanged), then, for a held action whose component carries a
+``ComponentContext``, runs the existing above-Core Docker verification and
+records the executed outcome through the existing Core learning/memory
+capability -- correlated to the run via ``approval_id`` and ``execution_id``.
+
+T1-3: the attribution set is any component with a ``ComponentContext``
+(``app/core/intelligence/context/registry.py``), not only the CAP-04
+``REMEDIATION_POLICY`` component (``uptime-kuma``). This closes the recorded
+5B-exercise finding: an agent-proposed remediation for e.g. ``dozzle``
+approved via ``POST /homelab/approve`` now gets the executed-Learn closure and
+the above-Core Docker verification, not just the held-state record.
 
 Guarantees:
   * The frozen Core ``approve_held_action()`` is called, never modified.
@@ -24,14 +31,15 @@ Guarantees:
     and records evidence AFTER the Core has executed.
   * Learning stays append-only / read-only: it records; it does not
     authorize or execute.
-  * A non-Homelab held action (e.g. the operator ``POST /execute`` flow) is
-    continued by the Core exactly as before, with no extra Learn record and
-    no Docker verification.
+  * A held action whose component has no ``ComponentContext`` (e.g. the
+    operator ``POST /execute`` flow) is continued by the Core exactly as
+    before, with no extra Learn record and no Docker verification.
 """
 import app.core.intelligence.actions.approval_service as _approval_service
 from app.core.intelligence.actions.approval_service import approve_held_action
+from app.core.intelligence.context.registry import get_component_context
 
-from app.homelab.remediation import REMEDIATION_POLICY, record_learning
+from app.homelab.remediation import record_learning
 from app.homelab.verification import verify_docker_execution
 
 
@@ -65,8 +73,12 @@ def continue_remediation(approval_id, approved_by, approved=True):
 
     action = hold.action
 
-    # Only Homelab remediations carry an above-Core Learn/verify obligation.
-    if action.component not in REMEDIATION_POLICY:
+    # Any component with a ComponentContext carries an above-Core Learn/verify
+    # obligation (T1-3, widened from the CAP-04 REMEDIATION_POLICY set). A held
+    # action whose component has no ComponentContext -- the operator
+    # POST /execute -> hold flow -- passes through to the Core continuation
+    # untouched: no extra Learn record, no Docker verification.
+    if get_component_context(action.component) is None:
         return result
 
     # Learn stage applies to a real executed continuation only. A rejected or

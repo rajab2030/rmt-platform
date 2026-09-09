@@ -360,6 +360,27 @@ the agent surface sits at `0` grants. Do not begin implementation of a new
 capability until the owner selects and authorizes it. Do not reopen C01–C07; do
 not invent a new Core milestone (no C08).
 
+**Tier 1 homelab-depth batch (T1-2 / T1-3 / T1-4) — DONE 2026-09-09**
+(`docs/RMT_T1_BATCH_PROPOSAL.md`, APPROVED; above-Core, no `app/core/**` change,
+full suite **388 passed**, Core intelligence **122** unchanged):
+- **T1-2** `RMT_HOMELAB_DEPENDENCIES` — operator-declared dependency edges
+  unioned into the static all-independent map (`app/homelab/dependencies.py`),
+  so T13 escalation is activatable with a systemd drop-in, no redeploy;
+  `GET /agent/status.dependency_map.sources` splits `static`/`env`/`core`. The
+  real homelab still has no edges (ships unset). Live-exercised (declare →
+  `start` on the depended-upon component escalates → unset → de-escalates).
+- **T1-3** `app/homelab/continuation.py` — the above-Core Docker verify +
+  executed-Learn closure now keys on `get_component_context(component) is not
+  None` instead of `REMEDIATION_POLICY` membership; closes the recorded
+  5B-exercise `dozzle` finding. No-context holds still pass straight through.
+- **T1-4** `RMT_NOTIFY_FORMAT` (`generic`/`slack`/`ntfy`) shapes the existing
+  webhook; new read-only `GET /ops/holds` (`app/ops/held_holds.py`) +
+  `backend/scripts/rmt-escalate.sh` escalate a hold left `actionable` past a
+  threshold or `expired` unapproved — out-of-process, no in-process timer (the
+  300 s Core hold TTL is a recorded constraint the design works within).
+Not deployed (safe defaults; additive route; cron-only script). **T1-1**
+(broaden `REMEDIATION_POLICY`) is the remaining Tier 1 item.
+
 ## 13. Environment limitations vs genuine implementation gaps
 
 - **Shell-dependent tooling.** Git and Docker availability depend on which shell

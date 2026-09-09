@@ -130,14 +130,44 @@ def _setup_isolation(monkeypatch):
     }
 
 
-def _mock_docker_observer(monkeypatch, post_status="running"):
+def _mock_docker_observer(monkeypatch, post_status="running", name="uptime-kuma"):
     """Make the above-Core Docker observer report a deterministic post-state."""
     monkeypatch.setattr(observer_module, "docker_available", lambda: True)
     monkeypatch.setattr(
         observer_module,
         "get_containers",
-        lambda: [{"name": "uptime-kuma", "status": post_status}],
+        lambda: [{"name": name, "status": post_status}],
     )
+
+
+def _place_held_action(stores, *, component, action_type=ActionType.RESTART):
+    """Put a PENDING manual-approval hold for ``component`` directly into the
+    isolated hold store and return it (bypasses build_remediation_action, which
+    only produces actions for REMEDIATION_POLICY components)."""
+    action = ActionRequest(
+        decision_id=f"agent-{component}-{action_type.value}",
+        component=component,
+        action_type=action_type,
+        reason="agent proposed remediation",
+        confidence=80,
+        requires_approval=True,
+        expected_outcome=ExpectedOutcome(
+            target=component,
+            operation=action_type.value,
+            expected_state="running",
+        ),
+    )
+    hold = ApprovalHold(
+        action_id=action.action_id,
+        action=action,
+        adapter_name="simulation",
+        reason="agent hold",
+        status=ApprovalStatus.PENDING,
+        expires_at=datetime.now(timezone.utc) + timedelta(seconds=300),
+        risk_level="medium",
+    )
+    stores["hold"].save(hold)
+    return hold
 
 
 def _critical_uptime_kuma():
@@ -230,6 +260,56 @@ def test_continuation_learn_record_preserves_state_mismatch(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# T1-3: a context-bearing component outside REMEDIATION_POLICY (e.g. `dozzle`)
+# now gets the executed-Learn closure + above-Core Docker verification too
+# ---------------------------------------------------------------------------
+
+def test_context_component_outside_policy_gets_learn_and_verification(monkeypatch):
+    stores = _setup_isolation(monkeypatch)
+    _mock_docker_observer(monkeypatch, post_status="running", name="dozzle")
+
+    # `dozzle` has a ComponentContext but is NOT in REMEDIATION_POLICY.
+    hold = _place_held_action(stores, component="dozzle")
+
+    result = continue_remediation(hold.approval_id, approved_by="operator")
+
+    assert result["status"] == "executed"
+    assert result["execution_id"]
+    assert result["docker_verification_status"] == VerificationStatus.VERIFIED_SUCCESS
+    assert "docker_verification_reason" in result
+
+    executed = [r for r in stores["memory"] if r.data.get("status") == "executed"]
+    assert len(executed) == 1
+    rec = executed[0]
+    assert rec.event_type == "remediation"
+    assert rec.component == "dozzle"
+    assert rec.data["execution_id"] == result["execution_id"]
+    assert rec.data["approval_id"] == hold.approval_id
+    assert rec.data["docker_verification_status"] == VerificationStatus.VERIFIED_SUCCESS
+
+    verifs = stores["verification"].get_all()
+    assert any(v.execution_id == result["execution_id"] for v in verifs)
+
+
+def test_context_component_outside_policy_records_state_mismatch(monkeypatch):
+    """allowed != verified holds for the widened set too."""
+    stores = _setup_isolation(monkeypatch)
+    _mock_docker_observer(monkeypatch, post_status="exited", name="dozzle")
+
+    hold = _place_held_action(stores, component="dozzle")
+    result = continue_remediation(hold.approval_id, approved_by="operator")
+
+    assert result["status"] == "executed"
+    assert result["docker_verification_status"] == VerificationStatus.STATE_MISMATCH
+    executed = [r for r in stores["memory"] if r.data.get("status") == "executed"]
+    assert len(executed) == 1
+    assert (
+        executed[0].data["docker_verification_status"]
+        == VerificationStatus.STATE_MISMATCH
+    )
+
+
+# ---------------------------------------------------------------------------
 # Non-Homelab held action: continued by the Core, no extra Learn / verify
 # ---------------------------------------------------------------------------
 
@@ -237,9 +317,8 @@ def test_non_homelab_held_action_gets_no_learn_or_docker_verification(monkeypatc
     stores = _setup_isolation(monkeypatch)
     _mock_docker_observer(monkeypatch, post_status="running")
 
-    # A held action whose component is NOT in the Homelab remediation policy
-    # (e.g. the operator POST /execute flow), placed directly into the
-    # isolated hold store.
+    # A held action whose component has no ComponentContext (e.g. the operator
+    # POST /execute flow), placed directly into the isolated hold store.
     action = ActionRequest(
         decision_id="operator-request-restart",
         component="some-other-service",

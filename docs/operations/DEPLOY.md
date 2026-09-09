@@ -293,3 +293,15 @@ Optional: raise verbosity with a drop-in
     change (`RMT_SMOKE_TOKEN=…`; expects `runtime.resolved_adapter == docker`).
 - See `docs/RMT_PRODUCTION_READINESS.md` for the full matrix (now all READY
   except the ACCEPTED `R4`).
+- **Tier 1 batch T1-2/T1-3/T1-4 — DONE (2026-09-09).** Above-Core; a redeploy
+  picks them up, all inert by default.
+  - **T1-2** `RMT_HOMELAB_DEPENDENCIES` — set in a `deps.conf` drop-in only if a
+    real inter-component edge exists (none today); activates T13 escalation
+    without a code change (`CONFIG.md`).
+  - **T1-3** `continue_remediation` above-Core Learn/verify now covers any
+    component with a `ComponentContext` (not just `uptime-kuma`). No config.
+  - **T1-4** `RMT_NOTIFY_FORMAT` (`generic`/`slack`/`ntfy`) shapes the existing
+    notify webhook. New read-only `GET /ops/holds` +
+    `backend/scripts/rmt-escalate.sh` — cron every 1–2 min alongside
+    `rmt-watchdog.sh` (`RMT_ESCALATE_TOKEN=…`, `RMT_ESCALATE_WEBHOOK_URL=…`);
+    one-time alert for a hold left unactioned or expired-unapproved.

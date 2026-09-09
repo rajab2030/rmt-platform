@@ -2011,3 +2011,114 @@ Live service still runs the pre-P2 code. Deploying picks up: `/metrics` +
 (`RMT_CORS_ORIGINS`, `RMT_RATELIMIT_*`) all have safe defaults; new scripts
 (`rmt-watchdog.sh`, `rmt-smoke.sh`) are cron/manual. `CONFIG.md` + `DEPLOY.md`
 §6 updated.
+
+---
+
+## Session note — Tier 1 homelab-depth batch (T1-2, T1-3, T1-4)
+
+**Date:** 2026-09-09. Owner selected the "T1 homelab-depth batch" from
+`docs/RMT_ABOVE_CORE_ROADMAP.md` §5 (escalation driver = external script +
+read-only route; short proposal doc then proceed). Above-Core / operational +
+domain. **No `app/core/**` change.** No new mutation path. C01–C07 remain
+closed/frozen; no C08. Proposal: `docs/RMT_T1_BATCH_PROPOSAL.md` (APPROVED).
+
+### Recon findings
+- The homelab has **no** inter-container dependency edges (portainer / dozzle /
+  uptime-kuma each need only dockerd). `HOMELAB_DEPENDENCIES` + Core
+  `COMPONENT_CONTEXTS` correctly all-`[]`. T1-2 therefore delivers the
+  *operational* path to declare an edge, not data.
+- `continuation.py:69` gated the above-Core Learn/verify closure on
+  `REMEDIATION_POLICY` membership (`uptime-kuma` only) — the recorded 5B-exercise
+  `dozzle` finding. All three homelab components have a `ComponentContext`.
+- `notifications.py` = one generic fail-open webhook, no channel shaping, no
+  escalation. **Frozen-Core constraint:** `APPROVAL_HOLD_TTL_SECONDS = 300` — a
+  hold nobody approves just expires; a "still unapproved after N min" timer only
+  makes sense for N < 5 min, so the escalation's real value is the
+  *expired-unapproved* signal.
+
+### T1-3 — generalized `continue_remediation` attribution (done first)
+- **Modified** `app/homelab/continuation.py` — the `REMEDIATION_POLICY`
+  early-return is now `get_component_context(action.component) is None`. Dropped
+  the `REMEDIATION_POLICY` import; added `get_component_context`. All existing
+  guards unchanged (executed + `execution_id` + `expected_outcome`; records
+  evidence only, post-execution). A no-context hold (operator `POST /execute`
+  flow) still passes straight through.
+- **Modified** `app/homelab/testing/test_continuation.py` — `_mock_docker_observer`
+  gained a `name=` param; new `_place_held_action` helper; 2 new tests (a
+  `dozzle` context-component held → approved → `verified_success` +
+  executed-Learn record; + a `state_mismatch` variant). The existing
+  no-context negative test still passes (comment reworded).
+
+### T1-2 — operator-declarable dependency edges
+- **New** `ops_config.homelab_dependency_edges()` — parses
+  `RMT_HOMELAB_DEPENDENCIES` (`"web:db,cache;api:db"`; `;` groups, `,` deps;
+  malformed skipped; dedup). Docstring bullet added.
+- **Modified** `app/homelab/dependencies.py` — `_merged_map()` unions the static
+  all-independent map with the env edges; `dependencies_of` / `dependents_of` /
+  `resolved_map` use it; new `dependency_sources()` → `{"static":…, "env":…}`.
+  The static dict + its docstring are unchanged. `from app.ops import ops_config`
+  (no cycle — `ops_config` imports only `os`).
+- **Modified** `app/agent/dependency_guard.py` — `dependency_view()` gains
+  `sources` (`static` / `env` / `core_context`) for
+  `GET /agent/status.dependency_map`. The escalation **rule** is untouched.
+- **New** `app/homelab/testing/test_dependencies.py` (9) + a new operator-env-edge
+  case in `test_dependency_guard.py` (declare → escalates, unset → de-escalates).
+- **Live exercise (dev-host modules, recorded in `RMT_CAPABILITIES_EVIDENCE.md`
+  §T1-2):** unset → `escalate("portainer","start") = (False,"")`; set
+  `RMT_HOMELAB_DEPENDENCIES="uptime-kuma:portainer"` → `(True, "T13: allowed op
+  'start' on 'portainer' would propagate to dependent(s) ['uptime-kuma'] …")`,
+  `restart` (already restricted) not double-escalated, `sources.env =
+  {"uptime-kuma": ["portainer"]}`; unset → `(False,"")`.
+
+### T1-4 — real-channel shaping + missed-approval escalation
+- **New** `ops_config.notify_format()` → `RMT_NOTIFY_FORMAT`
+  (`generic` default / `slack` / `ntfy`; unknown → `generic`). **Modified**
+  `app/ops/notifications.py` — extracted `_post(url, payload, *, summary, tags,
+  priority)`; `generic` output is byte-identical to before; `slack` →
+  `{"text": summary}`; `ntfy` → plain body + `Title`/`Priority`/`Tags` headers.
+  De-dupe / fail-open unchanged.
+- **New** `app/ops/held_holds.py::open_holds_view()` — read-only classification
+  of every PENDING hold (`age_seconds`, `expires_at`, `expired`,
+  `record_decision`/`record_terminal` from the authoritative record store,
+  `actionable`, S3 provenance `kind`/`granted_by`/`agent_id`). Fail-open → `[]`.
+- **New** route `GET /ops/holds` in `app/main.py` (operator-authenticated,
+  read-only, returns `{"holds": [...]}`).
+- **New** `backend/scripts/rmt-escalate.sh` — cron/timer; reads `/ops/holds`,
+  POSTs a one-time alert to `RMT_ESCALATE_WEBHOOK_URL` for a hold still
+  `actionable` past `RMT_ESCALATE_AFTER_SECONDS` (default 180; warns if not
+  `< 300`) **or** `expired` while never approved. Escalated-id state file
+  (`rmt-watchdog.sh` pattern); no in-process task.
+- **New** `app/ops/testing/test_held_holds.py` (8: classification, terminal
+  record → not actionable, non-pending skipped, S3 provenance, fail-open, route
+  auth-on/off + shape) + 4 new `test_notifications.py` format cases.
+
+### Validation
+- Full backend suite **389 passed** (365 baseline + 24 new). Core intelligence
+  suite **122** unchanged. `import app.main` clean. All agent / loop / notify
+  flags OFF / `generic` by default.
+- `bash -n rmt-escalate.sh` clean. (No `ruff` in the dev `.venv`; `ci.sh`'s
+  lock-venv covers lint in CI.)
+
+### Core integrity
+Diff confined to `app/homelab/**`, `app/agent/dependency_guard.py`
+(`dependency_view` only), `app/ops/**`, one read-only route in `app/main.py`,
+`backend/scripts/rmt-escalate.sh`, and docs. No `app/core/**` change. No new
+authorization / execution path. Learning append-only / read-only. Approval
+enforcement unchanged; held actions never auto-continued.
+
+### Not deployed
+New env vars have safe defaults; `GET /ops/holds` is additive; `rmt-escalate.sh`
+is cron-only. A redeploy picks them up. Repeating the T1-2 edge exercise on live
+`:8000` needs a `deps.conf` drop-in + restart (owner-run).
+
+### Docs updated
+`docs/RMT_T1_BATCH_PROPOSAL.md` (new), `docs/RMT_CAPABILITIES_EVIDENCE.md`
+(§T1 batch + index rows), `docs/RMT_T13_DISPOSITION.md` §3c,
+`docs/operations/CONFIG.md`, `docs/RMT_ABOVE_CORE_ROADMAP.md` (T1-2/3/4 ticked;
+§9 sequence), `RMT_CONTEXT.md` §12.
+
+### Next
+**T1-1** (broaden `REMEDIATION_POLICY` coverage — more components + action
+verbs) is the remaining Tier 1 item. Then a Tier 2 domain (D-1 Agent Governance
+Gateway is the roadmap's recommended first). Nothing authorized until the owner
+selects it.

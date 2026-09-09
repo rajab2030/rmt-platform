@@ -26,6 +26,7 @@ from app.core.intelligence.context.registry import (
 from app.homelab.dependencies import (
     dependents_of as _homelab_dependents_of,
     resolved_map as _homelab_map,
+    dependency_sources as _homelab_sources,
 )
 from app.agent import loop_config
 
@@ -56,6 +57,9 @@ def dependency_view() -> dict:
         "escalation_enabled": loop_config.AGENT_DEPENDENCY_ESCALATION,
         "homelab_map": _homelab_map(),
         "core_context": core,
+        # T1-2: where each homelab edge came from (static map vs operator-declared
+        # RMT_HOMELAB_DEPENDENCIES), plus the frozen-Core context for reference.
+        "sources": {**_homelab_sources(), "core_context": core},
     }
 
 
