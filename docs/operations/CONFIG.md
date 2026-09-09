@@ -130,6 +130,20 @@ The real homelab has **no** inter-container edges (portainer / dozzle /
 uptime-kuma each need only dockerd), so this is unset in production. It exists so
 a genuine edge can be declared without a code change + redeploy.
 
+## Evidence substrate — `app/core/intelligence/durable_store.py` (T0-1)
+
+| Variable | Default | Effect | Set by |
+|---|---|---|---|
+| `RMT_EVIDENCE_DB` | `data/governance_evidence.db` | **T0-1.** Path to the shared SQLite database holding the six governance-evidence stores (approval holds/records, authorizations, traces, audit, verifications). Was six JSON files under `app/core/intelligence/**`. `save()` is now one `INSERT`; the file no longer grows by rewrite; crash-atomic via WAL. Tests point this at a throwaway file. | rarely set — a drop-in only if `data/` moves off the working dir |
+| `RMT_EVIDENCE_RETENTION_DAYS` | `90` | **E4.** On startup, evidence rows whose `created_at` is older than this are moved from the live DB into an append-only `<table>.archive.jsonl` beside it (`data/`). `<= 0` disables. Archived rows are never deleted — E5 backup captures them. | `auth.conf` or a drop-in |
+
+**Migration:** on a host with pre-T0-1 JSON stores, run
+`python3 backend/scripts/rmt-migrate-evidence.py` **once**, after
+`backend/scripts/rmt-evidence-backup.sh`. It inserts every JSON record into the
+DB (order preserved) and renames each file to `<name>.json.migrated`.
+`--reverse` dumps the tables back to JSON in the exact prior format. See
+`docs/operations/RMT_EVIDENCE_RECOVERY.md`.
+
 ## Runtime engine — `config/config.yaml` (not env)
 
 `runtime.engine: docker` — the execution adapter. Resolves to `simulation` when

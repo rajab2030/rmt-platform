@@ -86,7 +86,17 @@ are not new capabilities; they are what must be true before RMT can be *relied
 on* unattended or exposed beyond a single trusted host. **Most Tier 2 domains
 should not go live until Tier 0 is done.**
 
-### T0-1 — Evidence substrate: JSON → SQLite
+### T0-1 — Evidence substrate: JSON → SQLite  — ✅ DONE 2026-09-09
+
+> Landed via owner-authorised **Option A** (`docs/RMT_T0_1_PROPOSAL.md`):
+> `DurableStore` gained a SQLite backend (selected by a `.db` path), interface
+> and record shape unchanged. Six stores now share
+> `data/governance_evidence.db`; `save()` is one `INSERT` (O(1), no rewrite),
+> WAL-atomic. `scripts/rmt-migrate-evidence.py` = one-shot JSON → SQLite +
+> `--reverse`. E4 trim is now a bounded `DELETE`; E6 audit runs on one snapshot.
+> New tests: `test_durable_store_sqlite.py` (8, incl. kill-`-9` mid-write) +
+> `test_migrate_evidence.py` (2). **Follow-up:** `rmt-evidence-restore.sh` /
+> `rmt_evidence_verify.py` still assume the six-JSON layout.
 
 - **Objective:** replace the six file-backed `DurableStore` JSON stores with a
   single SQLite-backed store; O(1) appends, bounded growth, transactional
@@ -455,8 +465,8 @@ not touched.
 
 ## 9. Recommended sequence
 
-1. **T0-1** (SQLite substrate) — unblocks scale, closes E4/E6, de-risks every
-   domain.
+1. ~~**T0-1** (SQLite substrate) — unblocks scale, closes E4/E6, de-risks every
+   domain.~~ **DONE 2026-09-09** (see §5). Follow-up: E5 restore/verify scripts.
 2. **T0-3, T0-4, T0-5** in parallel — observability, CI gate, security finish.
 3. **T0-2** — platform recovery.
 4. ~~**T1-2, T1-3, T1-4** — cheap homelab depth; each is S.~~ **DONE 2026-09-09**
@@ -479,7 +489,7 @@ Everything else is selected on demand.
 
 | Item | Class | Touches Core? | Prereq |
 |---|---|---|---|
-| T0-1 SQLite substrate | above-Core substrate | interface unchanged | — |
+| T0-1 SQLite substrate | above-Core substrate | interface unchanged | **DONE 2026-09-09** |
 | T0-2 Platform recovery | operational | no | T0-1 |
 | T0-3 Lifecycle observability | above-Core | no | — |
 | T0-4 CI gate | tooling | no | — |

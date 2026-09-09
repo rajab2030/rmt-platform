@@ -1,13 +1,15 @@
-from pathlib import Path
-
 from app.core.intelligence.actions.authorization import ExecutionAuthorization
-from app.core.intelligence.durable_store import DurableStore
+from app.core.intelligence.durable_store import DurableStore, EVIDENCE_DB_PATH
 
 
 class AuthorizationStorage(DurableStore):
     """
-    Stores execution authorization records, durably backed by JSON.
+    Stores execution authorization records, durably backed by the shared SQLite
+    evidence database (T0-1; was JSON).
     """
+
+    _table = "authorizations"
+    _key_field = "authorization_id"
 
     def __init__(self, file_path=None):
         super().__init__(
@@ -26,5 +28,5 @@ class AuthorizationStorage(DurableStore):
 
 
 execution_authorization_storage = AuthorizationStorage(
-    file_path=Path(__file__).parent / "authorizations.json"
+    file_path=EVIDENCE_DB_PATH
 )

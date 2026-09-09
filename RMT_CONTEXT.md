@@ -68,8 +68,9 @@ precedence over conversation memory.
 - **Risk relationship:** governance risk is authoritative for approval;
   execution risk is a final independent assessment, consistent and traceable.
 - **Durable evidence:** authorization, approval/hold, approval-record, audit,
-  trace, and verification are durable via JSON `DurableStore`, correlated by
-  stable identifiers.
+  trace, and verification are durable via `DurableStore` (SQLite-backed since
+  T0-1, 2026-09-09 — `data/governance_evidence.db`, one table each; interface
+  unchanged; was six JSON files), correlated by stable identifiers.
 - **Verification authority:** post-execution verification uses a trusted
   internal observer resolved from the execution request; it is never
   caller-controlled (B3/B4). Adapter success alone cannot manufacture
