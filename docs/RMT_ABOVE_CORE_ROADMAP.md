@@ -18,8 +18,10 @@ State". Nothing in this document:
   a per-capability proposal (`docs/RMT_CAP_XX_PROPOSAL.md`) is written and
   approved**, exactly as CAP-04 / CAP-05 were.
 
-The one exception — a single item that *would* touch the frozen Core and
-therefore needs an explicit freeze-deviation authorization — is isolated in §8.
+§8 holds the one item that was ever *Core-adjacent* — E3, "distinguishable
+failed-execution evidence." It was **closed on 2026-09-08 via the above-Core
+path, with no freeze deviation** (commit `111b108`). No open item in this
+document touches the frozen Core.
 
 Governing references: `docs/RMT_MASTER_DEFINITION.md`,
 `docs/RMT_CORE_TARGET_STATE.md` §6 (out-of-scope), `docs/RMT_CORE_GAP_MATRIX.md`
@@ -176,7 +178,14 @@ over one Docker component (`uptime-kuma`), RESTART-only, approval-gated.
   → learned on the live homelab; envelope guard test still passes.
 - **Depends on:** T1-3 if any non-independent components are added. **Size:** M.
 
-### T1-2 — Real dependency graph → activate T13 for real
+### T1-2 — Real dependency graph → activate T13 for real  — ✅ DONE 2026-09-09
+
+> Recon: the homelab has **no** real inter-container edges. Delivered instead:
+> `RMT_HOMELAB_DEPENDENCIES` (operator-declared edges, unioned into the static
+> all-independent map, no code change/redeploy), `dependency_map.sources` on
+> `GET /agent/status`, and a live exercise (declare → escalates → unset →
+> de-escalates). See `docs/RMT_T1_BATCH_PROPOSAL.md` +
+> `RMT_CAPABILITIES_EVIDENCE.md` §T1-2 + `RMT_T13_DISPOSITION.md` §3c.
 
 - **Objective:** populate `HOMELAB_DEPENDENCIES` edges so the dependency-cascade
   escalation (`app/agent/dependency_guard.py`) escalates real actions.
@@ -189,7 +198,12 @@ over one Docker component (`uptime-kuma`), RESTART-only, approval-gated.
   de-escalates; recorded as a live exercise in `RMT_CAPABILITIES_EVIDENCE.md`.
 - **Depends on:** nothing. **Rough size:** S.
 
-### T1-3 — Generalize `continue_remediation` Learn/verify attribution
+### T1-3 — Generalize `continue_remediation` Learn/verify attribution  — ✅ DONE 2026-09-09
+
+> `app/homelab/continuation.py` now keys the above-Core closure on
+> `get_component_context(component) is not None` instead of `REMEDIATION_POLICY`
+> membership. No-context holds still pass straight through. See
+> `RMT_CAPABILITIES_EVIDENCE.md` §T1-3.
 
 - **Objective:** run the above-Core Docker verify + executed-Learn closure for
   **any** component that has a `ComponentContext`, not only `REMEDIATION_POLICY`
@@ -203,7 +217,13 @@ over one Docker component (`uptime-kuma`), RESTART-only, approval-gated.
   record; suite green.
 - **Depends on:** nothing. **Rough size:** S.
 
-### T1-4 — Held-action notification & escalation sink
+### T1-4 — Held-action notification & escalation sink  — ✅ DONE 2026-09-09
+
+> `RMT_NOTIFY_FORMAT` (`generic`/`slack`/`ntfy`) shapes the existing webhook for
+> a real channel. Escalation is out-of-process: read-only `GET /ops/holds`
+> (`app/ops/held_holds.py`) + `backend/scripts/rmt-escalate.sh` (one-time alert
+> for a hold left `actionable` past a threshold, or `expired` unapproved). No
+> in-process timer. See `RMT_CAPABILITIES_EVIDENCE.md` §T1-4.
 
 - **Objective:** turn `notify_held` (O2, log-only today) into a real
   notification path with escalation.
@@ -382,29 +402,54 @@ Cross-cutting enablers that make every Tier 1/2 item cheaper and more usable.
 
 ---
 
-## 8. Core-change candidate (needs a freeze-deviation authorization)
+## 8. Core-adjacent candidate — RESOLVED (no freeze deviation)
 
-Everything above is above-Core. **This one is not**, and is listed separately so
-it is never bundled into an above-Core proposal by default.
+Everything above is above-Core. This one item was *Core-adjacent* and is kept
+here as a record. It was resolved via the above-Core path; the frozen Core was
+not touched.
 
-### C-1 — Distinguishable failed-execution verification evidence (E3)
+### C-1 — Distinguishable failed-execution verification evidence (E3) — CLOSED 2026-09-08
 
-- **Problem:** a *failed* adapter execution currently produces **no**
-  verification record — not even `verification_failure` / `state_mismatch` —
-  though `AGENTS.md` §11 lists "adapter invoked and failed" as an outcome that
-  should be distinguishable. Recorded frozen-Core note.
-- **Two paths:**
-  1. **Above-Core wrapper** — an `app/ops/` layer that observes the execution
-     result and emits a distinguishable above-Core evidence record on failure.
-     No freeze deviation. Preferred first attempt.
-  2. **Bounded Core fix** — emit the record inside the Core verification path.
-     Requires an explicit, separately-authorized freeze deviation with evidence
-     that path 1 is insufficient — the same bar E1 met.
-- **DoD:** a forced adapter failure yields a durable, queryable record that a
-  consumer can tell apart from "verified success" and "observation
-  unavailable"; 122 frozen-Core tests unchanged (path 1) or a recorded
-  deviation + updated Core suite (path 2).
-- **Depends on:** owner decision on path. **Rough size:** S (path 1) / M (path 2).
+- **Status:** **CLOSED via path 1** (above-Core wrapper). Commit `111b108`
+  "RMT-PROD P1 (E3)". No `app/core/**` change; frozen-Core suite unchanged.
+  Recorded in `docs/RMT_PRODUCTION_READINESS.md` §5 (W2) and
+  `docs/RMT_CAPABILITIES_EVIDENCE.md`.
+- **Problem (was):** a *failed* adapter execution produced **no** verification
+  record — not `verification_failure`, not `state_mismatch` — though
+  `AGENTS.md` §11 lists "adapter invoked and failed" as an outcome that must be
+  distinguishable in evidence.
+- **What shipped (path 1):**
+  - `app/ops/execution_evidence.py::record_failed_execution_evidence` writes one
+    `VerificationResult` with the distinct status `adapter_execution_failed`
+    into the existing verification store when a governed outcome reached the
+    execution engine, returned `success=False`, and has no verification record
+    yet for that `execution_id`. Idempotent, fail-open.
+  - Wired at every above-Core mutation entrypoint: the four HTTP handlers in
+    `app/main.py` (`/execute`, `/approve`, `/homelab/remediate`,
+    `/homelab/approve`) and the agent adapter (`app/agent/adapter.py`).
+  - The Homelab path additionally records a real observed-state outcome:
+    `app/homelab/remediation.py::remediate_and_verify` calls
+    `verify_docker_execution` on any executed outcome with an `execution_id`
+    and an `expected_outcome` — it does **not** gate on `success` — so a failed
+    homelab remediation (HTTP or the CAP-04 loop) yields a durable
+    `state_mismatch` / `observation_unavailable` record.
+  - Tests: `app/ops/testing/test_execution_evidence.py`, plus coverage in
+    `test_e2e_docker.py`, `test_agent_governance.py`, `test_auth.py`.
+- **Path 2 (bounded Core fix) — NOT taken.** Emitting the record inside the
+  Core verification path remains available only if a future consumer
+  demonstrates path 1 is insufficient; it would still require an explicit,
+  separately-authorized freeze deviation. No such evidence exists.
+- **Known residual — accept-and-record.** The wrapper is called from above-Core
+  callers, not from the Core self-management / evolution service entrypoints
+  (`app/core/self_management/service.py::execute_self_management_decision`,
+  `app/core/evolution/service.py::execute_governed_change`). A failed adapter on
+  those two paths still leaves no `adapter_execution_failed` record. This is
+  **accepted** for now because (a) neither has a production route — both are
+  test-only today — and (b) calling the wrapper from inside `app/core/**` is
+  itself a freeze deviation. **When** an above-Core route for self-management or
+  evolution is added, that route wraps its outcome with
+  `record_failed_execution_evidence`, exactly as the HTTP handlers do; the
+  per-capability proposal for that route carries the DoD line.
 
 ---
 
@@ -414,15 +459,17 @@ it is never bundled into an above-Core proposal by default.
    domain.
 2. **T0-3, T0-4, T0-5** in parallel — observability, CI gate, security finish.
 3. **T0-2** — platform recovery.
-4. **T1-2, T1-3, T1-4** — cheap homelab depth; each is S.
+4. ~~**T1-2, T1-3, T1-4** — cheap homelab depth; each is S.~~ **DONE 2026-09-09**
+   (`docs/RMT_T1_BATCH_PROPOSAL.md`). T1-1 (broaden `REMEDIATION_POLICY`) remains.
 5. Pick **one Tier 2 domain** and prove it end-to-end with zero Core edits.
    `D-1` (Agent Governance Gateway) is the natural first — it extends a live
    capability rather than starting cold, and it is the domain with the clearest
    external demand.
 6. **P-B** (evidence console) once one domain is real and there is something
    worth looking at.
-7. **C-1 path 1** whenever a domain needs failed-execution evidence; escalate to
-   path 2 only with evidence.
+7. ~~**C-1 path 1** whenever a domain needs failed-execution evidence; escalate
+   to path 2 only with evidence.~~ **DONE 2026-09-08** (commit `111b108`; see
+   §8). Path 2 remains unopened — only with evidence that path 1 is insufficient.
 
 Everything else is selected on demand.
 
@@ -451,7 +498,7 @@ Everything else is selected on demand.
 | P-C Evidence export / attestation | above-Core / product | no | T0-1 |
 | P-D Multi-operator RBAC / IAM | above-Core | no | T0-5 |
 | P-E Notification & escalation service | above-Core | no | — |
-| **C-1 Failed-execution evidence (E3)** | **Core-adjacent** | **path 1 no / path 2 yes** | owner decision |
+| **C-1 Failed-execution evidence (E3)** | Core-adjacent | **CLOSED path 1 — no Core change** | ~~owner decision~~ done 2026-09-08 |
 
 ---
 
