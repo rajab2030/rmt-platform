@@ -2324,10 +2324,12 @@ this closes the DoD gaps. Tooling / CI only — no `app/**` change.
 - **`backend/scripts/ci.sh`** — new step 3: `python -c "import app.main"` (import
   smoke; catches an import-time break the suite could mask). Header rewritten:
   4 steps, ~7-minute budget documented.
-- **`.github/workflows/ci.yml`** — `push` on **all** branches (was `main`/`master`
-  only); `concurrency: ci-${{ github.ref }}` + `cancel-in-progress`;
-  `actions/checkout` → `@11d5960…` (v4), `actions/setup-python` → `@a26af69…`
-  (v5), pinned by SHA.
+- **`.github/workflows/ci.yml`** — `concurrency: ci-${{ github.ref }}` +
+  `cancel-in-progress`; `actions/checkout` → `@11d5960…` (v4),
+  `actions/setup-python` → `@a26af69…` (v5), pinned by SHA. Trigger stays
+  `[main, master]`: an `on: push` glob of `['**']` was pushed in `4b5d549` and
+  **GitHub silently stopped triggering the workflow** (no run, no check-suite,
+  `actionlint` clean) — reverted in `df3d36c`, run fired immediately.
 - **`.githooks/pre-push`** (new, tracked, +x) — runs `ci.sh --fast`; exit 0 →
   push; exit 2 (no `.venv`) → warn + allow; other non-zero → **refuse the push**
   (`git push --no-verify` to override). Opt in per clone:
@@ -2348,10 +2350,12 @@ goes Pro or public. Recorded in `CI.md` + roadmap + readiness.
 ### Validation
 - `ci.sh` (throwaway venv) — ruff clean, **import smoke passed**, **404 passed,
   exit 0**.
-- Hook: `bash -n` clean; deliberately broke a test → `git push` refused by the
-  hook → `--no-verify` bypassed → reverted.
-- Push → GitHub `CI` run green; `concurrency` cancel confirmed by a rapid double
-  push.
+- Hook: `bash -n` clean; deliberate F401 → `git push` refused by the hook (exit
+  1) → `--no-verify` bypassed → reverted. Also verified on a green tree: the
+  real T0-4 push ran the hook (`ci.sh --fast`, 404 passed) then pushed.
+- GitHub Actions: run `34347577477` (commit `df3d36c`) **green** — the import
+  smoke step + `concurrency` + SHA-pinned actions all work. (`4b5d549`'s run
+  never fired — see the `['**']` note above.)
 
 ### Next
 Roadmap §9: T0-3 (lifecycle observability) and T0-5 (S4/S3/S5 security finish)

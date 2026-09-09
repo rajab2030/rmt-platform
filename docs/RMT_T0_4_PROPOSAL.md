@@ -4,6 +4,10 @@
 `docs/operations/CI.md`; GitHub workflow stays the authoritative visible check;
 branch protection is a follow-up for if/when the repo goes Pro or public).
 Implementation proceeds per §3.
+**Implementation deviation (2026-09-09):** §3's `on.push.branches: ['**']` was
+tried (`4b5d549`) and reverted (`df3d36c`) — GitHub silently stopped triggering
+the workflow (no run / check-suite; `actionlint` clean). Trigger stays
+`[main, master]`; everything else in §3 shipped.
 **Classification:** tooling / CI only. No `app/core/**`, no `app/**` runtime
 change. No C08.
 

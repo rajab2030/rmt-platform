@@ -145,8 +145,10 @@ should not go live until Tier 0 is done.**
 > **V1 + V2 shipped 2026-09-08**; **finished + hardened in T0-4** (2026-09-09,
 > `docs/RMT_T0_4_PROPOSAL.md`, Option A):
 > - `ci.sh` gained an explicit `import app.main` smoke step (step 3 of 4).
-> - `ci.yml`: `push` on **all** branches; `concurrency` group per ref with
->   `cancel-in-progress`; `actions/checkout` + `setup-python` pinned by SHA.
+> - `ci.yml`: `concurrency` group per ref with `cancel-in-progress`;
+>   `actions/checkout` + `setup-python` pinned by SHA. (An `on: push` glob of
+>   `['**']` was tried and reverted — GitHub silently stopped triggering the
+>   workflow; trigger stays `[main, master]`.)
 > - `.githooks/pre-push` (tracked) runs `ci.sh --fast` and refuses a red push;
 >   opt in with `git config core.hooksPath .githooks`.
 > - `docs/operations/CI.md` — the gate, "green = safe to build on", the
