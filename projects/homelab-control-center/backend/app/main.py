@@ -32,6 +32,12 @@ from app.core.platform_state.service import get_platform_state
 from app.docker_provider import DockerPlatformStateProvider
 
 from app.core.observability.api import router as observability_router
+from app.core.observability.storage import (
+    init_storage as init_observability_storage,
+)
+from app.core.intelligence.memory.storage import (
+    init_storage as init_intelligence_memory_storage,
+)
 from app.core.intelligence.api import router as intelligence_router
 from app.engineering.api import router as engineering_router
 from app.agent.api import router as agent_router
@@ -133,6 +139,15 @@ async def lifespan(app: FastAPI):
         )
 
     register_default_adapters()
+
+    # Ensure the SQLite substrate exists before anything reads or writes it.
+    # Both tables live in data/observability.db and are created by these
+    # (idempotent) init_storage() calls; nothing else invokes them, so a fresh
+    # deploy with an empty data/ would otherwise 500 on the first metrics write
+    # or intelligence-memory read. Mirrors the reconcile / retention steps
+    # below: startup makes the durable substrate ready.
+    init_observability_storage()
+    init_intelligence_memory_storage()
 
     # D6: log a WARNING if the configured runtime engine (config.yaml
     # runtime.engine) cannot actually be provided on this host -- e.g. 'docker'

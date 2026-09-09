@@ -2122,3 +2122,67 @@ is cron-only. A redeploy picks them up. Repeating the T1-2 edge exercise on live
 verbs) is the remaining Tier 1 item. Then a Tier 2 domain (D-1 Agent Governance
 Gateway is the roadmap's recommended first). Nothing authorized until the owner
 selects it.
+
+---
+
+## Session note — repo pushed to GitHub; CI gate red on first push (SQLite substrate never initialised)
+
+**Date:** 2026-09-09. The repo got its first off-machine remote —
+`origin` = `github.com/rajab2030/rmt-platform` (**private**), `master` tracks
+`origin/master`. `gh` is user-space at `~/.local/bin/gh` (no sudo/apt in the
+non-interactive shell); commit identity is now `rajab2030
+<ragb.taleb@gmail.com>` (global + repo-local); pre-2026-09-09 commits keep
+`Local Developer <local@localhost>` by choice. See memory
+`rmt-git-remote-setup`.
+
+The first push triggered `.github/workflows/ci.yml`; the run **failed in 31s**
+(`8 failed, 381 passed`). Above-Core / test-infra + a latent
+production-startup fix. **No `app/core/**` code change.** C01–C07 frozen; no C08.
+
+### Root cause
+`app/core/observability/storage.py::init_storage()` (table `container_metrics`)
+and `app/core/intelligence/memory/storage.py::init_storage()` (table
+`intelligence_memory`) — both in `data/observability.db` — are the only code
+that creates the schema, and **nothing calls them**. `get_connection()` just
+opens the file; `save_container_metric` / `save_memory` do a bare INSERT with no
+`CREATE TABLE IF NOT EXISTS`. `data/` is gitignored, so:
+- the suite is green locally only because a months-old `data/observability.db`
+  with the schema persists in the working tree;
+- clean CI (empty `data/`) → 8 tests that hit the real store without a
+  monkeypatch fail `sqlite3.OperationalError: no such table: ...`;
+- **a fresh production deploy would 500** on the first metrics write /
+  intelligence-memory read for the same reason — the live `:8000` server only
+  works because its `data/observability.db` predates and survives reboots.
+
+### Fix
+- **Modified `app/main.py`** — `lifespan()` now calls `init_storage()` for both
+  stores right after `register_default_adapters()` (before the collector task),
+  mirroring the existing `reconcile_governance_stores()` /
+  `archive_aged_evidence()` "startup readies the durable substrate" steps.
+  Consumes the existing public `init_storage()` functions; no Core code touched.
+  Fixes the real fresh-deploy bug, not just CI.
+- **Rewrote `conftest.py`** — new session-autouse fixture
+  `_isolate_sqlite_stores` redirects both modules' `DB_PATH` to a
+  `tmp_path_factory` file and calls both `init_storage()`. Suite is now
+  hermetic: no dependency on a leftover `data/observability.db`, and it no
+  longer writes one.
+
+### Validation
+- Reproduced locally by moving `data/observability.db` aside → the same 8
+  failures.
+- After the fix: the 8 named tests pass from an empty `data/`; `data/` stays
+  empty after a storage-touching run; ambient dev DB restored.
+- `scripts/ci.sh` (throwaway venv from `requirements.lock.txt`, ruff
+  errors-only, full suite) — **389 passed, exit 0, 6:45** (the exact GitHub
+  Actions reproduction).
+- Post-commit: confirm the Actions run on `master` is green.
+
+### Files
+`projects/homelab-control-center/backend/app/main.py`,
+`projects/homelab-control-center/backend/conftest.py`.
+
+### Next
+CI is now actually live and enforcing. Roadmap §9: **T0-1 (SQLite substrate)**
+is #1 — this failure is direct evidence for it (the DB-bootstrap story is
+fragile: one file, two tables, no migration, gitignored). Then T0-3 / T0-4 /
+T0-5, then T1-1, then a Tier 2 domain (D-1).
