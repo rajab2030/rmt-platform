@@ -38,6 +38,24 @@ def test_escalates_on_homelab_map_edge(monkeypatch):
     assert "T13" in reason and "web" in reason
 
 
+# --- an operator-declared env edge -> escalation (T1-2) ---------------
+
+def test_escalates_on_operator_declared_env_edge(monkeypatch):
+    """RMT_HOMELAB_DEPENDENCIES activates T13 with no code change; unsetting
+    it de-activates it."""
+    monkeypatch.delenv("RMT_HOMELAB_DEPENDENCIES", raising=False)
+    assert escalate_for_dependency_cascade("portainer", "start") == (False, "")
+
+    monkeypatch.setenv("RMT_HOMELAB_DEPENDENCIES", "uptime-kuma:portainer")
+    esc, reason = escalate_for_dependency_cascade("portainer", "start")
+    assert esc is True
+    assert "T13" in reason and "uptime-kuma" in reason
+    assert dependency_view()["sources"]["env"] == {"uptime-kuma": ["portainer"]}
+
+    monkeypatch.delenv("RMT_HOMELAB_DEPENDENCIES", raising=False)
+    assert escalate_for_dependency_cascade("portainer", "start") == (False, "")
+
+
 # --- a frozen-Core edge -> escalation (union path) --------------------
 
 def test_escalates_on_core_context_edge(monkeypatch):

@@ -18,6 +18,11 @@ production-safe setting.
                                 older than this out of the live JSON stores
                                 into ``<name>.archive.jsonl`` (default 90;
                                 ``<= 0`` disables).
+  * ``RMT_HOMELAB_DEPENDENCIES`` -- T1-2: operator-declared inter-component
+                                dependency edges (``"web:db;api:db,cache"``),
+                                unioned into the static all-independent homelab
+                                map; a declared edge activates T13 escalation.
+                                Unset => no edges.
   * ``RMT_LOG_LEVEL``        -- O1: level for the ``rmt`` logger tree
                                 (default ``INFO``).
   * ``RMT_LOG_JSON``         -- O1: ``true`` (default) => one JSON line per
@@ -83,6 +88,42 @@ def separation_enabled() -> bool:
     return _env_bool("RMT_AUTH_SEPARATION", False)
 
 
+# --- T1-2: operator-declarable homelab dependency edges --------------------
+
+
+def homelab_dependency_edges() -> dict[str, list[str]]:
+    """Parse ``RMT_HOMELAB_DEPENDENCIES`` -> ``{component: [dep, ...]}``.
+
+    Format: ``"web:db,cache;api:db"`` -- ``;``-separated groups, each
+    ``component:dep1,dep2``. Whitespace tolerated; a group with no ``:``, an
+    empty component, or no non-empty deps is skipped; duplicate deps collapse.
+    Unset / empty -> ``{}``.
+
+    Read dynamically so declaring a real edge is a drop-in edit + restart, like
+    every other knob. ``app/homelab/dependencies.py`` unions this into the
+    static all-independent map; a declared edge activates the T13
+    dependency-cascade escalation guard (``app/agent/dependency_guard.py``).
+    """
+    raw = os.environ.get("RMT_HOMELAB_DEPENDENCIES", "").strip()
+    if not raw:
+        return {}
+    out: dict[str, list[str]] = {}
+    for group in raw.split(";"):
+        group = group.strip()
+        if not group or ":" not in group:
+            continue
+        comp, _, deps_raw = group.partition(":")
+        comp = comp.strip()
+        deps = [d.strip() for d in deps_raw.split(",") if d.strip()]
+        if not comp or not deps:
+            continue
+        bucket = out.setdefault(comp, [])
+        for d in deps:
+            if d not in bucket:
+                bucket.append(d)
+    return out
+
+
 # --- E4: evidence retention -------------------------------------------------
 
 
@@ -101,6 +142,20 @@ def notify_webhook_url() -> str | None:
 
 def notify_timeout_seconds() -> int:
     return _env_int("RMT_NOTIFY_TIMEOUT_SECONDS", 5)
+
+
+def notify_format() -> str:
+    """T1-4: payload shaping for the notification webhook.
+
+      * ``generic`` (default) -- today's JSON object, unchanged.
+      * ``slack``             -- ``{"text": "<one-line summary>"}`` (Slack /
+                                Mattermost incoming-webhook compatible).
+      * ``ntfy``              -- plain-text body + ``Title`` / ``Priority`` /
+                                ``Tags`` headers (ntfy topic URL).
+
+    Unknown value falls back to ``generic``. Read dynamically."""
+    v = os.environ.get("RMT_NOTIFY_FORMAT", "generic").strip().lower()
+    return v if v in ("generic", "slack", "ntfy") else "generic"
 
 
 def notify_min_interval_seconds() -> int:

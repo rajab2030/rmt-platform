@@ -251,6 +251,18 @@ def metrics():
     return PlainTextResponse(render_prometheus(), media_type=CONTENT_TYPE)
 
 
+@app.get("/ops/holds")
+def ops_holds(operator: OperatorIdentity = Depends(require_operator)):
+    """T1-4: read-only snapshot of every PENDING approval hold, classified
+    (age, expiry, whether the approval record already resolved it, whether it
+    is still actionable, and S3 provenance when present) for the external
+    escalation script ``scripts/rmt-escalate.sh``. Derives from the durable
+    hold + record stores only; writes nothing; never 500s (``[]`` on error)."""
+    from app.ops.held_holds import open_holds_view
+
+    return {"holds": open_holds_view()}
+
+
 @app.get("/containers", response_model=list[Container])
 def containers():
     from app.docker_api import get_containers

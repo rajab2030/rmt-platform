@@ -18,6 +18,12 @@ Guarantees:
   * **Safe before a sink exists** -- with ``RMT_NOTIFY_WEBHOOK_URL`` unset the
     call only writes a log line, so the hooks can land before a webhook is
     configured.
+
+T1-4 adds ``RMT_NOTIFY_FORMAT`` (``generic`` default / ``slack`` / ``ntfy``) so
+the same webhook URL can point straight at a real channel. Escalation of a hold
+that goes unactioned is handled out-of-process by
+``backend/scripts/rmt-escalate.sh`` against the read-only ``GET /ops/holds``
+route (the D4 / O3 external-check pattern -- no in-process timer here).
 """
 import json
 import logging
@@ -34,6 +40,32 @@ _last_sent: dict[str, float] = {}
 
 def _key(kind: str, component: str, approval_id) -> str:
     return f"{kind}:{component}:{approval_id}"
+
+
+def _post(url: str, payload: dict, *, summary: str, tags: str, priority: str) -> None:
+    """POST ``payload`` to ``url`` shaped per ``RMT_NOTIFY_FORMAT`` (T1-4).
+
+    ``generic`` (default) sends today's JSON object byte-for-byte; ``slack``
+    sends ``{"text": summary}``; ``ntfy`` sends ``summary`` as a plain-text body
+    with ``Title`` / ``Priority`` / ``Tags`` headers.
+    """
+    fmt = ops_config.notify_format()
+    if fmt == "slack":
+        data = json.dumps({"text": summary}).encode()
+        headers = {"Content-Type": "application/json"}
+    elif fmt == "ntfy":
+        data = summary.encode()
+        headers = {"Title": payload.get("event", "rmt"), "Priority": priority,
+                   "Tags": tags}
+    else:  # generic -- unchanged
+        data = json.dumps(payload).encode()
+        headers = {"Content-Type": "application/json"}
+
+    req = urllib.request.Request(url, data=data, headers=headers)
+    with urllib.request.urlopen(
+        req, timeout=ops_config.notify_timeout_seconds()
+    ) as r:
+        r.read()
 
 
 def notify_held(
@@ -75,14 +107,13 @@ def notify_held(
             )
             return
 
-        data = json.dumps(payload).encode()
-        req = urllib.request.Request(
-            url, data=data, headers={"Content-Type": "application/json"}
+        summary = (
+            f"HELD FOR APPROVAL [{kind}] {component} "
+            f"approval_id={approval_id}"
+            + (f" -- {detail}" if detail else "")
         )
-        with urllib.request.urlopen(
-            req, timeout=ops_config.notify_timeout_seconds()
-        ) as r:
-            r.read()
+        _post(url, payload, summary=summary, tags="warning,hourglass",
+              priority="high")
         logger.info("held-for-approval notification sent: %s", key)
     except Exception as exc:  # fail-open -- never break the governed path
         logger.warning("held-for-approval notification failed: %r", exc)
@@ -126,14 +157,11 @@ def notify_ops(
             )
             return
 
-        data = json.dumps(payload).encode()
-        req = urllib.request.Request(
-            url, data=data, headers={"Content-Type": "application/json"}
+        summary = (
+            f"OPS ALERT [{kind}] {key}" + (f" -- {detail}" if detail else "")
         )
-        with urllib.request.urlopen(
-            req, timeout=ops_config.notify_timeout_seconds()
-        ) as r:
-            r.read()
+        _post(url, payload, summary=summary, tags="rotating_light",
+              priority="urgent")
         logger.info("ops-alert notification sent: %s", dedupe)
     except Exception as exc:  # fail-open -- never break the loop
         logger.warning("ops-alert notification failed: %r", exc)
