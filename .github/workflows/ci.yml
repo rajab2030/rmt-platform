@@ -1,30 +1,38 @@
 name: CI
 
-# Production-readiness item V2 -- runs the backend CI gate on every push / PR.
+# RMT backend CI gate (production-readiness V2; hardened in T0-4).
 #
-# NOTE: this repo has no remote yet. This workflow is inert until the repo is
-# pushed to GitHub; at that point it gates pushes and PRs automatically with no
-# further changes. All gate logic lives in the script it calls
-# (projects/homelab-control-center/backend/scripts/ci.sh) so local and CI runs
-# stay identical.
+# All gate logic lives in projects/homelab-control-center/backend/scripts/ci.sh
+# so local runs, the .githooks/pre-push hook, and CI stay identical:
+#   clean venv from requirements.lock.txt -> ruff (errors-only) -> import smoke
+#   -> full backend suite.
+#
+# This repo pushes directly to master and is a free private repo, so GitHub
+# branch protection ("required status check") is not available -- this run is
+# the authoritative *visible* check; local enforcement is the pre-push hook.
+# See docs/operations/CI.md.
 
 on:
   push:
-    branches: [main, master]
+    branches: ['**']
   pull_request:
     branches: [main, master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   backend-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: "3.12"
 
-      - name: Run CI gate (reproducible install + lint + full suite)
+      - name: Run CI gate (reproducible install + lint + import smoke + full suite)
         working-directory: projects/homelab-control-center/backend
         run: scripts/ci.sh

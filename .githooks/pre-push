@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# RMT pre-push gate (T0-4, Option A).
+#
+# Runs the same CI gate the GitHub workflow runs, in --fast mode (reusing
+# backend/.venv), and refuses the push if it is red. This is local, per-clone
+# enforcement -- opt in with:
+#
+#     git config core.hooksPath .githooks
+#
+# Bypass a single push (you know why) with:  git push --no-verify
+#
+# A clone with no backend/.venv yet is NOT blocked -- it just prints how to set
+# one up. A genuine red (lint / import / test failure) IS blocked.
+set -u
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+CI="$REPO_ROOT/projects/homelab-control-center/backend/scripts/ci.sh"
+
+if [ ! -x "$CI" ]; then
+    echo "pre-push: $CI not found -- skipping gate" >&2
+    exit 0
+fi
+
+echo "pre-push: running the CI gate (ci.sh --fast) ..." >&2
+"$CI" --fast
+rc=$?
+
+if [ "$rc" -eq 0 ]; then
+    exit 0
+elif [ "$rc" -eq 2 ]; then
+    # usage / no .venv -- unconfigured clone, not a red gate
+    echo "pre-push: CI gate could not run (no backend/.venv?). Set it up:" >&2
+    echo "  cd projects/homelab-control-center/backend && python3 -m venv .venv \\" >&2
+    echo "    && .venv/bin/pip install -r requirements.lock.txt" >&2
+    echo "pre-push: allowing the push (gate skipped, not failed)." >&2
+    exit 0
+else
+    echo "pre-push: CI gate RED -- push refused. Fix it, or override with" >&2
+    echo "  git push --no-verify" >&2
+    exit 1
+fi
