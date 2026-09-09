@@ -7,7 +7,7 @@ The gate is one script — `projects/homelab-control-center/backend/scripts/ci.s
 
 | Where | Command | When |
 |---|---|---|
-| GitHub Actions | `.github/workflows/ci.yml` → `scripts/ci.sh` | every push (any branch) + PRs to `main`/`master` |
+| GitHub Actions | `.github/workflows/ci.yml` → `scripts/ci.sh` | every push to `main`/`master` + PRs to `main`/`master` |
 | Pre-push hook | `.githooks/pre-push` → `scripts/ci.sh --fast` | every `git push` (once you opt in — below) |
 | By hand | `scripts/ci.sh` (clean) or `scripts/ci.sh --fast` (reuse `.venv`) | anytime |
 
