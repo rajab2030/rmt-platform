@@ -2260,14 +2260,54 @@ before this change). On the live host: `rmt-evidence-backup.sh` →
 `rmt-migrate-evidence.py` → restart the service. Until then a restart would come
 up with an empty `governance_evidence.db` (the `.json` files are no longer read).
 
-### Deferred (bounded follow-up)
-`rmt-evidence-restore.sh` and `rmt_evidence_verify.py` still assume the
-six-JSON layout — they need a pass to understand `governance_evidence.db`
-(verify: open the db, count the six tables; restore: place the db, run the
-migration on an old JSON-era backup). Recovery-path tooling, no pytest
-coverage, not a running-platform regression. Tracked here + in
-`RMT_PRODUCTION_READINESS.md` W2.
+### Deferred (bounded follow-up) — DONE 2026-09-09 (see next note)
+`rmt-evidence-restore.sh` and `rmt_evidence_verify.py` updated for
+`governance_evidence.db`.
 
 ### Next
 E4/E6 are now genuinely closed (bounded DELETE; single-transaction audit).
 Roadmap §9 continues: T0-3 / T0-4 / T0-5, then T1-1, then a Tier 2 domain (D-1).
+
+---
+
+## Session note — T0-1 follow-up: E5 restore/verify for `governance_evidence.db`
+
+**Date:** 2026-09-09. Closes the deferred item from the T0-1 note. Above-Core
+recovery tooling; no `app/core/**` change.
+
+- **`scripts/rmt_evidence_verify.py`** — `_resolve()` now also locates
+  `governance_evidence.db` (backup layout `<dir>/governance_evidence.db`; live
+  layout `<backend>/data/governance_evidence.db`). New check: open it read-only,
+  assert all six evidence tables are present and countable (missing/unreadable
+  table ⇒ **fatal**). Cross-store advisories now read from the DB tables when
+  present, falling back to any residual JSON. Still stdlib-only. "No
+  `governance_evidence.db` **and** no JSON stores" ⇒ fatal.
+- **`scripts/rmt-evidence-restore.sh`** — step 4 branches:
+  T0-1+ backup (`governance_evidence.db` present) → copy it to
+  `backend/data/` (live `-wal`/`-shm` moved aside too);
+  pre-T0-1 backup (`stores/*.json` only) → restore the JSON to
+  `app/core/intelligence/**`, then `.venv/bin/python
+  scripts/rmt-migrate-evidence.py --force` loads them into the DB (warns to run
+  by hand if no venv). Archives + `observability.db` now restore to
+  `backend/data/`.
+- **`test_evidence_verify.py`** (new, 5): good backup-layout db passes; good
+  live-layout db passes; a dropped table is fatal (`RESULT: FAIL`); an orphan
+  authorization is advisory only (`RESULT: OK`); empty backup dir is fatal.
+- Tidy: dropped an unused `import pytest` from `test_durable_store_sqlite.py`
+  (ruff-excluded path, but dead).
+- **Docs:** `docs/operations/RMT_EVIDENCE_RECOVERY.md` (§0 table + scripts
+  table, §1 layout, §2 verify wording, §3 restore branches).
+
+### Validation
+- `test_evidence_verify.py` + `test_migrate_evidence.py` + `test_retention.py` +
+  `test_reconcile.py` — 35 passed.
+- Live drill: `RMT_BACKUP_ROOT=/tmp/... rmt-evidence-backup.sh` →
+  `rmt_evidence_verify.py <backup>` `RESULT: OK` → `sha256sum -c` OK →
+  `rmt-evidence-restore.sh <backup> --force` into a scratch backend (seeded with
+  a stale live db) → stale db moved to `.pre-restore.<ts>`, restored db + obs.db
+  in place → re-verify `RESULT: OK`.
+- `scripts/ci.sh` — **404 passed, exit 0** (399 + 5). GitHub Actions — green.
+
+### Still deferred (unchanged)
+Live-host T0-1 cutover: `rmt-evidence-backup.sh` → `rmt-migrate-evidence.py` →
+restart the `:8000` service. Owner-run.

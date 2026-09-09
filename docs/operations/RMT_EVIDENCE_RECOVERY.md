@@ -13,22 +13,23 @@ Above-Core / operational. No `app/core/**` dependency.
 
 | Artifact | Path | Why |
 |---|---|---|
-| 6 durable evidence stores | `backend/app/core/intelligence/**/*.json` | authorization / approval / hold / audit / trace / verification chain |
-| E4 retention archives | `backend/app/core/intelligence/**/*.archive.jsonl` | records aged out of the live stores (full history = archive + live) |
+| 6 durable evidence stores | `backend/data/governance_evidence.db` (one table each — **T0-1**; was six `*.json` under `app/core/intelligence/**`) | authorization / approval / hold / audit / trace / verification chain |
+| E4 retention archives | `backend/data/*.archive.jsonl` (one per table) | records aged out of the live stores (full history = archive + live) |
 | Intelligence memory | `backend/data/observability.db` → `intelligence_memory` | the Learn stage |
 | Manifest + checksums | in each backup dir | provenance + tamper-evidence |
 
-**Not** covered here: `container_metrics` in the same DB (transient telemetry —
-captured incidentally, not relied on), the code (git), the systemd drop-ins
-(`docs/operations/DEPLOY.md` §3 covers those).
+**Not** covered here: `container_metrics` in `observability.db` (transient
+telemetry — captured incidentally, not relied on), the code (git), the systemd
+drop-ins (`docs/operations/DEPLOY.md` §3 covers those).
 
 Scripts (`backend/scripts/`):
 
 | Script | Role | Needs venv? |
 |---|---|---|
 | `rmt-evidence-backup.sh` | make a timestamped, checksummed backup | no |
-| `rmt_evidence_verify.py` | structural + cross-store integrity check | **no** (stdlib only) |
-| `rmt-evidence-restore.sh` | restore from a backup, with guards | no |
+| `rmt_evidence_verify.py` | structural + cross-store integrity check (the six `governance_evidence.db` tables, any residual JSON, the archives, `observability.db`) | **no** (stdlib only) |
+| `rmt-evidence-restore.sh` | restore from a backup, with guards | no (but calls `rmt-migrate-evidence.py` for a **pre-T0-1** backup, which needs the venv) |
+| `rmt-migrate-evidence.py` | one-shot JSON → `governance_evidence.db` (`--reverse` to go back) — run once on the T0-1 cutover | **yes** |
 
 ---
 
@@ -42,11 +43,12 @@ cd /home/rmt-lab/homelab/projects/homelab-control-center/backend
 Writes `~/homelab/backups/rmt-evidence/<UTC timestamp>/`:
 
 ```
-stores/           the 6 JSON evidence stores
-archives/         *.archive.jsonl  (only if E4 has archived anything)
-observability.db  VACUUM INTO snapshot (hot-safe, not a torn copy)
-manifest.txt      git commit, host, date, per-store record counts
-checksum.sha256   sha256 of every file above
+governance_evidence.db  VACUUM INTO snapshot of the six evidence tables (T0-1)
+stores/                 residual *.json / *.json.migrated (pre-cutover hosts only)
+archives/               *.archive.jsonl  (only if E4 has archived anything)
+observability.db        VACUUM INTO snapshot (hot-safe, not a torn copy)
+manifest.txt            git commit, host, date, per-table + per-store counts
+checksum.sha256         sha256 of every file above
 ```
 
 The backup is read-only against the live tree — no need to stop the service.
@@ -73,10 +75,13 @@ python3 scripts/rmt_evidence_verify.py ~/homelab/backups/rmt-evidence/<timestamp
 python3 scripts/rmt_evidence_verify.py .        # the live backend
 ```
 
-- **Exit 0 / `RESULT: OK`** — every store parses as a JSON list, every archive
-  line parses, `observability.db` opens and `intelligence_memory` is queryable.
-- **Exit 1 / `RESULT: FAIL`** — structural corruption (a store or archive line
-  failed to parse, or the DB is unreadable). Do **not** restore from this set.
+- **Exit 0 / `RESULT: OK`** — `governance_evidence.db` opens read-only and all
+  six evidence tables are countable, any residual JSON store parses as a list,
+  every archive line parses, `observability.db` opens and `intelligence_memory`
+  is queryable.
+- **Exit 1 / `RESULT: FAIL`** — structural corruption (a table missing /
+  unreadable, a store or archive line failed to parse, or a DB is unreadable).
+  Do **not** restore from this set.
 - **`WARN` lines** — cross-store advisories (an authorization with no approval
   record; a hold still `pending` on disk whose record is terminal). These are
   informational, never fatal — the startup reconcile (E2/E6) handles the hold
@@ -107,7 +112,14 @@ The script:
 3. refuses to proceed if `rmt-control-center.service` is active (`--force` as a
    2nd arg overrides — only when restoring into a copy you control);
 4. moves each current live file aside to `<name>.pre-restore.<timestamp>`, then
-   copies the backup file into place (stores, archives, `observability.db`);
+   restores:
+   - **T0-1+ backup** (`governance_evidence.db` present): copies it to
+     `backend/data/governance_evidence.db` (with any `-wal` / `-shm` moved aside);
+   - **pre-T0-1 backup** (`stores/*.json` only): restores the JSON files to
+     `app/core/intelligence/**`, then runs
+     `.venv/bin/python scripts/rmt-migrate-evidence.py --force` to load them into
+     `governance_evidence.db` (warns to run it by hand if there is no venv);
+   - archives → `backend/data/`, `observability.db` → `backend/data/`;
 5. re-runs `rmt_evidence_verify.py` against the now-live tree.
 
 After starting the service, confirm:
