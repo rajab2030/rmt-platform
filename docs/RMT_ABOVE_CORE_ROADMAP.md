@@ -95,8 +95,10 @@ should not go live until Tier 0 is done.**
 > WAL-atomic. `scripts/rmt-migrate-evidence.py` = one-shot JSON → SQLite +
 > `--reverse`. E4 trim is now a bounded `DELETE`; E6 audit runs on one snapshot.
 > New tests: `test_durable_store_sqlite.py` (8, incl. kill-`-9` mid-write) +
-> `test_migrate_evidence.py` (2). **Follow-up:** `rmt-evidence-restore.sh` /
-> `rmt_evidence_verify.py` still assume the six-JSON layout.
+> `test_migrate_evidence.py` (2) + `test_evidence_verify.py` (5).
+> **E5 follow-up done 2026-09-09:** `rmt_evidence_verify.py` +
+> `rmt-evidence-restore.sh` now handle `governance_evidence.db` (and migrate a
+> pre-T0-1 JSON backup on the way in); live backup→verify→restore drill passed.
 
 - **Objective:** replace the six file-backed `DurableStore` JSON stores with a
   single SQLite-backed store; O(1) appends, bounded growth, transactional
@@ -466,7 +468,7 @@ not touched.
 ## 9. Recommended sequence
 
 1. ~~**T0-1** (SQLite substrate) — unblocks scale, closes E4/E6, de-risks every
-   domain.~~ **DONE 2026-09-09** (see §5). Follow-up: E5 restore/verify scripts.
+   domain.~~ **DONE 2026-09-09** (see §5; E5 restore/verify follow-up also done).
 2. **T0-3, T0-4, T0-5** in parallel — observability, CI gate, security finish.
 3. **T0-2** — platform recovery.
 4. ~~**T1-2, T1-3, T1-4** — cheap homelab depth; each is S.~~ **DONE 2026-09-09**

@@ -13,7 +13,6 @@ import subprocess
 import sys
 import time
 
-import pytest
 from pydantic import BaseModel
 
 from app.core.intelligence.durable_store import DurableStore
