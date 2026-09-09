@@ -1,15 +1,17 @@
-from pathlib import Path
-
 from app.core.intelligence.verification.models import VerificationResult
-from app.core.intelligence.durable_store import DurableStore
+from app.core.intelligence.durable_store import DurableStore, EVIDENCE_DB_PATH
 
 
 class VerificationStorage(DurableStore):
     """
     Durable storage for post-execution verification evidence.
 
-    Backed by the C02 DurableStore JSON mechanism.
+    Backed by the shared SQLite evidence database (T0-1; was the C02 JSON
+    DurableStore mechanism).
     """
+
+    _table = "verifications"
+    _key_field = "execution_id"
 
     def __init__(self, file_path=None):
         super().__init__(
@@ -24,6 +26,4 @@ class VerificationStorage(DurableStore):
         return None
 
 
-verification_storage = VerificationStorage(
-    file_path=Path(__file__).parent / "verifications.json"
-)
+verification_storage = VerificationStorage(file_path=EVIDENCE_DB_PATH)

@@ -1,13 +1,14 @@
-from pathlib import Path
-
 from app.core.intelligence.execution.trace import ExecutionTrace
-from app.core.intelligence.durable_store import DurableStore
+from app.core.intelligence.durable_store import DurableStore, EVIDENCE_DB_PATH
 
 
 class ExecutionTraceStorage(DurableStore):
     """
-    Stores execution decision traces, durably backed by JSON.
+    Stores execution decision traces, durably backed by the shared SQLite
+    evidence database (T0-1; was JSON).
     """
+
+    _table = "traces"
 
     def __init__(self, file_path=None):
         super().__init__(
@@ -16,6 +17,4 @@ class ExecutionTraceStorage(DurableStore):
         )
 
 
-execution_trace_storage = ExecutionTraceStorage(
-    file_path=Path(__file__).parent / "traces.json"
-)
+execution_trace_storage = ExecutionTraceStorage(file_path=EVIDENCE_DB_PATH)

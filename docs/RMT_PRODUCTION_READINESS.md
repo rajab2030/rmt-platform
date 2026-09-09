@@ -58,8 +58,9 @@ scope — which is correct, and is exactly why those items land **here** instead
 - Enabled on live: CAP-04 operational loop; CAP-05 (5A) agent surface; CAP-05
   (5B) LLM agent — all via systemd drop-ins.
 - 10 mutating HTTP routes, **0** behind authentication.
-- Governance evidence: six JSON files via `DurableStore`; intelligence memory in
-  SQLite (`data/observability.db`).
+- Governance evidence: six stores via `DurableStore`, now SQLite-backed
+  (`data/governance_evidence.db`, one table each — T0-1, 2026-09-09; was six
+  JSON files); intelligence memory in SQLite (`data/observability.db`).
 - Frontend: a Vite/React app in `projects/homelab-control-center/frontend`
   (dev-server config only; not part of the served backend).
 
@@ -230,8 +231,15 @@ where noted.
 `RMT_AUTH_SEPARATION`). S5, S7 remain (P2). Gated by the §2 threat-model
 decision. Nothing else should be exposed until S1 + S4 are done — **both are**.
 
-**W2 — Evidence substrate.** E1 (atomic writes / SQLite migration) is the
-keystone; it also resolves E4. **E2 and E6 are closed** by an above-Core startup
+**W2 — Evidence substrate.** **T0-1 (2026-09-09) landed the JSON → SQLite swap**
+(`docs/RMT_T0_1_PROPOSAL.md`, owner-authorised Option A — `DurableStore` backend
+only, interface unchanged): the six stores share `data/governance_evidence.db`,
+`save()` is one `INSERT` (O(1), no rewrite), WAL-atomic; `scripts/rmt-migrate-evidence.py`
+does the one-shot JSON → SQLite + `--reverse`. E4's trim is now a bounded
+`DELETE`; E6's audit runs on one DB snapshot. E1's atomic JSON path is retained
+for the migration. **Remaining W2 gap:** `rmt-evidence-restore.sh` /
+`rmt_evidence_verify.py` still assume the six-JSON layout — a bounded follow-up.
+**E2 and E6 are closed** by an above-Core startup
 reconciliation + audit (`app/ops/reconcile.py::reconcile_governance_stores`) —
 the owner chose that over a Core fix, so no freeze deviation. **E3 is closed**
 by an above-Core execution-result wrapper (`app/ops/execution_evidence.py`) that

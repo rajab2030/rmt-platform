@@ -92,26 +92,27 @@ def reconcile_holds_against_records() -> dict:
                 continue
 
             true_status = _DECISION_TO_STATUS[decision]
-            hold.status = true_status
+            approval_id = hold.approval_id
+
+            fields = {"status": true_status}
             if getattr(hold, "approved_by", None) is None:
-                hold.approved_by = getattr(record, "approved_by", None)
+                fields["approved_by"] = getattr(record, "approved_by", None)
+
+            # Persist just this correction through the store's own public
+            # update() -- one SQLite UPDATE (T0-1), or an atomic JSON rewrite.
+            hold_storage.update(approval_id, **fields)
 
             summary["reconciled"] += 1
-            summary["ids"].append(hold.approval_id)
+            summary["ids"].append(approval_id)
             logger.info(
                 "E2 reconcile: hold %s pending on disk but record says %s -- "
                 "corrected to %s",
-                hold.approval_id,
+                approval_id,
                 decision,
                 true_status.value,
             )
 
         if summary["reconciled"]:
-            # Persist the corrected in-memory records through the store's own
-            # (atomic, E1) write path. The hold store exposes no public
-            # update(); this is the same mechanism ApprovalRecordStorage.update
-            # uses, invoked here on the shared in-process singleton.
-            hold_storage._persist()
             logger.warning(
                 "E2 reconcile: corrected %d stale approval hold(s) on startup: "
                 "%s",

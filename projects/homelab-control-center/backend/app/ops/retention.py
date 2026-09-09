@@ -66,8 +66,9 @@ def _default_stores():
 
 
 def _archive_path(store) -> Path:
-    p = store._file_path
-    return p.with_name(p.stem + ".archive.jsonl")
+    # Backend-aware: the six SQLite-backed stores share one .db file, so the
+    # archive companion is keyed by table name, not by the db filename.
+    return store._archive_path()
 
 
 def _older_than(created_at, cutoff: datetime) -> bool:
@@ -110,8 +111,8 @@ def archive_store(name: str, store, cutoff: datetime) -> dict:
             f.flush()
             os.fsync(f.fileno())
 
-        store._records = keep
-        store._persist()  # atomic (E1) write path
+        store._replace_records(keep)  # atomic per backend (JSON: E1 rewrite;
+        #                               SQLite: DELETE + bulk re-insert)
 
         logger.warning(
             "E4 retention: archived %d record(s) from %s (kept %d) -> %s",

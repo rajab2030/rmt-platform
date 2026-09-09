@@ -2186,3 +2186,88 @@ CI is now actually live and enforcing. Roadmap §9: **T0-1 (SQLite substrate)**
 is #1 — this failure is direct evidence for it (the DB-bootstrap story is
 fragile: one file, two tables, no migration, gitignored). Then T0-3 / T0-4 /
 T0-5, then T1-1, then a Tier 2 domain (D-1).
+
+---
+
+## Session note — T0-1: evidence substrate JSON → SQLite (Option A)
+
+**Date:** 2026-09-09. Owner selected T0-1 from `docs/RMT_ABOVE_CORE_ROADMAP.md`
+§9 and authorised **Option A** — a bounded internal change to
+`app/core/intelligence/durable_store.py` (persistence mechanism only; method
+signatures, return types, pydantic models, and all governance logic unchanged)
+plus an additive `ApprovalHoldStorage.update()`. Same footing as the E1
+atomic-write hardening. Proposal: `docs/RMT_T0_1_PROPOSAL.md` (APPROVED). No C08;
+C01–C07 untouched.
+
+### What changed
+- **`durable_store.py`** — `DurableStore` now has three backends chosen by the
+  path: `None` ⇒ in-memory list (unchanged; every isolated test relies on it);
+  `*.json` ⇒ the E1 atomic whole-file rewrite (unchanged; kept for the
+  migration + `--reverse`); `*.db` ⇒ one table (`_table`) in a shared SQLite
+  file — `save()` is a single `INSERT` (**O(1)**, no rewrite), `update()` /
+  retention are per-row, crash-atomic via WAL. `self._records` stays as the
+  in-memory read mirror so `get_all()` / `get_by_*` are byte-identical.
+  New helpers: `_commit_update`, `_replace_records`, `_archive_path`,
+  `_sql_*`. `EVIDENCE_DB_PATH` = `RMT_EVIDENCE_DB` or `data/governance_evidence.db`.
+- **The six store singletons** (`approval_storage.py` ×2, `authorization_storage.py`,
+  `trace_storage.py`, `execution/storage.py`, `verification/storage.py`) — set
+  `_table` (+ `_key_field` where there is an id lookup) and point at
+  `EVIDENCE_DB_PATH`. `ApprovalHoldStorage.update()` added (mirrors
+  `ApprovalRecordStorage.update()`); both route through `_commit_update`.
+- **`app/ops/retention.py`** (E4) — `store._records = keep; store._persist()`
+  → `store._replace_records(keep)` (backend-aware: JSON rewrite / SQLite
+  `DELETE`+re-insert); `_archive_path(store)` → `store._archive_path()` so the
+  six shared-DB stores get one archive file *each* (`data/<table>.archive.jsonl`),
+  not a colliding `governance_evidence.archive.jsonl`.
+- **`app/ops/reconcile.py`** (E2) — the stale-hold correction now calls
+  `hold_storage.update(approval_id, **fields)` (one SQLite `UPDATE`) instead of
+  mutating in place + `_persist()`.
+- **`conftest.py`** — sets `RMT_EVIDENCE_DB` to a throwaway file in
+  `pytest_configure` (before any app import, since the singletons bind the path
+  at import) so the suite never touches the working-tree stores.
+- **`scripts/rmt-migrate-evidence.py`** (new) — one-shot JSON → SQLite (order
+  preserved; renames each file to `<name>.json.migrated`); `--reverse` dumps
+  tables back to JSON in the exact prior format; `--force` overwrites a
+  non-empty table. Runs under the venv (needs pydantic + the app).
+- **`scripts/rmt-evidence-backup.sh`** — now `VACUUM INTO` snapshots
+  `governance_evidence.db`; still copies residual `*.json` / `*.json.migrated`
+  and picks up `data/*.archive.jsonl`; manifest reports per-table counts.
+- **Docs** — `docs/operations/CONFIG.md` gains an "Evidence substrate" section
+  (`RMT_EVIDENCE_DB`, `RMT_EVIDENCE_RETENTION_DAYS`, migration steps).
+
+### Validation
+- New `test_durable_store_sqlite.py` (8): `save` = one INSERT (row count, exact
+  `payload` bytes); reload preserves order; `get_by_id` first-match + `update`
+  in place + durable, no dup row; `file_path=None` writes no `.db`; retention
+  `_replace_records` → DELETE+re-insert; per-table archive paths don't collide;
+  **kill -9 mid-write** leaves a clean 0..k prefix (no torn row); 150 concurrent
+  appends from 3 threads all land.
+- New `test_migrate_evidence.py` (2): forward → `--reverse` round-trips
+  byte-for-byte (fixture written through `model_dump(mode="json")`, the same
+  path the live files use); forward is idempotent; `--force` clears + re-migrates.
+- Existing `test_durable_store_atomic.py`, `test_durable_stores.py`,
+  `test_retention.py`, `test_reconcile.py` unchanged and green (they use
+  `.json` tmp paths → JSON backend).
+- `scripts/ci.sh` (throwaway venv, ruff, full suite) — **399 passed, exit 0**
+  (was 389 + 10 new). GitHub Actions on `master` — green.
+- Smoke: `rmt-migrate-evidence.py` against the live dev JSON (7+89+88+77+77+79
+  records) migrated cleanly into all six tables; renamed back afterwards (dev
+  host not actually migrated).
+
+### Not deployed / live-host action
+The running `:8000` server still holds the JSON-backed singletons (started
+before this change). On the live host: `rmt-evidence-backup.sh` →
+`rmt-migrate-evidence.py` → restart the service. Until then a restart would come
+up with an empty `governance_evidence.db` (the `.json` files are no longer read).
+
+### Deferred (bounded follow-up)
+`rmt-evidence-restore.sh` and `rmt_evidence_verify.py` still assume the
+six-JSON layout — they need a pass to understand `governance_evidence.db`
+(verify: open the db, count the six tables; restore: place the db, run the
+migration on an old JSON-era backup). Recovery-path tooling, no pytest
+coverage, not a running-platform regression. Tracked here + in
+`RMT_PRODUCTION_READINESS.md` W2.
+
+### Next
+E4/E6 are now genuinely closed (bounded DELETE; single-transaction audit).
+Roadmap §9 continues: T0-3 / T0-4 / T0-5, then T1-1, then a Tier 2 domain (D-1).

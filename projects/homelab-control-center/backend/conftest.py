@@ -9,24 +9,37 @@ Auth enforcement itself is covered explicitly in
 ``app/ops/testing/test_auth.py``, which sets ``RMT_AUTH_ENABLED=true`` +
 ``RMT_OPERATOR_TOKENS`` for its own client.
 
-The two SQLite stores (``container_metrics`` and ``intelligence_memory``, both
-in ``data/observability.db``) are redirected to a throwaway per-run file and
-their schema is created up front, so the suite is hermetic: it neither depends
-on a leftover ``data/observability.db`` in the working tree nor writes into it.
-This mirrors the ``init_storage()`` calls in ``app/main.py``'s lifespan.
+SQLite substrate isolation:
+  * The two observability stores (``container_metrics`` / ``intelligence_memory``
+    in ``data/observability.db``) are redirected to a throwaway file and their
+    schema created up front (``_isolate_sqlite_stores`` below).
+  * The six governance-evidence stores share ``data/governance_evidence.db``
+    (T0-1); ``RMT_EVIDENCE_DB`` is pointed at a throwaway file *before* any app
+    import so the module singletons never touch the working tree.
+So the suite is hermetic: it neither depends on nor writes the real ``data/``
+stores. Mirrors the ``init_storage()`` calls in ``app/main.py``'s lifespan.
 """
 import os
+import tempfile
 
 import pytest
+
+_TEST_DATA_DIR = tempfile.mkdtemp(prefix="rmt-test-data-")
 
 
 def pytest_configure(config):  # noqa: ARG001
     os.environ.setdefault("RMT_AUTH_ENABLED", "false")
+    os.environ.setdefault(
+        "RMT_EVIDENCE_DB",
+        os.path.join(_TEST_DATA_DIR, "governance_evidence.db"),
+    )
 
 
 @pytest.fixture(scope="session", autouse=True)
 def _isolate_sqlite_stores(tmp_path_factory):
-    """Point both SQLite stores at a throwaway DB and create their schema."""
+    """Point the observability SQLite stores at a throwaway DB and create their
+    schema. (The evidence stores are handled via RMT_EVIDENCE_DB in
+    pytest_configure, since their singletons bind the path at import time.)"""
     import app.core.intelligence.memory.storage as intelligence_memory_storage
     import app.core.observability.storage as observability_storage
 
