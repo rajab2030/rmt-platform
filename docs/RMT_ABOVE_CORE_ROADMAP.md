@@ -140,21 +140,35 @@ should not go live until Tier 0 is done.**
   show up as signals; suite green.
 - **Depends on:** nothing. **Rough size:** S.
 
-### T0-4 — CI: finite validation + clean-venv build gate (V1 / V2)
+### T0-4 — CI: finite validation + clean-venv build gate (V1 / V2)  — ✅ DONE 2026-09-09
 
-- **Status (2026-09-08):** **V2 + V1 DONE.** V2 = `backend/scripts/ci.sh`
-  (clean venv from `requirements.lock.txt` + errors-only `ruff` + full suite) +
-  `.github/workflows/ci.yml` calling it (dormant until the repo has a remote).
-  V1 = `app/homelab/testing/test_e2e_docker.py` — drives the real
-  `DockerExecutionAdapter` against a disposable `alpine` container (fault →
-  held → approve → restart → verify → evidence), auto-skips without Docker.
+> **V1 + V2 shipped 2026-09-08**; **finished + hardened in T0-4** (2026-09-09,
+> `docs/RMT_T0_4_PROPOSAL.md`, Option A):
+> - `ci.sh` gained an explicit `import app.main` smoke step (step 3 of 4).
+> - `ci.yml`: `push` on **all** branches; `concurrency` group per ref with
+>   `cancel-in-progress`; `actions/checkout` + `setup-python` pinned by SHA.
+> - `.githooks/pre-push` (tracked) runs `ci.sh --fast` and refuses a red push;
+>   opt in with `git config core.hooksPath .githooks`.
+> - `docs/operations/CI.md` — the gate, "green = safe to build on", the
+>   **~7-minute** budget (real-time waits: loop cadence + hold TTLs, not
+>   compute — DoD's "4.5 minute" was stale).
+> - **Not done — enforced "blocks on red":** GitHub branch protection needs Pro
+>   or a public repo (403 on this free private repo). The Actions run is the
+>   authoritative visible check; the pre-push hook is local enforcement. Add a
+>   required-check rule on `master` if/when the repo goes Pro or public.
+>
+> V1 = `app/homelab/testing/test_e2e_docker.py` — drives the real
+> `DockerExecutionAdapter` against a disposable `alpine` container (fault →
+> held → approve → restart → verify → evidence), auto-skips without Docker.
+
 - **Objective:** the validation suite and a `requirements.lock.txt` clean-build
   run automatically on every change.
 - **In scope:** a CI workflow (suite + lockfile build + `import app.main`);
   a documented "green = mergeable" gate.
 - **Boundary:** CI only.
-- **DoD:** CI runs on a branch and blocks on red; the 4.5-minute suite budget
-  is documented (operational-loop sleeps).
+- **DoD:** CI runs on a branch and blocks on red *(visible + local hook; a
+  required status check is a Pro/public follow-up)*; the suite budget (~7 min,
+  real-time waits) is documented.
 - **Depends on:** nothing. **Rough size:** S.
 
 ### T0-5 — S4 Caddy cutover + S3 separation-of-duties + S5 CORS-from-config
@@ -469,7 +483,8 @@ not touched.
 
 1. ~~**T0-1** (SQLite substrate) — unblocks scale, closes E4/E6, de-risks every
    domain.~~ **DONE 2026-09-09** (see §5; E5 restore/verify follow-up also done).
-2. **T0-3, T0-4, T0-5** in parallel — observability, CI gate, security finish.
+2. **T0-3, ~~T0-4~~, T0-5** in parallel — observability, ~~CI gate~~ (**done
+   2026-09-09**), security finish.
 3. **T0-2** — platform recovery.
 4. ~~**T1-2, T1-3, T1-4** — cheap homelab depth; each is S.~~ **DONE 2026-09-09**
    (`docs/RMT_T1_BATCH_PROPOSAL.md`). T1-1 (broaden `REMEDIATION_POLICY`) remains.
@@ -494,7 +509,7 @@ Everything else is selected on demand.
 | T0-1 SQLite substrate | above-Core substrate | interface unchanged | **DONE 2026-09-09** |
 | T0-2 Platform recovery | operational | no | T0-1 |
 | T0-3 Lifecycle observability | above-Core | no | — |
-| T0-4 CI gate | tooling | no | — |
+| T0-4 CI gate | tooling | no | **DONE 2026-09-09** |
 | T0-5 S4/S3/S5 finish | above-Core | no | — |
 | T1-1 Broaden remediation policy | above-Core / domain | no | T1-3* |
 | T1-2 Real dependency graph | above-Core / domain data | no | — |

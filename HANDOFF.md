@@ -2311,3 +2311,48 @@ recovery tooling; no `app/core/**` change.
 ### Still deferred (unchanged)
 Live-host T0-1 cutover: `rmt-evidence-backup.sh` → `rmt-migrate-evidence.py` →
 restart the `:8000` service. Owner-run.
+
+---
+
+## Session note — T0-4: CI gate finished & hardened
+
+**Date:** 2026-09-09. Owner authorised **Option A** (`docs/RMT_T0_4_PROPOSAL.md`).
+V1/V2 were already done and green on every push since the repo went to GitHub;
+this closes the DoD gaps. Tooling / CI only — no `app/**` change.
+
+### What changed
+- **`backend/scripts/ci.sh`** — new step 3: `python -c "import app.main"` (import
+  smoke; catches an import-time break the suite could mask). Header rewritten:
+  4 steps, ~7-minute budget documented.
+- **`.github/workflows/ci.yml`** — `push` on **all** branches (was `main`/`master`
+  only); `concurrency: ci-${{ github.ref }}` + `cancel-in-progress`;
+  `actions/checkout` → `@11d5960…` (v4), `actions/setup-python` → `@a26af69…`
+  (v5), pinned by SHA.
+- **`.githooks/pre-push`** (new, tracked, +x) — runs `ci.sh --fast`; exit 0 →
+  push; exit 2 (no `.venv`) → warn + allow; other non-zero → **refuse the push**
+  (`git push --no-verify` to override). Opt in per clone:
+  `git config core.hooksPath .githooks` (set in this working copy now).
+- **`docs/operations/CI.md`** (new) — the gate, "green = safe to build on", the
+  ~7-min budget (real-time waits: loop cadence + hold TTLs), the hook opt-in,
+  reading a failed run, and the branch-protection follow-up.
+- **Doc ticks** — `RMT_ABOVE_CORE_ROADMAP.md` §5/§9/§10,
+  `RMT_PRODUCTION_READINESS.md` V2 row.
+
+### Not done — enforced "blocks on red"
+A *required status check* needs GitHub Pro or a public repo
+(`gh api …/branches/master/protection` → 403 on this free private repo). The
+Actions run is the authoritative **visible** check; the pre-push hook is local
+enforcement. Follow-up: add a required-check rule on `master` if/when the repo
+goes Pro or public. Recorded in `CI.md` + roadmap + readiness.
+
+### Validation
+- `ci.sh` (throwaway venv) — ruff clean, **import smoke passed**, **404 passed,
+  exit 0**.
+- Hook: `bash -n` clean; deliberately broke a test → `git push` refused by the
+  hook → `--no-verify` bypassed → reverted.
+- Push → GitHub `CI` run green; `concurrency` cancel confirmed by a rapid double
+  push.
+
+### Next
+Roadmap §9: T0-3 (lifecycle observability) and T0-5 (S4/S3/S5 security finish)
+remain in the Tier 0 batch; then T1-1, then a Tier 2 domain (D-1).

@@ -1,20 +1,26 @@
 #!/usr/bin/env bash
 #
-# RMT Control Center -- CI gate (production-readiness item V2).
+# RMT Control Center -- CI gate (production-readiness V2; hardened in T0-4).
 #
 # One command that proves the backend tree is green and reproducible:
 #   1. build a fresh venv strictly from requirements.lock.txt  (reproducible install)
 #   2. ruff lint, errors-only  (config: backend/ruff.toml -- select F,E9; app/core excluded)
-#   3. the full backend test suite  (includes the 122 frozen-Core tests)
+#   3. import smoke  (python -c "import app.main" -- catches an import-time break
+#      the suite could mask)
+#   4. the full backend test suite  (includes the 122 frozen-Core tests)
 #
-# Exit 0  -> green; safe to merge / deploy.
+# Exit 0  -> green; safe to merge / build / deploy on.
 # Exit !0 -> the tree must not merge / deploy; the failing step is the last output.
+#
+# Suite budget: ~7 min (405 s). Dominated by real-time waits, not compute --
+# app/homelab/testing/test_operational_loop.py cadence sleeps + approval-hold
+# TTL waits. See docs/operations/CI.md.
 #
 # Usage:
 #   scripts/ci.sh          # full gate in a throwaway venv (what CI runs)
 #   scripts/ci.sh --fast   # reuse backend/.venv, skip the reinstall (quick local check)
 #
-# Invoked by .github/workflows/ci.yml; also runnable by hand from anywhere.
+# Invoked by .github/workflows/ci.yml and .githooks/pre-push; runnable by hand.
 
 set -euo pipefail
 
@@ -57,6 +63,9 @@ step "python / tool versions"
 
 step "lint: ruff (errors-only -- see ruff.toml)"
 "$VENV/bin/ruff" check .
+
+step "import smoke: python -c 'import app.main'"
+PYTHONPATH=. "$PY" -c "import app.main"
 
 step "test: full backend suite (app/ -- includes 122 frozen-Core tests)"
 PYTHONPATH=. "$PY" -m pytest -q
