@@ -2416,3 +2416,46 @@ Documentation only; no code, no tests. `file:line` references in
   model + guarantees, size S).
 - Then per roadmap §8: **B1 → C1** (broaden `REMEDIATION_POLICY`, exercises B1)
   → **B2** → **C2** (second domain, the thesis proof).
+
+---
+
+## Session note — B3 (threat model + guarantees / non-guarantees)
+
+**Date:** 2026-09-10. Documentation only — **no `app/**` change**, no suite run.
+Roadmap item **B3** (`docs/RMT_IMPROVEMENT_ROADMAP.md` §4).
+
+### What was produced
+- **`docs/RMT_THREAT_MODEL.md`** — scope anchor (governed action gateway; the
+  poor-fit list); assets A1–A7; deployment topology under threat model **(b)**
+  (loopback bind + Caddy TLS, single VM, `systemd` hardening 4.1 OK, S1 auth);
+  trust boundary + adversary **(b) trusted LAN, few operators** with a hostile
+  operator / host / LAN explicitly out of the adversary model; an attack-surface
+  table (surface · vector · control, cross-referenced to readiness S1/S4/S5/S7/
+  S2/S3/E1/E6/E5/R1/S6/D1/V2/D3/D4); a residual-risk table where **every row
+  traces** to a `RMT_FROZEN_CORE_DEBT.md` row (D1–D5) or a readiness decision
+  (R4, S3, O2, V2) or a roadmap item (P-D, C3); a "posture (c)" escalation note.
+- **`docs/RMT_GUARANTEES.md`** — §0 fit / poor-fit; then per lifecycle stage
+  (Understand → Decide → Govern → Authorize → Execute → Verify → Learn) an
+  **Asserts / Does not assert / Evidence** triple, in plain language; §8
+  cross-cutting guarantees (correlation, atomic + hard-kill-faithful evidence,
+  auth-or-refuse-start, Docker-absent parity); §9 cross-cutting non-guarantees
+  (no HA, no RBAC, no rollback engine, frozen Core, journal-only alerting)
+  each traced. The Verify section states plainly that outside module `create`
+  the Core records `observation_unavailable` (D3) and `/execute` is unverified
+  until B1.
+
+### Cross-links added
+- `README.md` — new "RMT — governed control plane" section linking GUARANTEES,
+  THREAT_MODEL, FROZEN_CORE_DEBT, IMPROVEMENT_ROADMAP, RMT_CONTEXT.
+- `RMT_CONTEXT.md` §5 — "External-facing explainers" note under the
+  governing-documents table.
+- `docs/RMT_IMPROVEMENT_ROADMAP.md` — B3 marked **DONE**.
+
+### Validation
+Documentation only; no code, no tests. Readiness / debt-register / roadmap
+references checked against the tree on 2026-09-10.
+
+### Next
+Roadmap §8 order, A1/A2/A3/B3 now done: **B1** is the next build — needs owner
+answers to `docs/RMT_B1_PROPOSAL.md` §7 Q1–Q4, then authorise **B1a**. After B1:
+**C1** (broaden `REMEDIATION_POLICY`, exercises B1) → **B2** → **C2**.
