@@ -20,8 +20,8 @@ import app.core.intelligence.execution.engine as execution_engine_module
 import app.core.intelligence.actions.service as actions_service_module
 import app.core.intelligence.actions.approval_service as approval_service_module
 import app.core.intelligence.verification.service as verification_service_module
+import app.core.intelligence.verification.storage as verification_storage_module
 import app.core.intelligence.memory.service as memory_service_module
-import app.homelab.verification as homelab_verification_module
 import app.homelab.observer as observer_module
 import app.homelab.remediation as remediation_module
 
@@ -69,7 +69,9 @@ def _isolate_evidence_stores(monkeypatch):
     monkeypatch.setattr(approval_service_module, "approval_record_storage", approval_record)
     monkeypatch.setattr(approval_service_module, "execution_authorization_storage", auth)
     monkeypatch.setattr(verification_service_module, "verification_storage", verification)
-    monkeypatch.setattr(homelab_verification_module, "verification_storage", verification)
+    # B1a: app/ops/verification/service.py dereferences the storage singleton
+    # through this module at call time (R10).
+    monkeypatch.setattr(verification_storage_module, "verification_storage", verification)
 
     # Learn stage: isolate the Core memory/learning store in-memory so no real
     # intelligence_memory table is written and assertions are deterministic.

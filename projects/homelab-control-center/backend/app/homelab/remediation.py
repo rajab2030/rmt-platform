@@ -27,7 +27,7 @@ from app.core.configuration.settings import load_settings
 from app.core.intelligence.execution.adapters.registry import adapter_registry
 from app.core.intelligence.memory.models import MemoryRecord
 from app.core.intelligence.memory.service import remember
-from app.homelab.verification import verify_docker_execution
+from app.ops.verification import verify_executed_action
 
 
 # Homelab remediation policy. Confidence is intentionally NOT set here; it is
@@ -171,10 +171,15 @@ def remediate_and_verify(evaluation, decision=None, adapter_name=None):
         and result.get("execution_id")
         and action.expected_outcome is not None
     ):
-        verification = verify_docker_execution(
+        # The homelab remediation domain observes Docker container state
+        # regardless of which execution adapter ran the mutation, so the
+        # observer is resolved for "docker" (not the execution adapter name).
+        verification = verify_executed_action(
             result["execution_id"],
-            action.expected_outcome,
-            action.component,
+            adapter_name="docker",
+            operation=action.action_type.value,
+            target=action.component,
+            expected=action.expected_outcome,
         )
         result["docker_verification_status"] = verification.status
         result["docker_verification_reason"] = verification.reason

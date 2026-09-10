@@ -40,7 +40,7 @@ from app.core.intelligence.actions.approval_service import approve_held_action
 from app.core.intelligence.context.registry import get_component_context
 
 from app.homelab.remediation import record_learning
-from app.homelab.verification import verify_docker_execution
+from app.ops.verification import verify_executed_action
 
 
 def continue_remediation(approval_id, approved_by, approved=True):
@@ -89,10 +89,12 @@ def continue_remediation(approval_id, approved_by, approved=True):
         and result.get("execution_id")
         and action.expected_outcome is not None
     ):
-        verification = verify_docker_execution(
+        verification = verify_executed_action(
             result["execution_id"],
-            action.expected_outcome,
-            action.component,
+            adapter_name="docker",
+            operation=action.action_type.value,
+            target=action.component,
+            expected=action.expected_outcome,
         )
         result["docker_verification_status"] = verification.status
         result["docker_verification_reason"] = verification.reason

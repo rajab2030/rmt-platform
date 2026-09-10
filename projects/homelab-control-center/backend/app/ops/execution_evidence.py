@@ -12,7 +12,7 @@ The Core covers four of the five. But when a governed execution reaches the
 adapter and the adapter returns ``success=False``, the Core writes an **audit**
 record and a **trace** record (both ``status="failed"``) and then *skips*
 verification -- every caller gates ``verify_execution`` /
-``verify_docker_execution`` on ``result.success``. So "adapter invoked and
+``verify_executed_action`` on ``result.success``. So "adapter invoked and
 failed" leaves **no verification record at all**, and it cannot be told apart
 from "verification never ran" by looking at the verification store.
 ``verification_failure`` is not a substitute: it already means "the verifier
@@ -22,7 +22,7 @@ itself failed".
 attempt that did not succeed, write one ``VerificationResult`` into the existing
 verification store with a distinct status string, correlated by
 ``execution_id``. Same store, same model, same boundary that
-``app/homelab/verification.py`` already writes above-Core records to -- this
+``app/ops/verification/service.py`` already writes above-Core records to -- this
 just adds the missing negative case.
 
 **Strictly bounded.**

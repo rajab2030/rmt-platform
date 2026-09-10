@@ -19,17 +19,28 @@ The observer MUST NOT (and does not):
 It only reads actual container state and returns an ObservedState (or None
 when the state cannot be observed, so the existing verifier fails safe with
 observation_unavailable).
+
+B1a: when docker IS reachable and the container listing succeeded but the
+target is not in it, the observation is a definite ``state="absent"`` -- not an
+inability to observe. This makes ``remove`` verifiable (an ``absent`` expected
+state now has a distinct observed value). ``None`` is reserved for "could not
+observe" (docker down, lookup raised). A present container is unaffected.
 """
 from app.core.intelligence.verification.models import ObservedState
 from app.docker_api import get_containers, docker_available
+
+# B1a: the observed state for a target that is definitely gone (docker was
+# reachable and the listing did not contain it).
+ABSENT = "absent"
 
 
 def observe_container_state(target: str):
     """Read-only observation of a Docker container's actual state.
 
-    Returns an ObservedState (source="docker") when the container is found,
-    or None when the state cannot be observed (docker unavailable, lookup
-    error, or container not present). Never mutates anything.
+    Returns an ObservedState (source="docker") when the container is found, an
+    ObservedState with state="absent" when docker was reachable but the
+    container is not present, or None when the state cannot be observed (docker
+    unavailable, lookup error). Never mutates anything.
     """
     if not docker_available():
         return None
@@ -47,5 +58,7 @@ def observe_container_state(target: str):
                 source="docker",
             )
 
-    # Container not present -> state cannot be observed.
-    return None
+    # Docker was reachable and the listing succeeded: the container is
+    # definitely gone. That is an observation ("absent"), not an inability to
+    # observe.
+    return ObservedState(target=target, state=ABSENT, source="docker")

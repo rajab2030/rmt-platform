@@ -1,8 +1,12 @@
 # RMT — B1: Strengthen the Verify Stage (above-Core observer layer) — Proposal
 
-**Status:** DRAFT rev-2, 2026-09-09 (owner selected B1 from
-`docs/RMT_IMPROVEMENT_ROADMAP.md` for scoping; not yet approved for
-implementation).
+**Status:** **APPROVED 2026-09-10 — proceed by split.** Owner answered §7 Q1–Q4
+(recorded there) and authorised **B1a**, now **IMPLEMENTED (2026-09-10)** — see
+the B1a completion note at the end of this file. **B1b** (effective-status index
++ reconcile + `verification_inconclusive` + counters + `GET /ops/verifications`
++ the through-`/execute` e2e) remains scoped, not yet authorised.
+(DRAFT rev-2 history: 2026-09-09, owner selected B1 from
+`docs/RMT_IMPROVEMENT_ROADMAP.md` for scoping.)
 **Classification:** Above-Core / operational. No C08. **No frozen Core change.**
 No reopening of C01–C07. Consistent with the standing owner directive
 (2026-09-08): a recorded frozen-Core gap gets an above-Core mitigation or an
@@ -292,22 +296,25 @@ from the Core verifier by construction.
 
 ---
 
-## 7. Open questions for the owner
+## 7. Open questions for the owner — ANSWERED 2026-09-10
 
-- **Q1 — settling poll default.** `RMT_VERIFY_OBSERVE_TIMEOUT_S = 5` adds up to
-  ~5 s to a `POST /execute` response on a genuine `state_mismatch`. Options:
-  keep 5 s; lower to 2 s; default `0` (single-shot) and let operators opt in.
-  *Recommendation: 5 s — the operator path is low-volume and a correct verdict
-  matters more than latency.*
-- **Q2 — `/health` advisory field.** Add `unverified_executions_recent`, or keep
-  `/health` minimal and leave this to `/metrics` + `/ops/verifications`?
-  *Recommendation: keep `/health` minimal.*
-- **Q3 — `verify_docker_execution` removal.** Delete now + update 4 test files,
-  or keep a one-release deprecation alias? *Recommendation: delete now — no
-  external consumers, and the alias just defers the test churn.*
-- **Q4 — inconclusive severity.** `notify_ops` low-severity line, or metrics-only
-  (no webhook noise)? *Recommendation: low-severity notify — "we executed and
-  could not confirm" is exactly what an operator should see.*
+- **Q1 — settling poll default.** **DECIDED: keep 5 s.**
+  `RMT_VERIFY_OBSERVE_TIMEOUT_S = 5` (`0` = single-shot). The operator path is
+  low-volume and a correct verdict matters more than latency. *(The test suite
+  sets `0` in `conftest.py` so mismatch cases don't poll; the dedicated
+  settling-poll unit test sets its own small non-zero value.)*
+- **Q2 — `/health` advisory field.** **DECIDED: keep `/health` minimal.** The
+  "unverified executions" signal lives in `/metrics` + `GET /ops/verifications`
+  (both B1b).
+- **Q3 — `verify_docker_execution` removal.** **DECIDED: delete now.** No
+  external consumers; the alias only defers the test churn. B1a deletes
+  `app/homelab/verification.py` and updates the referencing test files
+  (`test_observer.py`, `test_continuation.py`, `test_integrated.py`,
+  `test_e2e_docker.py`, `test_agent_governance.py`) + the
+  `app/engineering/repo_index.py` curated inventory.
+- **Q4 — inconclusive severity.** **DECIDED: low-severity `notify_ops` line.**
+  "We executed and could not confirm" is exactly what an operator should see.
+  *(Implemented in B1b, alongside the effective-status index.)*
 
 ---
 
@@ -322,3 +329,66 @@ from the Core verifier by construction.
   built forward and by reconcile, not by rewriting history.
 - New execution adapters or domains — that is roadmap C2 / D-1; B1 only builds
   the observer seam they will register into.
+
+---
+
+## 9. B1a completion note (2026-09-10)
+
+Implemented. **No `app/core/**` change** (verified: `git diff` touches no
+`app/core/` path). Frozen `verifier.verify`, `verification_storage`, and the
+`VerificationResult` / `ExpectedOutcome` / `ObservedState` models are reused
+unchanged.
+
+**New — `app/ops/verification/`:**
+- `registry.py` — `register_observer` / `resolve_observer`; `(adapter, operation)`
+  → factory. Unknown pair → `None`, never an error.
+- `expected.py` — `expected_state_for(adapter, operation)`; the §2.1 table
+  (`docker`: start/restart/create→`running`, stop→`exited`, remove→`absent`).
+- `docker_observers.py` — registers `observe_container_state` (via a factory
+  adapter) for `docker` × {start, stop, restart, create, remove}.
+- `service.py` — `verify_executed_action(execution_id, *, adapter_name,
+  operation, target, expected=None)`: builds `expected` from the table when the
+  caller passes none; resolves an observer; **settling poll**
+  (`RMT_VERIFY_OBSERVE_TIMEOUT_S`, default 5, `0` = single-shot, ~0.5 s
+  interval, early-return on match); calls the frozen verifier + storage;
+  prefixes `result.reason` with
+  `[layer=above_core adapter=<name> supersedes=observation_unavailable]` (the
+  `supersedes=` clause only when a Core record with that status already exists
+  for the `execution_id`). No observer → returns an `observation_unavailable`
+  result and writes **nothing** (the Core already saved one). `verification_storage`
+  is dereferenced through its module at call time (R10).
+
+**Changed:**
+- `app/homelab/observer.py::observe_container_state` — reachable-and-gone now
+  returns `ObservedState(state="absent")`; `None` is reserved for "could not
+  observe" (docker down / lookup raised). Makes `remove` verifiable (R7).
+- `app/homelab/remediation.py`, `app/homelab/continuation.py`,
+  `app/agent/adapter.py` — the 3 `verify_docker_execution(...)` calls now call
+  `verify_executed_action(..., adapter_name="docker", operation=<action_type>,
+  ...)`. `app/homelab/verification.py` **deleted** (Q3).
+- `app/main.py::execute` — after the E3 call, an executed+successful operator
+  action calls `verify_executed_action(adapter_name=_resolve_adapter_name(),
+  operation=operation, target=target)` and the response gains
+  `above_core_verification_status`. (`effective_verification_status` is B1b.)
+- `conftest.py` — `RMT_VERIFY_OBSERVE_TIMEOUT_S=0` default so a suite
+  `state_mismatch` case doesn't spend the 5 s budget.
+- Test files updated for the deleted module + the R10 storage-module patch:
+  `test_observer.py`, `test_continuation.py`, `test_integrated.py`,
+  `test_e2e_docker.py`, `test_agent_governance.py`; `app/engineering/repo_index.py`
+  and the `app/ops/execution_evidence.py` docstring re-pointed.
+- New tests: `app/ops/verification/testing/test_service.py` (registry, table,
+  `absent`, settling poll early-return + one transient reading, single-shot,
+  reason token, `supersedes=`, no-observer-writes-nothing, restart/stop/remove
+  `verified_success`, `state_mismatch`, caller-supplied `expected` wins) and
+  `test_execute_route.py` (`/execute` surfaces the key; sim adapter writes
+  nothing; failed adapter gets no above-Core verification).
+
+**Validation:** full backend suite **433 passed** (`ruff` F/E9 clean; `import
+app.main` clean); Core intelligence suite **134 passed**, unchanged by this work
+(no `app/core/**` diff); `test_e2e_docker.py` (real `docker restart` of a
+disposable container) **2 passed** through the new `verify_executed_action`.
+
+**Deferred to B1b:** the effective-status index (§2.3), startup reconcile,
+`verification_inconclusive` notify (§2.4, Q4), the 4 `/metrics` counters,
+`GET /ops/verifications`, `effective_verification_status` on the `/execute`
+response, and the through-`POST /execute` e2e.

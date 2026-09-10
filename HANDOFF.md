@@ -2459,3 +2459,66 @@ references checked against the tree on 2026-09-10.
 Roadmap §8 order, A1/A2/A3/B3 now done: **B1** is the next build — needs owner
 answers to `docs/RMT_B1_PROPOSAL.md` §7 Q1–Q4, then authorise **B1a**. After B1:
 **C1** (broaden `REMEDIATION_POLICY`, exercises B1) → **B2** → **C2**.
+
+---
+
+## Session note — B1a: strengthen the Verify stage (above-Core observer layer)
+
+**Date:** 2026-09-10. Owner answered `docs/RMT_B1_PROPOSAL.md` §7 Q1–Q4 (keep
+5 s settling poll; `/health` minimal; delete `verify_docker_execution` now;
+low-severity notify in B1b) and authorised **B1a**. **No `app/core/**` change.**
+
+### What changed
+- **New `app/ops/verification/`** — `registry.py` (`register_observer` /
+  `resolve_observer`, `(adapter, operation)` → factory; miss → `None`),
+  `expected.py` (`expected_state_for`: docker start/restart/create→`running`,
+  stop→`exited`, remove→`absent`), `docker_observers.py` (registers
+  `observe_container_state` for `docker` × 5 ops), `service.py`
+  (`verify_executed_action(execution_id, *, adapter_name, operation, target,
+  expected=None)` — builds `expected` from the table when omitted; settling poll
+  `RMT_VERIFY_OBSERVE_TIMEOUT_S` default 5 / `0`=single-shot / ~0.5 s /
+  early-return on match; frozen `verifier.verify` + `verification_storage.save`;
+  `result.reason` prefixed
+  `[layer=above_core adapter=… supersedes=observation_unavailable]`, the
+  `supersedes=` clause only when a Core `observation_unavailable` record already
+  exists for the id; no observer → returns `observation_unavailable`, writes
+  nothing; `verification_storage` dereferenced through its module at call time —
+  R10).
+- **`app/homelab/observer.py`** — reachable-and-gone → `ObservedState(state="absent")`;
+  `None` reserved for "could not observe" (docker down / lookup raised). `remove`
+  is now verifiable.
+- **3 call sites swapped** to `verify_executed_action(..., adapter_name="docker",
+  operation=<action_type>.value, ...)`: `app/homelab/remediation.py`,
+  `app/homelab/continuation.py`, `app/agent/adapter.py`. **`app/homelab/verification.py`
+  deleted.**
+- **`app/main.py::execute`** — after the E3 hook, an executed+successful operator
+  action calls `verify_executed_action(adapter_name=_resolve_adapter_name(),
+  operation=operation, target=target)`; response gains
+  `above_core_verification_status` (`effective_verification_status` is B1b).
+- **`conftest.py`** — `RMT_VERIFY_OBSERVE_TIMEOUT_S=0` default (suite doesn't
+  spend the 5 s budget on a `state_mismatch`).
+- Test churn for the deleted module + the R10 storage-module patch:
+  `test_observer.py`, `test_continuation.py`, `test_integrated.py`,
+  `test_e2e_docker.py`, `test_agent_governance.py`;
+  `app/engineering/repo_index.py` + an `app/ops/execution_evidence.py` docstring
+  re-pointed. **New:** `app/ops/verification/testing/test_service.py`,
+  `test_execute_route.py`.
+- Docs: `docs/operations/CONFIG.md` (new `RMT_VERIFY_OBSERVE_TIMEOUT_S` knob),
+  roadmap B1 + proposal §9 completion note + `RMT_CAPABILITIES_EVIDENCE.md` B1a
+  section.
+
+### Validation
+- Full backend suite **433 passed** (7 m 10 s); `ruff check app` (F, E9) clean;
+  `import app.main` clean.
+- Core intelligence suite **134 passed** — unchanged by this work (`git diff`
+  touches no `app/core/` path).
+- `test_e2e_docker.py` (real `docker restart` of a disposable container) **2
+  passed** through the new `verify_executed_action`.
+
+### Next
+**B1b** (scoped, not yet authorised): effective-status index (§2.3) + startup
+reconcile; `verification_inconclusive` notify (§2.4, Q4);
+`rmt_executed_actions_*` `/metrics` counters; `GET /ops/verifications`;
+`effective_verification_status` on the `/execute` response; the
+through-`POST /execute` e2e. Then roadmap §8: **C1** (broaden
+`REMEDIATION_POLICY`, exercises B1) → **B2** → **C2**.
