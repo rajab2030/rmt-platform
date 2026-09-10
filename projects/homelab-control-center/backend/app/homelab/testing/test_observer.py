@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from unittest.mock import Mock
 
 import app.homelab.observer as observer_module
-import app.homelab.verification as verification_module
+import app.core.intelligence.verification.storage as verification_storage_module
 import app.core.intelligence.execution.engine as execution_engine_module
 import app.core.intelligence.actions.service as actions_service_module
 import app.core.intelligence.actions.approval_service as approval_service_module
@@ -35,7 +35,7 @@ from app.core.intelligence.execution.storage import ExecutionAuditStorage
 from app.core.intelligence.execution.trace_storage import ExecutionTraceStorage
 
 from app.homelab.observer import observe_container_state
-from app.homelab.verification import verify_docker_execution
+from app.ops.verification import verify_executed_action
 from app.homelab.remediation import remediate_and_verify
 
 
@@ -78,12 +78,28 @@ def test_observer_returns_none_when_docker_unavailable(monkeypatch):
     assert observe_container_state("uptime-kuma") is None
 
 
-def test_observer_returns_none_when_container_absent(monkeypatch):
+def test_observer_returns_absent_when_reachable_and_container_gone(monkeypatch):
+    """B1a: docker reachable + listing succeeded but the target is not in it is
+    a definite observation ("absent"), not an inability to observe."""
     _mock_docker(
         monkeypatch,
         available=True,
         containers=[{"name": "dozzle", "status": "running"}],
     )
+    observed = observe_container_state("uptime-kuma")
+    assert isinstance(observed, ObservedState)
+    assert observed.state == "absent"
+    assert observed.source == "docker"
+
+
+def test_observer_returns_none_when_lookup_raises(monkeypatch):
+    """None is reserved for "could not observe" -- here get_containers raises."""
+    monkeypatch.setattr(observer_module, "docker_available", lambda: True)
+
+    def _boom():
+        raise RuntimeError("docker socket error")
+
+    monkeypatch.setattr(observer_module, "get_containers", _boom)
     assert observe_container_state("uptime-kuma") is None
 
 
@@ -117,11 +133,18 @@ def test_verified_success_when_expected_state_reached(monkeypatch):
         containers=[{"name": "uptime-kuma", "status": "running"}],
     )
     store = VerificationStorage()
-    monkeypatch.setattr(verification_module, "verification_storage", store)
+    monkeypatch.setattr(verification_storage_module, "verification_storage", store)
 
-    result = verify_docker_execution("exec-1", _expected(), "uptime-kuma")
+    result = verify_executed_action(
+        "exec-1",
+        adapter_name="docker",
+        operation="restart",
+        target="uptime-kuma",
+        expected=_expected(),
+    )
     assert result.status == VerificationStatus.VERIFIED_SUCCESS
     assert result.observed.state == "running"
+    assert result.reason.startswith("[layer=above_core adapter=docker")
     # Persisted through the existing verification storage.
     assert len(store.get_all()) == 1
     assert store.get_all()[0].execution_id == "exec-1"
@@ -134,9 +157,15 @@ def test_state_mismatch_when_actual_state_differs(monkeypatch):
         containers=[{"name": "uptime-kuma", "status": "exited"}],
     )
     store = VerificationStorage()
-    monkeypatch.setattr(verification_module, "verification_storage", store)
+    monkeypatch.setattr(verification_storage_module, "verification_storage", store)
 
-    result = verify_docker_execution("exec-2", _expected(), "uptime-kuma")
+    result = verify_executed_action(
+        "exec-2",
+        adapter_name="docker",
+        operation="restart",
+        target="uptime-kuma",
+        expected=_expected(),
+    )
     assert result.status == VerificationStatus.STATE_MISMATCH
     assert result.observed.state == "exited"
 
@@ -144,11 +173,55 @@ def test_state_mismatch_when_actual_state_differs(monkeypatch):
 def test_observation_unavailable_when_docker_unavailable(monkeypatch):
     _mock_docker(monkeypatch, available=False)
     store = VerificationStorage()
-    monkeypatch.setattr(verification_module, "verification_storage", store)
+    monkeypatch.setattr(verification_storage_module, "verification_storage", store)
 
-    result = verify_docker_execution("exec-3", _expected(), "uptime-kuma")
+    result = verify_executed_action(
+        "exec-3",
+        adapter_name="docker",
+        operation="restart",
+        target="uptime-kuma",
+        expected=_expected(),
+    )
     assert result.status == VerificationStatus.OBSERVATION_UNAVAILABLE
     assert result.observed is None
+
+
+def test_remove_verified_success_against_absent(monkeypatch):
+    """B1a: an absent expected state now has a distinct observed value, so a
+    remove can reach verified_success."""
+    _mock_docker(
+        monkeypatch,
+        available=True,
+        containers=[{"name": "dozzle", "status": "running"}],
+    )
+    store = VerificationStorage()
+    monkeypatch.setattr(verification_storage_module, "verification_storage", store)
+
+    result = verify_executed_action(
+        "exec-rm",
+        adapter_name="docker",
+        operation="remove",
+        target="uptime-kuma",
+    )
+    assert result.status == VerificationStatus.VERIFIED_SUCCESS
+    assert result.observed.state == "absent"
+
+
+def test_unknown_adapter_operation_records_nothing(monkeypatch):
+    """No registered observer -> observation_unavailable result, and no second
+    record written (the Core already saved one)."""
+    store = VerificationStorage()
+    monkeypatch.setattr(verification_storage_module, "verification_storage", store)
+
+    result = verify_executed_action(
+        "exec-x",
+        adapter_name="simulation",
+        operation="restart",
+        target="uptime-kuma",
+    )
+    assert result.status == VerificationStatus.OBSERVATION_UNAVAILABLE
+    assert "no above-Core observer" in result.reason
+    assert store.get_all() == []
 
 
 # ---------------------------------------------------------------------------
@@ -191,14 +264,16 @@ def _setup_isolation(monkeypatch):
     monkeypatch.setattr(
         approval_service_module, "execution_authorization_storage", auth_storage
     )
-    monkeypatch.setattr(
-        verification_module, "verification_storage", verification_storage
-    )
-    # The governed path (execute_governed_action -> Core verify_execution) also
-    # writes verification evidence; patch the Core verification service storage
-    # so no real verifications.json is touched.
+    # The governed path (execute_governed_action -> Core verify_execution) and
+    # the above-Core verify_executed_action both write verification evidence;
+    # patch the Core verification service storage AND the storage-module
+    # singleton the above-Core layer dereferences (R10) so no real evidence db
+    # is touched.
     monkeypatch.setattr(
         verification_service_module, "verification_storage", verification_storage
+    )
+    monkeypatch.setattr(
+        verification_storage_module, "verification_storage", verification_storage
     )
     monkeypatch.setattr(execution_engine_module, "adapter_registry", adapter_registry)
     return {

@@ -67,7 +67,7 @@ def captured_governed(monkeypatch):
         lambda *a, **k: learn_calls.append((a, k)),
     )
     monkeypatch.setattr(
-        adapter_mod, "verify_docker_execution",
+        adapter_mod, "verify_executed_action",
         lambda *a, **k: verify_calls.append((a, k)) or _V(),
     )
     monkeypatch.setattr(

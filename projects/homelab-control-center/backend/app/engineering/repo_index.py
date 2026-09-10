@@ -23,12 +23,13 @@ CURATED_ENGINEERING_METADATA = {
         "source_files": [
             "app/homelab/remediation.py",
             "app/homelab/observer.py",
-            "app/homelab/verification.py",
+            "app/ops/verification/service.py",
         ],
         "test_files": [
             "app/homelab/testing/test_integrated.py",
             "app/homelab/testing/test_remediation.py",
             "app/homelab/testing/test_observer.py",
+            "app/ops/verification/testing/test_service.py",
         ],
         "notes": "Monitoring service; governed remediation target (CAP-01).",
     },

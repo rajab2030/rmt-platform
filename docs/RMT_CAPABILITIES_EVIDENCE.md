@@ -499,6 +499,51 @@ exercise needs a `deps.conf` drop-in + restart (owner-run) to repeat on live.
 
 ---
 
+## B1a — Strengthen the Verify stage: above-Core observer layer (2026-09-10)
+
+Proposal: `docs/RMT_B1_PROPOSAL.md` (APPROVED by split; §9 completion note).
+Frozen-Core gap this compensates: `docs/RMT_FROZEN_CORE_DEBT.md` **D3**
+(`_resolve_trusted_observer` resolves an observer only for module `create`).
+
+- **New `app/ops/verification/`** — an above-Core observer *registry*
+  (`register_observer` / `resolve_observer`, `(adapter, operation)` → factory),
+  the single `expected_state_for` table, the Docker observer registration, and
+  `verify_executed_action(...)`: resolve a read-only observer, settling-poll it
+  (`RMT_VERIFY_OBSERVE_TIMEOUT_S`, default 5, `0` = single-shot, early-return on
+  match), feed the observation to the **frozen** `verifier.verify` +
+  `verification_storage.save`, and prefix `result.reason` with
+  `[layer=above_core adapter=… supersedes=observation_unavailable]`. No observer
+  → returns `observation_unavailable` and writes nothing (the Core already saved
+  one). `verification_storage` dereferenced through its module at call time (R10).
+- **`observe_container_state`** — reachable-and-gone now returns
+  `ObservedState(state="absent")`; `None` is reserved for "could not observe".
+  Makes `remove` verifiable.
+- **Wired in** — the 3 `verify_docker_execution` call sites
+  (`remediation.py` / `continuation.py` / `agent/adapter.py`) now call
+  `verify_executed_action`; `app/homelab/verification.py` deleted;
+  `POST /execute` calls it after the E3 hook and returns
+  `above_core_verification_status`.
+
+**Core integrity.** No `app/core/**` change (verified: `git diff` touches no
+`app/core/` path). Frozen verifier / storage / models reused unchanged; no new
+mutation path; observers are read-only.
+
+**Validation.** Full backend suite **433 passed** (`ruff` F/E9 clean; `import
+app.main` clean). Core intelligence suite **134 passed**, unchanged by this work.
+New: `app/ops/verification/testing/test_service.py` (registry, table, `absent`,
+settling poll early-return + one transient reading, single-shot, reason token,
+`supersedes=`, no-observer-writes-nothing, restart/stop/remove `verified_success`,
+`state_mismatch`, caller-`expected` wins) + `test_execute_route.py` (4).
+`test_e2e_docker.py` (real `docker restart` of a disposable container) **2
+passed** through the new entrypoint.
+
+**Deferred to B1b.** Effective-status index + startup reconcile,
+`verification_inconclusive` notify, 4 `/metrics` counters,
+`GET /ops/verifications`, `effective_verification_status` on `/execute`, and the
+through-`POST /execute` live exercise.
+
+---
+
 ## Index
 
 | Capability | Status | Validation | Core integrity |

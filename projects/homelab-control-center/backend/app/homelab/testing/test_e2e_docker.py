@@ -31,7 +31,7 @@ from app.core.intelligence.execution.adapters.bootstrap import (
     register_default_adapters,
 )
 from app.homelab.observer import observe_container_state
-from app.homelab.verification import verify_docker_execution
+from app.ops.verification import verify_executed_action
 from app.ops.execution_evidence import record_failed_execution_evidence
 
 # storage classes
@@ -50,7 +50,6 @@ import app.core.intelligence.execution.engine as engine_module
 import app.core.intelligence.actions.approval_service as approval_service_module
 import app.core.intelligence.verification.service as verification_service_module
 import app.core.intelligence.verification.storage as verification_storage_module
-import app.homelab.verification as homelab_verification_module
 import app.ops.execution_evidence as execution_evidence_module
 
 pytestmark = pytest.mark.e2e
@@ -98,7 +97,6 @@ def isolated_stores(monkeypatch):
     for mod in (
         verification_service_module,
         verification_storage_module,
-        homelab_verification_module,
         execution_evidence_module,
     ):
         monkeypatch.setattr(mod, "verification_storage", verification)
@@ -188,8 +186,12 @@ def test_fault_held_approved_executed_verified(docker_client, probe, isolated_st
     assert _wait_status(docker_client, target, "running") == "running"
 
     # --- above-Core Docker verification ---
-    verification = verify_docker_execution(
-        execution_id, action.expected_outcome, target
+    verification = verify_executed_action(
+        execution_id,
+        adapter_name="docker",
+        operation="restart",
+        target=target,
+        expected=action.expected_outcome,
     )
     assert verification.status == "verified_success", verification
 

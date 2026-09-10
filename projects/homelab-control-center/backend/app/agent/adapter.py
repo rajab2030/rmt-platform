@@ -21,7 +21,7 @@ from app.core.intelligence.actions.models import ActionRequest
 from app.core.intelligence.actions.service import execute_governed_action
 
 from app.homelab.remediation import resolve_adapter_name, record_learning
-from app.homelab.verification import verify_docker_execution
+from app.ops.verification import verify_executed_action
 from app.ops.execution_evidence import record_failed_execution_evidence
 from app.ops.logging_config import log_event
 from app.ops.notifications import notify_held
@@ -151,8 +151,12 @@ def propose_and_govern(proposal: AgentProposal) -> AgentOutcome:
         outcome.decision = "allow"
         outcome.execution_id = result.get("execution_id")
         if result.get("success") and action.expected_outcome is not None:
-            verification = verify_docker_execution(
-                result["execution_id"], action.expected_outcome, target
+            verification = verify_executed_action(
+                result["execution_id"],
+                adapter_name="docker",
+                operation=operation,
+                target=target,
+                expected=action.expected_outcome,
             )
             result["docker_verification_status"] = verification.status
             result["docker_verification_reason"] = verification.reason

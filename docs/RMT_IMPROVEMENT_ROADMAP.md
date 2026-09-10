@@ -130,7 +130,15 @@ behaviour.
 
 ### B1 — Strengthen the Verify stage (above-Core observer layer)
 
-> Scoped in detail in `docs/RMT_B1_PROPOSAL.md` (DRAFT 2026-09-09).
+> Scoped in detail in `docs/RMT_B1_PROPOSAL.md` (APPROVED 2026-09-10, by split).
+> **B1a DONE (2026-09-10)** — `app/ops/verification/` package (registry +
+> expected-state table + `verify_executed_action`), `observe_container_state`
+> `absent` extension, the 3 `verify_docker_execution` call sites swapped +
+> `POST /execute` wired, `verify_docker_execution` deleted. Full suite 433
+> passed; Core intelligence suite unaffected (no `app/core/**` change).
+> **B1b** (effective-status index + reconcile + `verification_inconclusive`
+> notify + 4 `/metrics` counters + `GET /ops/verifications` + the
+> through-`/execute` e2e) remains scoped, not yet authorised.
 
 - **Objective:** every adapter has a real post-condition assertion, and
   "verification could not observe the outcome" is a first-class alerting

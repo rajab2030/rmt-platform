@@ -21,6 +21,7 @@ from app.ops.retention import archive_aged_evidence
 from app.ops.ratelimit import rate_limit_execute
 from app.ops.runtime_info import runtime_status, warn_on_capability_mismatch
 from app.ops.separation import check_separation
+from app.ops.verification import verify_executed_action
 
 from app.monitor import get_history
 from app.collector import collect_metrics
@@ -383,6 +384,24 @@ def execute(
         expected=getattr(action, "expected_outcome", None),
         source="http_execute",
     )
+
+    # B1a: above-Core post-condition verification for an executed operator
+    # action. Resolves an observer for the resolved execution adapter +
+    # operation; when none is registered (e.g. the simulation adapter) it
+    # records nothing new and the Core's observation_unavailable stands.
+    if (
+        isinstance(result, dict)
+        and result.get("status") == "executed"
+        and result.get("success")
+        and result.get("execution_id")
+    ):
+        above_core = verify_executed_action(
+            result["execution_id"],
+            adapter_name=_resolve_adapter_name(),
+            operation=operation,
+            target=target,
+        )
+        result["above_core_verification_status"] = above_core.status
 
     _log_governed(
         "governed_execute",

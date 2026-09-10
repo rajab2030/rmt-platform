@@ -47,6 +47,18 @@ once (state file).
 | `RMT_ESCALATE_AFTER_SECONDS` | `180` | Age at which a still-open hold escalates. Must be `< 300` (Core TTL); the script warns otherwise. |
 | `RMT_ESCALATE_STATE` | `/run/rmt-escalate` (fallback `/tmp`) | State dir for the escalated-id list. |
 
+## Above-Core verification — `app/ops/verification/service.py` (B1a)
+
+| Variable | Default | Effect | Set by |
+|---|---|---|---|
+| `RMT_VERIFY_OBSERVE_TIMEOUT_S` | `5` | **B1a.** Seconds the above-Core post-execution observer keeps re-observing (~0.5 s interval) while the expected state has not yet been seen — a settling allowance for the beat a container spends `created` / `restarting` right after a `restart` / `start`. Returns as soon as the expected state is observed. `0` = single-shot (no poll). Adds at most this much to a `POST /execute` response on a genuine `state_mismatch`. | drop-in (optional) |
+
+Applies to `POST /execute`, the homelab remediation / approval-continuation
+paths, and the governed agent path: each resolves a read-only Docker observer
+for the `(adapter, operation)` and feeds it to the **frozen** verifier +
+verification store. Where no observer is registered (e.g. the `simulation`
+adapter) nothing new is written and the Core's `observation_unavailable` stands.
+
 ## Application logging — `app/ops/ops_config.py` (P1: O1 structured logging)
 
 | Variable | Default | Effect | Set by |

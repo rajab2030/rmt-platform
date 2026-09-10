@@ -22,8 +22,8 @@ import app.core.intelligence.execution.engine as execution_engine_module
 import app.core.intelligence.actions.service as actions_service_module
 import app.core.intelligence.actions.approval_service as approval_service_module
 import app.core.intelligence.verification.service as verification_service_module
+import app.core.intelligence.verification.storage as verification_storage_module
 import app.core.intelligence.memory.service as memory_service_module
-import app.homelab.verification as homelab_verification_module
 import app.homelab.observer as observer_module
 
 from app.core.intelligence.observation.models import ComponentObservation
@@ -102,9 +102,10 @@ def _setup_isolation(monkeypatch):
     monkeypatch.setattr(
         verification_service_module, "verification_storage", verification_storage
     )
-    # Above-Core Docker verification storage (verify_docker_execution).
+    # Above-Core verification storage (app/ops/verification/service.py
+    # dereferences it through this module at call time -- R10).
     monkeypatch.setattr(
-        homelab_verification_module, "verification_storage", verification_storage
+        verification_storage_module, "verification_storage", verification_storage
     )
     monkeypatch.setattr(
         execution_engine_module, "adapter_registry", adapter_registry
