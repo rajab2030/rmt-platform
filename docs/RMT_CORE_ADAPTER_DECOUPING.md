@@ -146,3 +146,9 @@ milestone, no reopening of C01–C07.
 **Deferred (owner REDUCE-SCOPE decision):** #2–#18 remain deferred. Do not
 automatically proceed to #2; reassess remaining findings against the frozen
 Target State before any further authorization.
+
+> **Tracked in the debt register.** `docs/RMT_FROZEN_CORE_DEBT.md` row **D5**
+> records this deferral — including that only #2 and #3 are concretely
+> enumerated (§2 above) and #4–#18 are an un-enumerated range — with its
+> compensating control, residual risk, and owner trigger to revisit. Residual
+> Docker **naming** left in Core after #1 is row **D4**.

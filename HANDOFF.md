@@ -2360,3 +2360,59 @@ goes Pro or public. Recorded in `CI.md` + roadmap + readiness.
 ### Next
 Roadmap §9: T0-3 (lifecycle observability) and T0-5 (S4/S3/S5 security finish)
 remain in the Tier 0 batch; then T1-1, then a Tier 2 domain (D-1).
+
+---
+
+## Session note — RMT improvement roadmap + A3 (frozen-Core debt register)
+
+**Date:** 2026-09-10. Documentation only — **no `app/**` change**, no suite run
+needed. Follows the owner directive (2026-09-08): recorded frozen-Core gap →
+above-Core mitigation or accept-and-record, never a freeze deviation.
+
+### What was produced
+- **`docs/RMT_IMPROVEMENT_ROADMAP.md`** (commit `c64790b`) — prioritized Phase
+  A–D list of above-Core / operational / process improvements to the RMT that
+  exists today. Companion to `RMT_ABOVE_CORE_ROADMAP.md` (menu of new
+  directions). Recommended sequence in §8: **A1 → A2+A3 → B3 → B1 → C1 → B2 →
+  C2 → C3 → D**. A1 = T0-1 (done), A2 = T0-4 (done).
+- **`docs/RMT_B1_PROPOSAL.md`** (commit `313060f`) — **DRAFT rev-2**, not
+  approved. B1 "strengthen the Verify stage" scoped in full: recon R1–R11, a new
+  above-Core `app/ops/verification/` package (registry / expected /
+  docker_observers / service / index), swap the 3 `verify_docker_execution`
+  call sites + wire `POST /execute`, `observe_container_state` gains an `absent`
+  reading, effective-status index + `verification_inconclusive` notify + 4
+  `/metrics` counters + `GET /ops/verifications`. Split **B1a** (observer seam)
+  / **B1b** (index + surface). **Blocked on owner answers to §7 Q1–Q4.**
+- **`docs/RMT_FROZEN_CORE_DEBT.md`** (**A3**, roadmap §3) — the single
+  authoritative table of every recorded frozen-Core gap:
+  - **D1** `approve_held_action` persists the approval record but not the hold —
+    a resolved hold reads `pending` on disk after restart
+    (`approval_service.py:123`; no `approval_hold_storage.save` after `:163/172/185`).
+    Compensating: record store authoritative + `reconcile.py` E2 + CAP-04 guard.
+  - **D2** a *failed* adapter execution produces no Core verification evidence.
+    Compensating: E3 `record_failed_execution_evidence` → `adapter_execution_failed`.
+  - **D3** `_resolve_trusted_observer` (`verification/service.py:49`) resolves an
+    observer only for `operation == "create"` with `module_name`; everything
+    else → `observation_unavailable`. Compensating: above-Core Docker observer;
+    B1 generalises it. (This row is added by B1 §6.)
+  - **D4** Docker-flavoured names left in Core after freeze-deviation #1
+    (`get_docker_health`, `runtime_engine="docker"` defaults, `bootstrap.py`
+    importing `app.docker_api`). Compensating: injected `PlatformStateProvider`;
+    names are cosmetic given the seam.
+  - **D5** adapter-decoupling "#2–#18" deferred — only #2 and #3 are actually
+    enumerated (DECOUPING §2); #4–#18 is an un-enumerated range.
+  - §4 lists the `RMT_CONTEXT.md` §14 entries that are recorded-and-closed
+    (no trigger).
+  - Cross-linked from `RMT_CONTEXT.md` §14 and
+    `docs/RMT_CORE_ADAPTER_DECOUPING.md` §9; roadmap A3 marked **DONE**.
+
+### Validation
+Documentation only; no code, no tests. `file:line` references in
+`RMT_FROZEN_CORE_DEBT.md` verified against the working tree on 2026-09-10.
+
+### Next
+- **Owner decision on B1:** answer `docs/RMT_B1_PROPOSAL.md` §7 Q1–Q4, then
+  authorise **B1a** — or take the cheaper roadmap items first (**B3** threat
+  model + guarantees, size S).
+- Then per roadmap §8: **B1 → C1** (broaden `REMEDIATION_POLICY`, exercises B1)
+  → **B2** → **C2** (second domain, the thesis proof).

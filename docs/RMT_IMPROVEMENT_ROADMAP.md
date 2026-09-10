@@ -97,6 +97,10 @@ are cheap relative to their risk reduction and every later phase assumes them.
 
 ### A3 — Frozen-Core debt register with explicit triggers
 
+> **Status: DONE (2026-09-10)** — `docs/RMT_FROZEN_CORE_DEBT.md` (rows D1–D5 +
+> the §14 recorded-and-closed table); cross-linked from `RMT_CONTEXT.md` §14 and
+> `docs/RMT_CORE_ADAPTER_DECOUPING.md` §9.
+
 - **Objective:** one authoritative table of every recorded frozen-Core gap, its
   current above-Core compensating control, and the written condition that would
   make the owner revisit it.
