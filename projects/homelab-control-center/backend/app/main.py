@@ -22,6 +22,8 @@ from app.ops.ratelimit import rate_limit_execute
 from app.ops.runtime_info import runtime_status, warn_on_capability_mismatch
 from app.ops.separation import check_separation
 from app.ops.verification import verify_executed_action
+from app.ops.verification import index as verification_index
+from app.ops.verification.index import rebuild as rebuild_verification_index
 
 from app.monitor import get_history
 from app.collector import collect_metrics
@@ -168,6 +170,15 @@ async def lifespan(app: FastAPI):
     # bounded. After the reconcile above; fail-open; see app/ops/retention.py.
     archive_aged_evidence()
 
+    # B1b: build the above-Core effective-status verification index from the
+    # durable evidence (after retention so it reflects the trimmed store).
+    # Silent -- fires no notification; marks history rows already-notified.
+    # Fail-open; see app/ops/verification/index.py.
+    try:
+        rebuild_verification_index()
+    except Exception as exc:  # never block startup
+        logger.warning("verification index rebuild skipped (non-fatal): %r", exc)
+
     collector_task = asyncio.create_task(
         collect_metrics()
     )
@@ -279,6 +290,25 @@ def ops_holds(operator: OperatorIdentity = Depends(require_operator)):
     return {"holds": open_holds_view()}
 
 
+@app.get("/ops/verifications")
+def ops_verifications(
+    limit: int = 50,
+    effective_status: str | None = None,
+    operator: OperatorIdentity = Depends(require_operator),
+):
+    """B1b: read-only view of the above-Core effective-status verification
+    index -- per executed governed action, whether it was actually verified
+    and, if not, why (``adapter_execution_failed`` / ``state_mismatch`` /
+    ``unverified``). Newest first; ``?limit=`` (default 50) and
+    ``?effective_status=`` filter. Derives from the durable evidence; writes
+    nothing; ``[]`` on error."""
+    return {
+        "verifications": verification_index.view(
+            limit=limit, effective_status=effective_status
+        )
+    }
+
+
 @app.get("/containers", response_model=list[Container])
 def containers():
     from app.docker_api import get_containers
@@ -385,10 +415,11 @@ def execute(
         source="http_execute",
     )
 
-    # B1a: above-Core post-condition verification for an executed operator
+    # B1a/B1b: above-Core post-condition verification for an executed operator
     # action. Resolves an observer for the resolved execution adapter +
     # operation; when none is registered (e.g. the simulation adapter) it
-    # records nothing new and the Core's observation_unavailable stands.
+    # records nothing new and the Core's observation_unavailable stands. B1b
+    # also updates the effective-status index and surfaces its verdict.
     if (
         isinstance(result, dict)
         and result.get("status") == "executed"
@@ -400,8 +431,13 @@ def execute(
             adapter_name=_resolve_adapter_name(),
             operation=operation,
             target=target,
+            action_id=action.action_id,
         )
         result["above_core_verification_status"] = above_core.status
+        _vrow = verification_index.get(result["execution_id"])
+        result["effective_verification_status"] = (
+            _vrow.effective_status if _vrow is not None else None
+        )
 
     _log_governed(
         "governed_execute",

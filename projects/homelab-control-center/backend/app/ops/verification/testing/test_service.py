@@ -238,3 +238,68 @@ def test_single_shot_when_timeout_zero(monkeypatch, store):
         registry_module._REGISTRY.pop(("unit-once", "op"), None)
     assert calls["n"] == 1
     assert r.status == VerificationStatus.STATE_MISMATCH
+
+
+# --- B1b: effective-status index + inconclusive notification ------------
+
+import app.ops.verification.service as service_module  # noqa: E402
+from app.ops.verification import index  # noqa: E402
+
+
+@pytest.fixture
+def notify_spy(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        service_module, "notify_ops", lambda **kw: calls.append(kw)
+    )
+    return calls
+
+
+def test_verified_success_updates_index_with_action_id_and_no_notify(
+    monkeypatch, store, notify_spy
+):
+    _mock_docker(monkeypatch, containers=[{"name": "svc", "status": "running"}])
+    verify_executed_action(
+        "b1", adapter_name="docker", operation="restart", target="svc",
+        action_id="act-b1",
+    )
+    row = index.get("b1")
+    assert row is not None
+    assert row.effective_status == "verified_success" and row.verified is True
+    assert row.action_id == "act-b1"
+    assert notify_spy == []
+
+
+def test_unverified_fires_exactly_one_inconclusive_notification(
+    monkeypatch, store, notify_spy
+):
+    # simulation adapter -> no registered observer -> unverified
+    verify_executed_action(
+        "b2", adapter_name="simulation", operation="restart", target="svc",
+        action_id="act-b2",
+    )
+    row = index.get("b2")
+    assert row.effective_status == "unverified"
+    assert row.notified_inconclusive is True
+    assert len(notify_spy) == 1
+    ev = notify_spy[0]
+    assert ev["kind"] == "verification_inconclusive"
+    assert ev["key"] == "b2"
+    assert "act-b2" in ev["detail"]
+
+    # a second call for the same execution_id must not re-notify
+    verify_executed_action(
+        "b2", adapter_name="simulation", operation="restart", target="svc",
+        action_id="act-b2",
+    )
+    assert len(notify_spy) == 1
+
+
+def test_state_mismatch_does_not_notify_inconclusive(monkeypatch, store, notify_spy):
+    _mock_docker(monkeypatch, containers=[{"name": "svc", "status": "exited"}])
+    verify_executed_action(
+        "b3", adapter_name="docker", operation="restart", target="svc",
+        action_id="act-b3",
+    )
+    assert index.get("b3").effective_status == "state_mismatch"
+    assert notify_spy == []

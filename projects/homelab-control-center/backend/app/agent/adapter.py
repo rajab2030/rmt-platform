@@ -157,6 +157,7 @@ def propose_and_govern(proposal: AgentProposal) -> AgentOutcome:
                 operation=operation,
                 target=target,
                 expected=action.expected_outcome,
+                action_id=action.action_id,
             )
             result["docker_verification_status"] = verification.status
             result["docker_verification_reason"] = verification.reason

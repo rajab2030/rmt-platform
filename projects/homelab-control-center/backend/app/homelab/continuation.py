@@ -95,6 +95,7 @@ def continue_remediation(approval_id, approved_by, approved=True):
             operation=action.action_type.value,
             target=action.component,
             expected=action.expected_outcome,
+            action_id=action.action_id,
         )
         result["docker_verification_status"] = verification.status
         result["docker_verification_reason"] = verification.reason

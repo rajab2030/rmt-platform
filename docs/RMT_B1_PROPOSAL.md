@@ -1,12 +1,11 @@
 # RMT — B1: Strengthen the Verify Stage (above-Core observer layer) — Proposal
 
-**Status:** **APPROVED 2026-09-10 — proceed by split.** Owner answered §7 Q1–Q4
-(recorded there) and authorised **B1a**, now **IMPLEMENTED (2026-09-10)** — see
-the B1a completion note at the end of this file. **B1b** (effective-status index
-+ reconcile + `verification_inconclusive` + counters + `GET /ops/verifications`
-+ the through-`/execute` e2e) remains scoped, not yet authorised.
-(DRAFT rev-2 history: 2026-09-09, owner selected B1 from
-`docs/RMT_IMPROVEMENT_ROADMAP.md` for scoping.)
+**Status:** **DONE (2026-09-10) — both slices implemented.** Owner answered §7
+Q1–Q4 (recorded there); B1a and B1b were implemented against the recon in
+`docs/RMT_B1b_RECON.md` (owner-approved plan, both decisions taken as
+recommended: in-memory index; `rmt_verifications_total` left raw). Completion
+notes: §9 (B1a), §10 (B1b). (DRAFT rev-2 history: 2026-09-09, owner selected B1
+from `docs/RMT_IMPROVEMENT_ROADMAP.md` for scoping.)
 **Classification:** Above-Core / operational. No C08. **No frozen Core change.**
 No reopening of C01–C07. Consistent with the standing owner directive
 (2026-09-08): a recorded frozen-Core gap gets an above-Core mitigation or an
@@ -392,3 +391,70 @@ disposable container) **2 passed** through the new `verify_executed_action`.
 `verification_inconclusive` notify (§2.4, Q4), the 4 `/metrics` counters,
 `GET /ops/verifications`, `effective_verification_status` on the `/execute`
 response, and the through-`POST /execute` e2e.
+
+---
+
+## 10. B1b completion note (2026-09-10)
+
+Implemented against `docs/RMT_B1b_RECON.md` (owner-approved plan). **No
+`app/core/**` change.** Decisions taken as recommended: the index is an
+**in-memory projection** (RB-3a); `rmt_verifications_total` is **left raw** and
+four new index-projection counters are added alongside it (RB-6-i).
+
+**New — `app/ops/verification/index.py`:** an in-memory, read-only projection
+keyed by `execution_id` (`IndexRow`: `action_id, adapter, operation, target,
+core_status, above_core_status, effective_status, verified, notified_inconclusive,
+updated_at`). `effective_status` precedence exactly per §2.3 —
+(1) any `adapter_execution_failed` record → deferred to E3, not `unverified`;
+(2) an above-Core record → its status; (3) no above-Core + `module_change`
+adapter → the Core status; (4) else → `unverified`. `rebuild()` groups
+`verification_storage.get_all()` by `execution_id`, reads `adapter`/`action_id`
+from the audit store, is **silent** (fires nothing) and marks every row
+`notified_inconclusive=True` so history never alerts. `record()` upserts one row
+from the live path; `view(limit, effective_status)` / `snapshot()` / `get()` /
+`reset()`.
+
+**`app/ops/verification/service.py`:** `verify_executed_action` gains
+`action_id`; **both** branches (observer-resolved and no-observer) now end by
+calling `index.record(...)` and, when the row's `effective_status == "unverified"`
+and it has not been notified, firing one
+`notify_ops(kind="verification_inconclusive", key=execution_id, …)` (adapted to
+the real `notify_ops` signature — RB-1) then `index.mark_notified(...)` — at most
+once per `execution_id`.
+
+**Wired in:**
+- the 4 call sites pass `action_id=` (RB-2 — the `"executed"` result dict has
+  none);
+- `app/main.py` lifespan calls `rebuild_verification_index()` after
+  `archive_aged_evidence()` (fail-open);
+- **`GET /ops/verifications`** — `require_operator`, `?limit=` (default 50) /
+  `?effective_status=`, mirrors `GET /ops/holds`; `{"verifications": [...]}`,
+  `[]` on error;
+- `POST /execute` response gains `effective_verification_status` (next to B1a's
+  `above_core_verification_status`);
+- `app/ops/metrics.py` — 4 counters from the index snapshot:
+  `rmt_executed_actions_total` / `_verified_total` / `_unverified_total` /
+  `_state_mismatch_total`, labelled `{adapter, operation}`.
+
+**Tests:** `app/ops/verification/testing/` — `conftest.py` (autouse index +
+notify reset), `test_index.py` (rebuild precedence ×4 + silent/history-notified
++ `record` upsert + `view` filter/limit/order + `view` never raises),
+additions to `test_service.py` (index row carries `action_id`; `unverified` →
+exactly one `verification_inconclusive` + no re-notify on a second call;
+`verified_success`/`state_mismatch` → no notify) and `test_execute_route.py`
+(`effective_verification_status` surfaced), new `test_ops_verifications_route.py`
+(auth 401/200, `?effective_status=` / `?limit=`, empty), `test_metrics.py`
+addition (the 4 counters), and `test_e2e_docker.py`
+`test_operator_execute_http_verified_through_index` — a real `docker restart`
+through `POST /execute` → `effective_verification_status == "verified_success"`
++ one index row.
+
+**Validation:** full backend suite **455 passed** (exit 0, ~8 min); `ruff`
+(F, E9) clean; `import app.main` clean; Core intelligence suite **134 passed**,
+unchanged (no `app/core/` diff); the e2e set (3 tests incl. the new
+through-`/execute` one) **passed** against a real container.
+
+**Not done (recorded B1b non-goals):** a durable SQLite index table (revisit
+only if restart-durable `notified_inconclusive` is needed — RB-3);
+re-basing `rmt_verifications_total`; rewriting historical records; a `success`
+gate on `remediation.py`'s verify call (the index's rule 1 defers it to E3).

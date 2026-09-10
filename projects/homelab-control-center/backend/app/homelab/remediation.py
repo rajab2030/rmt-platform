@@ -180,6 +180,7 @@ def remediate_and_verify(evaluation, decision=None, adapter_name=None):
             operation=action.action_type.value,
             target=action.component,
             expected=action.expected_outcome,
+            action_id=action.action_id,
         )
         result["docker_verification_status"] = verification.status
         result["docker_verification_reason"] = verification.reason
