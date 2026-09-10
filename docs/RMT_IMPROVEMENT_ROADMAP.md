@@ -176,6 +176,11 @@ behaviour.
 
 ### B3 — External-facing threat model + "guarantees / non-guarantees"
 
+> **Status: DONE (2026-09-10)** — `docs/RMT_THREAT_MODEL.md` +
+> `docs/RMT_GUARANTEES.md`; linked from `README.md` and `RMT_CONTEXT.md` §5;
+> every non-guarantee traces to a readiness decision or a `RMT_FROZEN_CORE_DEBT.md`
+> row.
+
 - **Objective:** two short documents that let someone who is not the maintainer
   evaluate what RMT actually promises and where it stops.
 - **Why now:** the governing docs are excellent for a steward but there is no

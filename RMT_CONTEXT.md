@@ -59,6 +59,13 @@ completion evidence by itself.
 Governing documents take precedence over assumptions. Repository evidence takes
 precedence over conversation memory.
 
+**External-facing explainers** (derived from the above; not architecture
+authority): `docs/RMT_GUARANTEES.md` (what each lifecycle stage does and does
+not assert), `docs/RMT_THREAT_MODEL.md` (assets, trust boundary, adversary,
+residual risks), `docs/RMT_FROZEN_CORE_DEBT.md` (recorded frozen-Core gaps +
+triggers), `docs/RMT_IMPROVEMENT_ROADMAP.md` (prioritized above-Core
+improvements).
+
 ## 6. Major established architectural decisions
 
 - **Single governed mutation boundary:** `execute_governed_action` is the only
