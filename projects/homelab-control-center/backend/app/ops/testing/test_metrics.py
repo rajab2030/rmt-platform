@@ -67,3 +67,35 @@ def test_render_survives_a_broken_store(monkeypatch):
     out = metrics.render_prometheus()
     assert "rmt_metrics_scrape_errors_total 1" in out
     assert "rmt_up 1" in out  # the scrape still returns
+
+
+def test_executed_actions_counters_from_index(monkeypatch):
+    """B1b: the four rmt_executed_actions* counters come from the index
+    projection, labelled by adapter + operation."""
+    from app.ops.verification import index
+
+    index.reset()
+    index.record(
+        "m1", action_id="a1", adapter="docker", operation="restart",
+        target="svc", core_status="observation_unavailable",
+        above_core_status="verified_success",
+    )
+    index.record(
+        "m2", action_id="a2", adapter="docker", operation="restart",
+        target="svc", core_status="observation_unavailable",
+        above_core_status="state_mismatch",
+    )
+    index.record(
+        "m3", action_id="a3", adapter="simulation", operation="restart",
+        target="svc", core_status="observation_unavailable", above_core_status=None,
+    )
+    try:
+        out = metrics.render_prometheus()
+    finally:
+        index.reset()
+
+    assert 'rmt_executed_actions_total{adapter="docker",operation="restart"} 2' in out
+    assert 'rmt_executed_actions_verified_total{adapter="docker",operation="restart"} 1' in out
+    assert 'rmt_executed_actions_state_mismatch_total{adapter="docker",operation="restart"} 1' in out
+    assert 'rmt_executed_actions_unverified_total{adapter="simulation",operation="restart"} 1' in out
+    assert "rmt_metrics_scrape_errors_total 0" in out

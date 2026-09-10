@@ -84,3 +84,28 @@ def test_execute_failed_adapter_gets_no_above_core_verification(client, monkeypa
 
     r = client.post("/execute", params={"operation": "restart", "target": "svc"})
     assert "above_core_verification_status" not in r.json()
+
+
+# --- B1b: effective_verification_status on the response ----------------
+
+def test_execute_surfaces_effective_verification_status(client, monkeypatch):
+    _stub_governed(monkeypatch)
+    monkeypatch.setattr(observer_module, "docker_available", lambda: True)
+    monkeypatch.setattr(
+        observer_module, "get_containers",
+        lambda: [{"name": "svc", "status": "running"}],
+    )
+    body = client.post(
+        "/execute", params={"operation": "restart", "target": "svc"}
+    ).json()
+    assert body["effective_verification_status"] == "verified_success"
+
+
+def test_execute_simulation_effective_status_unverified(client, monkeypatch):
+    _stub_governed(monkeypatch)
+    monkeypatch.setattr(main_app, "_resolve_adapter_name", lambda: "simulation")
+    body = client.post(
+        "/execute", params={"operation": "restart", "target": "svc"}
+    ).json()
+    assert body["above_core_verification_status"] == "observation_unavailable"
+    assert body["effective_verification_status"] == "unverified"

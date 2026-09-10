@@ -105,21 +105,23 @@ and were verified on 2026-09-10.
   `observation_unavailable` — by construction.
 - **Where.** `app/core/intelligence/verification/service.py:49`
   (`_resolve_trusted_observer`; called at `:69`).
-- **Compensating control.** The above-Core Docker observer
-  (`app/homelab/verification.py` → `app/homelab/observer.py::observe_container_state`)
-  performs a real read-only post-condition observation for the wired homelab /
-  agent / remediation paths, feeding the **same** frozen `verifier.verify()` and
-  `verification_storage.save()`. **B1** (`docs/RMT_B1_PROPOSAL.md`, DRAFT)
-  generalises this into an above-Core observer registry, wires it into
-  `POST /execute`, makes `remove` verifiable, and adds an effective-status index
-  that marks the Core `observation_unavailable` **superseded** where an
-  above-Core assertion exists.
-- **Residual risk.** Until B1 lands the observer is wired into only 3 paths and
-  never the operator `POST /execute` route; across every recorded live exercise
-  the Core wrote `observation_unavailable` and only the above-Core observer wrote
-  `verified_success`, uncorrelated (B1 §R6). An auditor who requires the **Core
-  verifier itself** to assert the post-condition would not accept an above-Core
-  layer.
+- **Compensating control.** **B1 (DONE 2026-09-10)** — the above-Core
+  `app/ops/verification/` layer: an observer registry
+  (`app/ops/verification/registry.py`) feeds `observe_container_state` to the
+  **same** frozen `verifier.verify()` + `verification_storage.save()` for every
+  wired `(adapter, operation)`, including the operator `POST /execute` route;
+  `remove` is verifiable (`observe_container_state` now returns `absent` when
+  the container is reachable-and-gone); and an in-memory **effective-status
+  index** (`app/ops/verification/index.py`, `GET /ops/verifications`,
+  4 `/metrics` counters) marks the Core `observation_unavailable`
+  **superseded** where an above-Core assertion exists and raises a
+  `verification_inconclusive` notification when nothing can be observed.
+  (`app/homelab/verification.py` — the old single-path helper — was deleted.)
+- **Residual risk.** The Core verifier *itself* still records
+  `observation_unavailable` for every non-`create` operation; the above-Core
+  layer supersedes it in the index but the raw Core record is unchanged. An
+  auditor who requires the **Core verifier itself** to assert the
+  post-condition would not accept the above-Core layer.
 - **Trigger to revisit (owner).** A domain whose regulator / auditor requires
   **Core-level** (not above-Core) post-condition assertion.
 

@@ -116,6 +116,46 @@ def render_prometheus() -> str:
     except Exception:
         errors += 1
 
+    # --- executed actions vs verified (B1b effective-status index) --------
+    # Values come from the index projection (one row per execution_id), not the
+    # raw verification store -- so a single executed action is counted once even
+    # though B1a can leave two records (Core observation_unavailable + the
+    # above-Core record) for it. Labelled by adapter + operation (bounded).
+    try:
+        from app.ops.verification.index import snapshot as _vindex_snapshot
+
+        agg: dict = {}
+        for r in _vindex_snapshot():
+            k = (r.adapter or "unknown", r.operation or "unknown")
+            a = agg.setdefault(
+                k, {"total": 0, "verified": 0, "unverified": 0, "state_mismatch": 0}
+            )
+            a["total"] += 1
+            if r.verified:
+                a["verified"] += 1
+            if r.effective_status == "unverified":
+                a["unverified"] += 1
+            if r.effective_status == "state_mismatch":
+                a["state_mismatch"] += 1
+        out.append(
+            "# HELP rmt_executed_actions_total Executed governed actions in the "
+            "above-Core verification index."
+        )
+        out.append("# TYPE rmt_executed_actions_total counter")
+        out.append("# TYPE rmt_executed_actions_verified_total counter")
+        out.append("# TYPE rmt_executed_actions_unverified_total counter")
+        out.append("# TYPE rmt_executed_actions_state_mismatch_total counter")
+        for (adapter, operation), a in sorted(agg.items()):
+            lbl = {"adapter": adapter, "operation": operation}
+            out.append(_line("rmt_executed_actions_total", a["total"], lbl))
+            out.append(_line("rmt_executed_actions_verified_total", a["verified"], lbl))
+            out.append(_line("rmt_executed_actions_unverified_total", a["unverified"], lbl))
+            out.append(
+                _line("rmt_executed_actions_state_mismatch_total", a["state_mismatch"], lbl)
+            )
+    except Exception:
+        errors += 1
+
     # --- agent surface ------------------------------------------------------
     try:
         from app.agent.authority import authority_store

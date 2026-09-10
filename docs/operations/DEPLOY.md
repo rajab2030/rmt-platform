@@ -305,3 +305,17 @@ Optional: raise verbosity with a drop-in
     `backend/scripts/rmt-escalate.sh` — cron every 1–2 min alongside
     `rmt-watchdog.sh` (`RMT_ESCALATE_TOKEN=…`, `RMT_ESCALATE_WEBHOOK_URL=…`);
     one-time alert for a hold left unactioned or expired-unapproved.
+- **B1 (strengthen Verify) — DONE (2026-09-10).** Above-Core; a redeploy picks
+  it up, no new required env.
+  - **B1a** every wired adapter/operation gets a real post-condition assertion
+    through the frozen verifier; `RMT_VERIFY_OBSERVE_TIMEOUT_S` (default `5`,
+    `0` = single-shot) — `CONFIG.md`.
+  - **B1b** new read-only **`GET /ops/verifications`** (operator-authenticated;
+    `?limit=` / `?effective_status=`) — per executed action, whether it was
+    verified and if not why. `/metrics` gains
+    `rmt_executed_actions_total{adapter,operation}` +
+    `_verified_total` / `_unverified_total` / `_state_mismatch_total`. An
+    executed action that could not be observed fires one low-severity
+    `verification_inconclusive` line on the existing notify webhook. The
+    effective-status index is in-memory, rebuilt from the durable evidence on
+    startup.

@@ -205,14 +205,19 @@ line when B1b lands.
 
 ## 4. Owner decisions required before B1b starts
 
-1. **Index persistence (RB-3):** (a) in-memory projection rebuilt at startup
-   *(recommended)*, or (b) a `verification_index` SQLite table in
-   `governance_evidence.db`.
-2. **`rmt_verifications_total` (RB-6):** (i) leave it raw and add the four new
-   `rmt_executed_actions*` counters alongside *(recommended)*, or (ii) also
-   re-base it on the index projection.
+**Both decided 2026-09-10 — owner took the recommendations. B1b implemented on
+this basis; see `docs/RMT_B1_PROPOSAL.md` §10.**
 
-Everything else in §2 is a mechanical adaptation with a clear resolution.
+1. **Index persistence (RB-3): (a) in-memory projection rebuilt at startup.**
+   (b) — a `verification_index` SQLite table — is the recorded non-goal;
+   revisit only if restart-durable `notified_inconclusive` is needed.
+2. **`rmt_verifications_total` (RB-6): (i) left raw**, with the four new
+   `rmt_executed_actions_*{adapter,operation}` counters added alongside from the
+   index projection.
+
+Everything else in §2 was a mechanical adaptation with a clear resolution and
+was applied as described (notably RB-1 `notify_ops` signature and RB-2
+`action_id` threading).
 
 ---
 

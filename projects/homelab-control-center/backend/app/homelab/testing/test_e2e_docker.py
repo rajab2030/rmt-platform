@@ -261,3 +261,36 @@ def test_real_adapter_failure_records_e3_evidence(docker_client, isolated_stores
     assert rec is not None
     assert rec.status == "adapter_execution_failed"
     assert rec.execution_id == outcome["execution_id"]
+
+
+def test_operator_execute_http_verified_through_index(docker_client, probe, isolated_stores):
+    """B1b: a real `docker restart` driven through `POST /execute` (the operator
+    HTTP path) lands `effective_verification_status == "verified_success"` and
+    one index row -- the un-skipped observe -> verify -> index path."""
+    from fastapi.testclient import TestClient
+
+    import app.main as main_app
+    from app.ops.verification import index
+
+    target = probe
+    assert _wait_status(docker_client, target, "running") == "running"
+    docker_client.containers.get(target).stop(timeout=2)
+    assert _wait_status(docker_client, target, "exited") == "exited"
+
+    index.reset()
+    with TestClient(main_app.app) as client:
+        index.reset()  # ignore whatever the lifespan rebuild picked up
+        r = client.post(
+            "/execute", params={"operation": "restart", "target": target}
+        )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "executed" and body["success"] is True
+    assert _wait_status(docker_client, target, "running") == "running"
+    assert body["above_core_verification_status"] == "verified_success"
+    assert body["effective_verification_status"] == "verified_success"
+
+    execution_id = body["execution_id"]
+    row = index.get(execution_id)
+    assert row is not None and row.verified is True
+    assert row.adapter == "docker" and row.operation == "restart"

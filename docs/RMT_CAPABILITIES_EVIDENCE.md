@@ -537,10 +537,50 @@ settling poll early-return + one transient reading, single-shot, reason token,
 `test_e2e_docker.py` (real `docker restart` of a disposable container) **2
 passed** through the new entrypoint.
 
-**Deferred to B1b.** Effective-status index + startup reconcile,
-`verification_inconclusive` notify, 4 `/metrics` counters,
-`GET /ops/verifications`, `effective_verification_status` on `/execute`, and the
-through-`POST /execute` live exercise.
+---
+
+## B1b — Verify stage: effective-status index + inconclusive surfacing (2026-09-10)
+
+Plan: `docs/RMT_B1b_RECON.md` (owner-approved; decisions: in-memory index;
+`rmt_verifications_total` left raw). `docs/RMT_B1_PROPOSAL.md` §10.
+
+- **New `app/ops/verification/index.py`** — an in-memory, read-only projection
+  keyed by `execution_id` that collapses the Core `observation_unavailable` +
+  the above-Core record into one **effective status** (precedence per
+  proposal §2.3: E3 `adapter_execution_failed` → deferred, not `unverified`;
+  above-Core record → its status; `module_change` → Core status; else
+  `unverified`). Rebuilt from the durable evidence + audit store on startup —
+  **silent**, marks history `notified_inconclusive` so it never re-alerts.
+- **`verify_executed_action`** now takes `action_id`, updates the index in both
+  branches, and — once per `execution_id` — fires one low-severity
+  `notify_ops(kind="verification_inconclusive", …)` when the effective status is
+  `unverified`.
+- **`GET /ops/verifications`** (operator-authenticated, `?limit=` /
+  `?effective_status=`) — per executed action, whether it was verified and why
+  not. **`/metrics`** gains `rmt_executed_actions_total{adapter,operation}` +
+  `_verified_total` / `_unverified_total` / `_state_mismatch_total` from the
+  index projection (`rmt_verifications_total` unchanged). `POST /execute`
+  response gains `effective_verification_status`.
+
+**Core integrity.** No `app/core/**` change (verified). Frozen verifier /
+storage / models reused unchanged; the index is a read-only projection; no new
+mutation path.
+
+**Validation.** Full backend suite **455 passed** (exit 0); `ruff` (F, E9)
+clean; `import app.main` clean; Core intelligence suite **134 passed**,
+unchanged. New: `test_index.py` (rebuild precedence ×4 + silent/history +
+`record` upsert + `view` filter/limit/never-raises),
+`test_ops_verifications_route.py` (auth + filters), `test_service.py` /
+`test_execute_route.py` / `test_metrics.py` additions.
+
+**Live exercise (real container).**
+`test_e2e_docker.py::test_operator_execute_http_verified_through_index` — a real
+`docker restart` driven through `POST /execute` (operator HTTP path) →
+`effective_verification_status == "verified_success"` + one index row
+(`verified=True`, `adapter="docker"`, `operation="restart"`), correlated by
+`execution_id`. The inconclusive path is covered by
+`test_service.py::test_unverified_fires_exactly_one_inconclusive_notification`
+(simulation adapter → `unverified` → one `verification_inconclusive` + counter).
 
 ---
 

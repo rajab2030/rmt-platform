@@ -2522,3 +2522,66 @@ reconcile; `verification_inconclusive` notify (§2.4, Q4);
 `effective_verification_status` on the `/execute` response; the
 through-`POST /execute` e2e. Then roadmap §8: **C1** (broaden
 `REMEDIATION_POLICY`, exercises B1) → **B2** → **C2**.
+
+---
+
+## Session note — B1b reconnaissance + B1b implementation (Verify stage complete)
+
+**Date:** 2026-09-10. Owner asked for a recon/contract-review pass before B1b,
+approved the two decisions and the plan, then authorised implementation.
+**No `app/core/**` change.**
+
+### Recon (committed first, read-only)
+`docs/RMT_B1b_RECON.md` — §1 retro-verified the landed B1a diff against the
+frozen contracts (CLEAN: zero `app/core/` files; nothing parses
+`VerificationResult.reason`; the one recorded deviation = the 3 homelab/agent
+sites pass `adapter_name="docker"` literally). §2 RB-1..RB-9 against `HEAD`:
+`notify_ops` real signature is `(kind, detail, key, source)` not `(event=, …)`
+(RB-1); the `"executed"` result dict has **no** `action_id` (RB-2); the
+"JSON-peer, migrates under A1" plan is stale now A1 is done (RB-3); `/ops/holds`
+is the route template (RB-5); `rmt_verifications_total` now double-counts after
+B1a (RB-6); the e2e-through-`/execute` isolation is the fiddliest bit (RB-8).
+
+### Decisions (owner: both as recommended)
+1. Index = **in-memory projection** rebuilt at startup (not a SQLite table).
+2. `rmt_verifications_total` **left raw**; 4 new index-projection counters added
+   alongside.
+
+### B1b implemented
+- **`app/ops/verification/index.py`** — in-memory `IndexRow` per `execution_id`;
+  `effective_status` precedence per §2.3; `rebuild()` (silent, marks history
+  `notified_inconclusive`), `record()`, `view(limit, effective_status)`,
+  `snapshot()`, `get()`, `reset()`.
+- **`service.py`** — `verify_executed_action` gains `action_id`; both branches
+  update the index; `unverified` + not-yet-notified → one
+  `notify_ops(kind="verification_inconclusive", key=execution_id, …)` +
+  `mark_notified` (once per id).
+- 4 call sites pass `action_id=`; `app/main.py` lifespan `rebuild_verification_index()`
+  after `archive_aged_evidence()`; new **`GET /ops/verifications`**
+  (`require_operator`, `?limit=`/`?effective_status=`, `[]` on error);
+  `POST /execute` response gains `effective_verification_status`.
+- **`metrics.py`** — `rmt_executed_actions_total{adapter,operation}` +
+  `_verified_total`/`_unverified_total`/`_state_mismatch_total` from the index.
+- Tests: `app/ops/verification/testing/` conftest (autouse index+notify reset),
+  `test_index.py`, `test_ops_verifications_route.py`, additions to
+  `test_service.py` / `test_execute_route.py` / `test_metrics.py`, and
+  `test_e2e_docker.py::test_operator_execute_http_verified_through_index` (real
+  `docker restart` through `POST /execute` → `effective_verification_status ==
+  "verified_success"` + one index row).
+- Docs: `RMT_B1_PROPOSAL.md` (status DONE + §10), `RMT_B1b_RECON.md` §4
+  decisions locked, `RMT_IMPROVEMENT_ROADMAP.md` B1 done,
+  `RMT_FROZEN_CORE_DEBT.md` D3 compensating-control rewritten,
+  `RMT_CAPABILITIES_EVIDENCE.md` B1b section, `docs/operations/DEPLOY.md` §6.
+
+### Validation
+Full backend suite **455 passed** (exit 0, ~8 min); `ruff` (F, E9) clean;
+`import app.main` clean; Core intelligence suite **134 passed**, unchanged
+(no `app/core/` diff); e2e set (3, incl. the new through-`/execute` test)
+**passed** against a real container.
+
+### Next
+Roadmap §8: A1/A2/A3/B3/B1 done. Next build **C1** — broaden
+`REMEDIATION_POLICY` beyond `uptime-kuma` restart (exercises B1; T13
+safe-envelope guard stays green) — then **B2** (durable approval request +
+minimal view) → **C2** (second domain, the thesis proof). Each still needs a
+per-item recon + owner approval before implementation.
