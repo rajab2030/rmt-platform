@@ -406,6 +406,12 @@ Not deployed (safe defaults; additive route; cron-only script). **T1-1**
 
 ## 14. Deferred issues — disposition recorded
 
+> **Consolidated register:** `docs/RMT_FROZEN_CORE_DEBT.md` (roadmap A3) is the
+> single authoritative table of every recorded frozen-Core gap — symptom, frozen
+> `file:line`, above-Core compensating control, residual risk, and the concrete
+> owner trigger to revisit. Every note below appears there once. Add a row there
+> in the same change whenever a new frozen-Core gap is recorded.
+
 - **`module_registry.register_module()`** — an **internal governed primitive**, not
   a bypass and not a missing Core requirement. Disposition recorded at C07 closure.
 - **`execution/service.py::execute_action()`** — **unreachable dead-code
