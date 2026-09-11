@@ -81,27 +81,34 @@ def _default_requires_approval() -> bool:
     return loop_config.AGENT_DEFAULT_REQUIRES_APPROVAL
 
 
-def propose_and_govern(proposal: AgentProposal) -> AgentOutcome:
-    if not loop_config.AGENT_ENABLED:
-        return AgentOutcome(
-            proposal=proposal,
-            decision="disabled",
-            detail="agent surface disabled (RMT_AGENT_ENABLED)",
-        )
+class Resolution:
+    """RMT-CAP-07 (C3): the read-only resolution of a proposal, shared by
+    ``propose_and_govern`` and ``app.agent.preview.preview_proposal`` so the
+    two can never drift apart -- same authority check, same escalation check,
+    same ``ActionRequest``. Building this has no side effect: the authority
+    check never consumes, and constructing an ``ActionRequest`` is a plain
+    model instantiation."""
 
+    __slots__ = (
+        "operation", "target", "auth_ok", "auth_reason",
+        "escalate", "esc_reason", "action",
+    )
+
+    def __init__(self, operation, target, auth_ok, auth_reason, escalate, esc_reason, action):
+        self.operation = operation
+        self.target = target
+        self.auth_ok = auth_ok
+        self.auth_reason = auth_reason
+        self.escalate = escalate
+        self.esc_reason = esc_reason
+        self.action = action
+
+
+def resolve_proposal(proposal: AgentProposal) -> Resolution:
     operation = proposal.intent.mechanism.value
     target = proposal.intent.target
 
-    ok, why = authority_store.check(proposal.grant_id, operation, target)
-    if not ok:
-        return _log_outcome(
-            AgentOutcome(
-                proposal=proposal, decision="no_authority", detail=why
-            ),
-            operation=operation,
-            target=target,
-        )
-
+    auth_ok, auth_reason = authority_store.check(proposal.grant_id, operation, target)
     escalate, esc_reason = escalate_for_dependency_cascade(target, operation)
     requires_approval = escalate or _default_requires_approval()
 
@@ -114,6 +121,43 @@ def propose_and_govern(proposal: AgentProposal) -> AgentOutcome:
         requires_approval=requires_approval,
         expected_outcome=proposal.to_expected_outcome(),
     )
+    return Resolution(operation, target, auth_ok, auth_reason, escalate, esc_reason, action)
+
+
+def _rationale(proposal: AgentProposal) -> dict:
+    """RMT-CAP-07 (C3): a structured rationale tied to the Learn evidence
+    record -- today's record_learning call captured status/ids/confidence but
+    never *why* the action was proposed."""
+    return {
+        "goal": proposal.intent.goal,
+        "reason": proposal.intent.reason,
+        "mechanism": proposal.intent.mechanism.value,
+        "operational_context": proposal.identity.operational_context,
+    }
+
+
+def propose_and_govern(proposal: AgentProposal) -> AgentOutcome:
+    if not loop_config.AGENT_ENABLED:
+        return AgentOutcome(
+            proposal=proposal,
+            decision="disabled",
+            detail="agent surface disabled (RMT_AGENT_ENABLED)",
+        )
+
+    resolution = resolve_proposal(proposal)
+    operation, target = resolution.operation, resolution.target
+
+    if not resolution.auth_ok:
+        return _log_outcome(
+            AgentOutcome(
+                proposal=proposal, decision="no_authority", detail=resolution.auth_reason
+            ),
+            operation=operation,
+            target=target,
+        )
+
+    escalate, esc_reason = resolution.escalate, resolution.esc_reason
+    action = resolution.action
 
     adapter_name = _resolve_adapter_name(proposal.identity.operational_context)
 
@@ -158,7 +202,8 @@ def propose_and_govern(proposal: AgentProposal) -> AgentOutcome:
             agent_id=proposal.identity.agent_id,
         )
         record_learning(
-            target, result, confidence=proposal.intent.confidence
+            target, result, confidence=proposal.intent.confidence,
+            rationale=_rationale(proposal),
         )
         outcome.learn_recorded = True
         # O2: an agent-proposed action is awaiting human approval.
@@ -197,7 +242,8 @@ def propose_and_govern(proposal: AgentProposal) -> AgentOutcome:
                 result["docker_verification_status"] = failed.status
                 outcome.verification_status = failed.status
         record_learning(
-            target, result, confidence=proposal.intent.confidence
+            target, result, confidence=proposal.intent.confidence,
+            rationale=_rationale(proposal),
         )
         outcome.learn_recorded = True
         return _log_outcome(outcome, operation=operation, target=target)

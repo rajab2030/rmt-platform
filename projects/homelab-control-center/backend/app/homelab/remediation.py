@@ -126,7 +126,7 @@ def remediate(evaluation, decision=None, adapter_name=None):
     )
 
 
-def record_learning(component, outcome, confidence=None):
+def record_learning(component, outcome, confidence=None, rationale=None):
     """Record the remediation outcome via the existing Core learning/memory
     capability (append-only, read-only learning).
 
@@ -139,19 +139,29 @@ def record_learning(component, outcome, confidence=None):
     (``app/homelab/continuation.py``) so a held remediation that is later
     continued via ``POST /homelab/approve`` records its executed outcome
     through the same Learn boundary.
+
+    ``rationale`` (RMT-CAP-07 / C3): an optional structured
+    ``{goal, reason, mechanism, operational_context}`` object tying *why* an
+    action was proposed into the evidence record, not just its outcome.
+    ``None`` (every homelab call site) omits the key entirely -- unchanged
+    record shape.
     """
+    data = {
+        "status": outcome.get("status"),
+        "execution_id": outcome.get("execution_id"),
+        "approval_id": outcome.get("approval_id"),
+        "docker_verification_status": outcome.get("docker_verification_status"),
+        "docker_verification_reason": outcome.get("docker_verification_reason"),
+        "confidence": confidence,
+    }
+    if rationale is not None:
+        data["rationale"] = rationale
+
     record = MemoryRecord(
         component=component,
         event_type="remediation",
         timestamp=datetime.now(timezone.utc),
-        data={
-            "status": outcome.get("status"),
-            "execution_id": outcome.get("execution_id"),
-            "approval_id": outcome.get("approval_id"),
-            "docker_verification_status": outcome.get("docker_verification_status"),
-            "docker_verification_reason": outcome.get("docker_verification_reason"),
-            "confidence": confidence,
-        },
+        data=data,
     )
     return remember(record)
 

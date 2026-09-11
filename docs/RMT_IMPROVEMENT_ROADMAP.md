@@ -79,6 +79,20 @@ are cheap relative to their risk reduction and every later phase assumes them.
 
 ### A2 — Activate the CI gate + an always-on integration lane
 
+> **DONE (2026-09-11)** — T0-4 had already built the gate
+> (`.github/workflows/ci.yml` → `scripts/ci.sh`, real full suite, no filter);
+> the only missing piece was a push. Pushed 9 pending commits to
+> `origin/master` (owner-authorized); run `34585062939` went green: **480
+> passed, 0 skipped, in ~11s** — the `@pytest.mark.e2e` real-Docker test ran
+> un-skipped (`ubuntu-latest` ships Docker by default), and it runs on
+> **every push**, not just nightly — a stronger bar than this item asked for.
+> Not satisfied: "a red suite blocks merge" — GitHub branch protection
+> (required status checks) needs a Pro plan or a public repo, unavailable on
+> this free private repo (`docs/operations/CI.md`'s own recorded follow-up,
+> predates this session). The Actions run stays the authoritative *visible*
+> check; the local pre-push hook (already opted in) is the enforcement until
+> that changes.
+
 - **Objective:** the finite-validation gate (`backend/scripts/ci.sh`,
   `.github/workflows/ci.yml`) actually runs on every change, and the real
   Docker adapter path is exercised continuously, not only in manual live demos.
@@ -288,6 +302,20 @@ adapter with a real workload proves the plumbing; it does not prove the claim.
   **Size:** L.
 
 ### C3 — Harden the agent surface before trusting it further
+
+> **DONE (2026-09-11)** — `docs/RMT_CAP_07_PROPOSAL.md` (APPROVED) +
+> `docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-07". `POST /agent/act/preview`
+> resolves a proposal to its concrete action + predicted outcome using the
+> real frozen `evaluate_action_policy` → `simulate_action` → `process_approval`
+> chain (already pure, already used by `execute_governed_action` before its
+> first write) — zero grant consumed, zero hold, zero Learn record.
+> `record_learning` gained an optional structured `rationale` field (every
+> homelab call site unchanged). New consolidated adversarial gate
+> (`test_adversarial.py`, 20 cases across invalid-proposal / scope-escape /
+> LLM-prompt-injection / dependency-cascade) + `test_preview.py` (12 cases,
+> including a regression guard that preview's prediction can never drift from
+> `propose_and_govern`'s real outcome). 34 new tests, 514 full suite passing,
+> already green in CI (A2 is live — no separate CI wiring needed).
 
 - **Objective:** an operator sees exactly what an agent proposal will do before
   approving it, and the surface is tested against adversarial input on every

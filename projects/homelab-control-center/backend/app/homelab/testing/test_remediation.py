@@ -37,6 +37,7 @@ from app.core.intelligence.verification.storage import VerificationStorage
 from app.homelab.remediation import (
     build_remediation_action,
     remediate,
+    record_learning,
 )
 
 
@@ -314,3 +315,47 @@ def test_low_confidence_remediation_is_policy_denied(monkeypatch):
     assert len(stores["audit"].get_all()) == 0
     assert len(stores["auth"].get_all()) == 0
     stores["adapter_registry"].get.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# RMT-CAP-07 (C3): record_learning's optional structured rationale
+# ---------------------------------------------------------------------------
+
+def test_record_learning_omitted_rationale_is_byte_identical(monkeypatch):
+    """Every homelab call site omits `rationale` -- the record shape must be
+    unchanged from before C3."""
+    captured = {}
+    monkeypatch.setattr(
+        "app.homelab.remediation.remember",
+        lambda record: captured.setdefault("record", record) or record,
+    )
+
+    record_learning("uptime-kuma", {"status": "executed", "execution_id": "e1"}, confidence=80)
+
+    assert "rationale" not in captured["record"].data
+    assert captured["record"].data == {
+        "status": "executed",
+        "execution_id": "e1",
+        "approval_id": None,
+        "docker_verification_status": None,
+        "docker_verification_reason": None,
+        "confidence": 80,
+    }
+
+
+def test_record_learning_with_rationale_adds_structured_field(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(
+        "app.homelab.remediation.remember",
+        lambda record: captured.setdefault("record", record) or record,
+    )
+
+    rationale = {
+        "goal": "tag release", "reason": "release proof",
+        "mechanism": "create", "operational_context": "git",
+    }
+    record_learning(
+        "v1.0.0-proof", {"status": "executed"}, confidence=90, rationale=rationale
+    )
+
+    assert captured["record"].data["rationale"] == rationale

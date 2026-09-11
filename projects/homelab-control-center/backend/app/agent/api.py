@@ -22,6 +22,7 @@ from app.agent import loop_config
 from app.agent.authority import authority_store
 from app.agent.contract import AgentIdentity, AgentIntent, AgentProposal
 from app.agent.adapter import propose_and_govern
+from app.agent.preview import preview_proposal
 from app.agent.dependency_guard import dependency_view
 from app.agent.llm_agent import LlmAgent, LlmProposalError
 
@@ -84,18 +85,12 @@ def grant_authority(
     return g.as_dict()
 
 
-@router.post("/act", dependencies=[Depends(rate_limit_agent)])
-def act(body: ProposeBody):
-    """Agent proposes a consequential action -> governed lifecycle."""
-    try:
-        mechanism = ActionType(body.mechanism)
-    except ValueError:
-        return {
-            "decision": "invalid",
-            "detail": f"unknown mechanism '{body.mechanism}'",
-        }
-
-    proposal = AgentProposal(
+def _proposal_from_body(body: ProposeBody) -> AgentProposal:
+    """Shared by /act and /act/preview so the two can never resolve a
+    proposal differently. Raises ValueError for an unknown mechanism -- the
+    caller decides the decision string for that case."""
+    mechanism = ActionType(body.mechanism)
+    return AgentProposal(
         identity=AgentIdentity(
             agent_id=body.agent_id,
             operational_context=body.operational_context,
@@ -110,9 +105,38 @@ def act(body: ProposeBody):
         expected_state=body.expected_state,
         grant_id=body.grant_id,
     )
+
+
+@router.post("/act", dependencies=[Depends(rate_limit_agent)])
+def act(body: ProposeBody):
+    """Agent proposes a consequential action -> governed lifecycle."""
+    try:
+        proposal = _proposal_from_body(body)
+    except ValueError:
+        return {
+            "decision": "invalid",
+            "detail": f"unknown mechanism '{body.mechanism}'",
+        }
+
     payload = propose_and_govern(proposal).as_dict()
     _last_outcome["value"] = payload
     return payload
+
+
+@router.post("/act/preview", dependencies=[Depends(rate_limit_agent)])
+def act_preview(body: ProposeBody):
+    """RMT-CAP-07 (C3): resolve a proposal to its concrete action + predicted
+    governed outcome -- no hold, no grant consumed, no evidence written. Same
+    auth as /act (still reveals policy/risk internals about a proposal)."""
+    try:
+        proposal = _proposal_from_body(body)
+    except ValueError:
+        return {
+            "decision": "invalid_proposal",
+            "detail": f"unknown mechanism '{body.mechanism}'",
+        }
+
+    return preview_proposal(proposal)
 
 
 @router.post("/act/llm", dependencies=[Depends(rate_limit_agent)])
