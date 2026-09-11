@@ -1,7 +1,8 @@
 # RMT Platform
 
-RMT is a general-purpose intelligent control, execution, and governance
-platform, not a specialized application. The Core is domain-agnostic: it
+**RMT = Risk-Mitigated Transactions.** RMT is a general-purpose intelligent
+control, execution, and governance platform, not a specialized application.
+The Core is domain-agnostic: it
 governs services, applications, systems, and AI agents under one common
 lifecycle — **Understand → Decide → Govern → Authorize → Execute → Verify →
 Learn** — without embedding the rules of any particular domain. See
