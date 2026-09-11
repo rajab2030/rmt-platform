@@ -1,8 +1,10 @@
-# HomeLab Disaster Recovery Runbook
+# Homelab-Domain Disaster Recovery Runbook
 
 ## Purpose
 
-This document defines the tested procedure to recover the HomeLab platform after a failure.
+This document defines the tested procedure to recover the homelab domain's
+Docker stack (RMT Platform's original proving-ground domain) after a
+failure. It does not cover the RMT Platform itself — see Scope below.
 
 The objective is to restore services with verified data integrity and confirmed service availability.
 

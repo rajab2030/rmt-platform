@@ -1,9 +1,9 @@
-# HomeLab Platform Baseline
+# RMT Host Environment Baseline
 
 Date: 2026-07-21
 
 Purpose:
-Document the known healthy state of the HomeLab platform for operational reference and future troubleshooting.
+Document the known healthy state of the host machine RMT Platform runs on, for operational reference and future troubleshooting.
 
 ## Hardware
 
