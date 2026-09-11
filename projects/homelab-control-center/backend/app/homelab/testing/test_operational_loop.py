@@ -480,6 +480,33 @@ def test_expired_hold_does_not_block(
     assert calls == ["uptime-kuma"]  # not blocked
 
 
+def test_loop_processes_second_live_policy_component(loop, learn, monkeypatch):
+    """T1-1: the loop's cycle iterates the REAL REMEDIATION_POLICY (not a
+    single-component test fixture) and drives both `uptime-kuma` and
+    `portainer` -- holds one, remediates the other -- in the same cycle."""
+    calls = _mock_remediate(
+        monkeypatch,
+        {
+            "uptime-kuma": {
+                "status": "manual_approval_required",
+                "component": "uptime-kuma",
+                "approval_id": "hold-uk",
+            },
+            "portainer": {
+                "status": "no_remediation",
+                "component": "portainer",
+            },
+        },
+    )
+
+    loop.run_cycle_once()
+
+    assert set(calls) == {"uptime-kuma", "portainer"}
+    components = loop.get_status()["components"]
+    assert components["uptime-kuma"]["last_outcome"] == "manual_approval_required"
+    assert components["portainer"]["last_outcome"] == "no_remediation"
+
+
 def test_remediation_policy_within_cap04_safe_envelope():
     """T13 disposition (docs/RMT_T13_DISPOSITION.md §3b): the CAP-04 loop may be
     enabled only while every remediation-policy entry is (1) independent -- no

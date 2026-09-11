@@ -32,8 +32,21 @@ from app.ops.verification import verify_executed_action
 
 # Homelab remediation policy. Confidence is intentionally NOT set here; it is
 # taken from the actual evaluation at build time.
+#
+# T1-1 (RMT_IMPROVEMENT_ROADMAP.md C1): `portainer` added as a second,
+# independently-governed component (confirmed dependency-free in
+# RMT_T13_DISPOSITION.md / app/homelab/dependencies.py). `dozzle` is
+# deliberately NOT added here -- it is the load-bearing example, exercised by
+# test_continuation.py / test_remediation.py, of a component with a
+# ComponentContext that stays outside REMEDIATION_POLICY.
 REMEDIATION_POLICY = {
     "uptime-kuma": {
+        "action_type": ActionType.RESTART,
+        "remediate_on": {HealthStatus.CRITICAL},
+        "expected_state": "running",
+        "requires_approval": True,
+    },
+    "portainer": {
         "action_type": ActionType.RESTART,
         "remediate_on": {HealthStatus.CRITICAL},
         "expected_state": "running",

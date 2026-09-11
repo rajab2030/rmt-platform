@@ -387,7 +387,13 @@ full suite **388 passed**, Core intelligence **122** unchanged):
   threshold or `expired` unapproved — out-of-process, no in-process timer (the
   300 s Core hold TTL is a recorded constraint the design works within).
 Not deployed (safe defaults; additive route; cron-only script). **T1-1**
-(broaden `REMEDIATION_POLICY`) is the remaining Tier 1 item.
+(broaden `REMEDIATION_POLICY`) is **DONE** (2026-09-11): `portainer` added as a
+second independent, approval-gated component; live-demonstrated on an isolated
+`:8001` instance (fault-inject → hold → approve → executed → verified_success
+→ stood down), `uptime-kuma`/`dozzle` unaffected, `:8000` untouched. See
+`docs/RMT_CAPABILITIES_EVIDENCE.md` §"C1 / T1-1". Tier 1 is now fully closed;
+`docs/RMT_IMPROVEMENT_ROADMAP.md` Phase C (prove generality, C2 second domain)
+is next.
 
 ## 13. Environment limitations vs genuine implementation gaps
 
