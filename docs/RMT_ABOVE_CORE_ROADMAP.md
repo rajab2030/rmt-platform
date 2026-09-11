@@ -192,7 +192,18 @@ should not go live until Tier 0 is done.**
 The live capability today: CAP-04 continuous loop + CAP-05 governed agent surface
 over one Docker component (`uptime-kuma`), RESTART-only, approval-gated.
 
-### T1-1 — Broaden `REMEDIATION_POLICY` coverage
+### T1-1 — Broaden `REMEDIATION_POLICY` coverage — ✅ DONE 2026-09-11
+
+> `portainer` added as a second, independent, approval-gated
+> `REMEDIATION_POLICY` entry (`dozzle` deliberately kept outside it). Live
+> exercise on an isolated `:8001` instance: fault-injected stop → loop held →
+> approved → executed → above-Core `verified_success` → stale-observation
+> orphan hold rejected (same pattern as the original CAP-04 demo) → loop
+> observed recovery and stood down. `uptime-kuma` unaffected; `:8000` systemd
+> service untouched throughout. See `docs/RMT_CAPABILITIES_EVIDENCE.md`
+> §"C1 / T1-1". A `start`-for-a-stopped-container verb was evaluated and not
+> added: `CRITICAL` is only ever reached via "not running", and `restart`
+> already starts a stopped container.
 
 - **Objective:** govern more components and more action types (start/stop/
   recreate, not just restart) on the real homelab.
@@ -489,7 +500,9 @@ not touched.
    2026-09-09**), security finish.
 3. **T0-2** — platform recovery.
 4. ~~**T1-2, T1-3, T1-4** — cheap homelab depth; each is S.~~ **DONE 2026-09-09**
-   (`docs/RMT_T1_BATCH_PROPOSAL.md`). T1-1 (broaden `REMEDIATION_POLICY`) remains.
+   (`docs/RMT_T1_BATCH_PROPOSAL.md`). ~~T1-1 (broaden `REMEDIATION_POLICY`)~~
+   **DONE 2026-09-11** (`docs/RMT_CAPABILITIES_EVIDENCE.md` §"C1 / T1-1"). Tier
+   1 is now fully closed.
 5. Pick **one Tier 2 domain** and prove it end-to-end with zero Core edits.
    `D-1` (Agent Governance Gateway) is the natural first — it extends a live
    capability rather than starting cold, and it is the domain with the clearest
@@ -513,7 +526,7 @@ Everything else is selected on demand.
 | T0-3 Lifecycle observability | above-Core | no | — |
 | T0-4 CI gate | tooling | no | **DONE 2026-09-09** |
 | T0-5 S4/S3/S5 finish | above-Core | no | — |
-| T1-1 Broaden remediation policy | above-Core / domain | no | T1-3* |
+| T1-1 Broaden remediation policy | above-Core / domain | no | **DONE 2026-09-11** |
 | T1-2 Real dependency graph | above-Core / domain data | no | — |
 | T1-3 Generalize continuation Learn | above-Core / domain | no | — |
 | T1-4 Held-action notification sink | above-Core | no | — |

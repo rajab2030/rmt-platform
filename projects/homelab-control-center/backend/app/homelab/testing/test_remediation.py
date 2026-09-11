@@ -68,6 +68,23 @@ def _critical_uptime_kuma():
     )
 
 
+def _healthy_portainer():
+    return create_health_evaluation(
+        _observation(
+            "portainer",
+            "running",
+            {"cpu_usage": 15.0, "memory_usage": 25.0},
+            "healthy",
+        )
+    )
+
+
+def _critical_portainer():
+    return create_health_evaluation(
+        _observation("portainer", "stopped", {}, "unhealthy")
+    )
+
+
 def _setup_isolation(monkeypatch):
     """Wire the governed pipeline + engine to isolated in-memory storage and a
     mock adapter (mirrors test_governed_execution, plus the manual-approval
@@ -149,6 +166,74 @@ def test_non_remediable_target_produces_no_action():
     )
     assert evaluation.status == HealthStatus.CRITICAL
     assert build_remediation_action(evaluation) is None
+
+
+# ---------------------------------------------------------------------------
+# T1-1: second policy component (portainer) -- same shape as uptime-kuma,
+# proving the loop/policy generalize past a single hardcoded component.
+# ---------------------------------------------------------------------------
+
+def test_healthy_portainer_produces_no_remediation_action():
+    evaluation = _healthy_portainer()
+    assert evaluation.status == HealthStatus.HEALTHY
+
+    decision = make_decision(evaluation)
+    assert decision.action == "continue_monitoring"
+
+    action = build_remediation_action(evaluation, decision)
+    assert action is None
+
+    result = remediate(evaluation, decision)
+    assert result["status"] == "no_remediation"
+
+
+def test_critical_portainer_builds_restart_action_with_evaluation_confidence():
+    evaluation = _critical_portainer()
+    assert evaluation.status == HealthStatus.CRITICAL
+
+    decision = make_decision(evaluation)
+    assert decision.action == "investigate_immediately"
+
+    action = build_remediation_action(evaluation, decision)
+    assert action is not None
+    assert action.component == "portainer"
+    assert action.action_type == ActionType.RESTART
+    assert action.confidence == evaluation.confidence
+    assert action.requires_approval is True
+    assert action.expected_outcome is not None
+    assert action.expected_outcome.target == "portainer"
+    assert action.expected_outcome.expected_state == "running"
+
+
+def test_portainer_remediation_reaches_governed_boundary_and_continues(monkeypatch):
+    """Same governed-chain proof as uptime-kuma, for the second policy
+    component: policy/risk/approval/authorization/execution/verification all
+    run through the governed boundary, not a bypass."""
+    stores = _setup_isolation(monkeypatch)
+    evaluation = _critical_portainer()
+    decision = make_decision(evaluation)
+
+    result = remediate(evaluation, decision, adapter_name="simulation")
+    assert result["status"] == "manual_approval_required"
+    approval_id = result["approval_id"]
+    assert approval_id
+
+    assert len(stores["trace"].get_all()) == 0
+    assert len(stores["audit"].get_all()) == 0
+    assert len(stores["auth"].get_all()) == 0
+    assert len(stores["hold"].get_all()) == 1
+
+    from app.core.intelligence.actions.approval_service import approve_held_action
+    cont = approve_held_action(approval_id, approved_by="operator")
+    assert cont["status"] == "executed"
+    assert cont.get("execution_id")
+
+    assert len(stores["auth"].get_all()) >= 1
+    assert len(stores["trace"].get_all()) >= 1
+    assert len(stores["audit"].get_all()) >= 1
+    assert len(stores["verification"].get_all()) >= 1
+    stores["adapter_registry"].get.assert_called()
+    stores["adapter_registry"].get.return_value.execute.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

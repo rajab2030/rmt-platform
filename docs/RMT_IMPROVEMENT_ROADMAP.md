@@ -218,6 +218,21 @@ adapter with a real workload proves the plumbing; it does not prove the claim.
 
 ### C1 — Broaden `REMEDIATION_POLICY` coverage (T1-1)
 
+> **DONE (2026-09-11)** — `docs/RMT_CAPABILITIES_EVIDENCE.md` §"C1 / T1-1".
+> `portainer` added as a second, independent, approval-gated
+> `REMEDIATION_POLICY` entry (`dozzle` deliberately left out — it is the
+> load-bearing "outside policy" example elsewhere). 4 new tests, 459 full
+> suite passing, T13 safe-envelope guard re-verified. Live-demonstrated on an
+> isolated `:8001` instance against the real `portainer` container:
+> fault-injected stop → loop held (`manual_approval_required`) → approved →
+> executed + above-Core `verified_success` → a stale-observation orphan hold
+> (same pattern as the original CAP-04 demo) rejected → loop observed recovery
+> and stood down. `uptime-kuma` unaffected throughout; systemd `:8000` service
+> untouched. The `start`-for-a-stopped-container verb was evaluated and not
+> implemented: `CRITICAL` is only ever reached via "not running", and Docker's
+> `restart` already starts a stopped container, so it would change no
+> observable behaviour today.
+
 - **Objective:** the supervised loop and remediation cover more than
   `uptime-kuma` restart.
 - **Why now:** `REMEDIATION_POLICY` holds a single component / single verb

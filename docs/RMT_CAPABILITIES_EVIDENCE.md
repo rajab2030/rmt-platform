@@ -584,6 +584,97 @@ unchanged. New: `test_index.py` (rebuild precedence ×4 + silent/history +
 
 ---
 
+## C1 / T1-1 — Broaden `REMEDIATION_POLICY` coverage (2026-09-11)
+
+Plan: `docs/RMT_IMPROVEMENT_ROADMAP.md` §5 C1 (Size S — per the roadmap's own
+authority rule, an S item needs owner selection only, no separate proposal
+doc). Above-Core; no `app/core/**` change; no C08.
+
+- **Modified** `app/homelab/remediation.py` — added `portainer` as a second,
+  independently-governed `REMEDIATION_POLICY` entry (`RESTART` on `CRITICAL`,
+  `expected_state="running"`, `requires_approval=True`) — identical shape to
+  `uptime-kuma`. `portainer` was already confirmed dependency-free in
+  `docs/RMT_T13_DISPOSITION.md` and already monitored by the collector, so no
+  other above-Core wiring was needed. `dozzle` was deliberately **not** added:
+  it is the load-bearing example — exercised by `test_continuation.py` (T1-3)
+  and the CAP-05B live-exercise finding — of a component with a
+  `ComponentContext` that stays outside `REMEDIATION_POLICY`, and stays that
+  way.
+- The operational loop (`app/homelab/operational_loop.py`) needed **zero**
+  changes — it already iterates `REMEDIATION_POLICY.keys()` generically; a
+  second entry is picked up automatically.
+- The `start`-for-a-stopped-container verb mentioned in C1's scope was
+  evaluated and **not** implemented: within the actual remediation path
+  (`create_health_evaluation`), `CRITICAL` is reachable only via "component not
+  running", and Docker's `restart` already starts a stopped container, so a
+  separate verb would change no observable behavior today. Left as a documented
+  non-change rather than speculative branching.
+- **Tests:** `test_remediation.py` — `test_healthy_portainer_produces_no_remediation_action`,
+  `test_critical_portainer_builds_restart_action_with_evaluation_confidence`,
+  `test_portainer_remediation_reaches_governed_boundary_and_continues` (mirrors
+  the existing `uptime-kuma` coverage exactly). `test_operational_loop.py` —
+  `test_loop_processes_second_live_policy_component` drives the **real**
+  `REMEDIATION_POLICY` (not a synthetic fixture) through one cycle, holding one
+  component and clearing the other in the same pass. `test_remediation_policy_within_cap04_safe_envelope`
+  (T13 guard) re-verified against the two-entry policy: still passes
+  unmodified.
+
+**Core integrity.** Diff confined to `app/homelab/remediation.py` +
+`app/homelab/testing/**` (2 files). No `app/core/**` change (verified via
+`git diff --stat`). No new mutation path; approval retained on every entry;
+the CAP-04 T13 safe-envelope guard stays green with two components.
+
+**Validation.** Full backend suite **459 passed** (455 baseline + 4 new);
+`ruff` (F, E9) clean on changed files; `import app.main` clean. Plus the live
+exercise below.
+
+**Live exercise (real homelab, 2026-09-11).** Owner-authorized. Method
+identical to the original CAP-04 demonstration: an isolated second instance of
+the same tree on `:8001` (loop initially off, demo cadence
+`RMT_HOMELAB_LOOP_INTERVAL_SECONDS=20` / `RMT_HOMELAB_LOOP_COOLDOWN_SECONDS=30`,
+ephemeral local-only operator token); the systemd `:8000` service (old code,
+loop already enabled, `uptime-kuma`-only policy in its loaded process memory)
+was left untouched and stayed `active` throughout.
+
+1. **Pre-state:** `portainer` running.
+2. **Fault injection:** governed `POST /execute?operation=stop&target=portainer`
+   (`:8001`) → execution `3dc398e1…` completed → container `Exited (2)`;
+   above-Core Docker verification `verified_success` (stop observed).
+3. **`POST /homelab/loop/start`** → `policy_components: ["uptime-kuma",
+   "portainer"]` confirmed live from the real `REMEDIATION_POLICY`.
+4. **Cycle 2** (08:39:33): health eval CRITICAL → remediation
+   **`manual_approval_required`** — held, no mutation (approval `92027cc7…`).
+   `uptime-kuma` stayed `no_remediation` throughout — no collateral effect.
+5. **`POST /homelab/approve`** (`approved_by` resolves from the authenticated
+   operator identity, not a free-text field) for `92027cc7…` → **executed** via
+   the `docker` adapter: execution `0ff214e9…`, success true, "restart on
+   portainer". Core verifier `observation_unavailable` (fail-safe); above-Core
+   Docker verifier **`verified_success`**.
+6. **Stale-observation orphan hold** (cycle 4, 08:40:13): the collector had not
+   yet refreshed past the restart, so the loop opened a second hold
+   (`f5a070f0…`) against pre-restart data — the same phenomenon recorded in the
+   original CAP-04 live demo for `uptime-kuma`. Confirmed `portainer` genuinely
+   healthy via `docker ps`, then **`POST /homelab/approve?approved=false`**
+   rejected the orphan hold — same disposition as the precedent.
+7. **Cycle 11** (08:42:44): fresh observation → **`no_remediation`** for both
+   components; loop stood down on its own (`portainer healthy_streak=2`,
+   `uptime-kuma healthy_streak=11`, unaffected throughout).
+8. **`POST /homelab/loop/stop`**; killed the `:8001` process (clean shutdown,
+   no errors in its log).
+9. **Final:** `portainer` running (restarted ~08:40:03); `dozzle` /
+   `uptime-kuma` untouched; `:8000` systemd service `active` throughout.
+
+**Result:** **PASS.** The loop ran the full lifecycle
+`Understand → Decide → Govern → Authorize → Execute → Verify → Learn` against
+the real second component end-to-end — held, approved, executed, verified,
+recovered, stood down — correlated by `execution_id 3dc398e1…` (fault) /
+`92027cc7…` + `0ff214e9…` (remediation) / `f5a070f0…` (rejected orphan hold).
+Approval retained throughout (loop never auto-continued a hold); no
+`uptime-kuma`/`dozzle` impact; no code change during the exercise. T1-1 / C1 is
+now fully done per the roadmap's "Done when" bar.
+
+---
+
 ## Index
 
 | Capability | Status | Validation | Core integrity |
@@ -597,6 +688,7 @@ unchanged. New: `test_index.py` (rebuild precedence ×4 + silent/history +
 | Tier 1 batch — T1-2 operator-declarable dependency edges | COMPLETED & VERIFIED 2026-09-09 | `test_dependencies.py` ×9 + `test_dependency_guard.py` +1 + 389 full; dev-host edge exercise PASS | no `app/core/**` change; escalation rule untouched; static map still all-independent; ships unset |
 | Tier 1 batch — T1-3 generalized `continue_remediation` attribution | COMPLETED & VERIFIED 2026-09-09 | `test_continuation.py` +2 + 122 Core + 389 full | no `app/core/**` change; keyed on `ComponentContext`; no-context holds pass straight through; closes the recorded 5B `dozzle` finding |
 | Tier 1 batch — T1-4 held-action channel shaping + escalation | COMPLETED & VERIFIED 2026-09-09 | `test_held_holds.py` ×8 + `test_notifications.py` +4 + 389 full | no `app/core/**` change; `generic` output byte-identical; escalation is out-of-process (`GET /ops/holds` + `rmt-escalate.sh`), no in-process timer; 300 s Core hold TTL a recorded constraint |
+| C1 / T1-1 — Broaden `REMEDIATION_POLICY` coverage (`portainer`) | COMPLETED & VERIFIED 2026-09-11; **live-demonstrated** (isolated `:8001`, `:8000` untouched) | 4 new + 459 full; live run PASS | no `app/core/**` change; T13 safe-envelope guard re-verified with two entries; `dozzle` intentionally kept outside policy |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.
