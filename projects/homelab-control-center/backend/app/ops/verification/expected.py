@@ -16,6 +16,9 @@ _EXPECTED_STATE: dict[tuple[str, str], str] = {
     ("docker", "create"): "running",
     ("docker", "stop"): "exited",
     ("docker", "remove"): "absent",
+    # RMT-CAP-06 (C2/D-1): git-tag domain.
+    ("git", "create"): "present",
+    ("git", "remove"): "absent",
 }
 
 

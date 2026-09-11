@@ -22,6 +22,9 @@ from app.ops.verification.service import verify_executed_action
 # Importing this module registers the Docker observers (idempotent).
 from app.ops.verification import docker_observers as _docker_observers  # noqa: F401
 
+# RMT-CAP-06 (C2/D-1): registers the git-tag observers (idempotent).
+from app.ops.verification import git_observers as _git_observers  # noqa: F401
+
 __all__ = [
     "expected_state_for",
     "register_observer",

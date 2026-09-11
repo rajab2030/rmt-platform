@@ -675,6 +675,108 @@ now fully done per the roadmap's "Done when" bar.
 
 ---
 
+## RMT-CAP-06 — Second Domain End-to-End: Agent Governance Gateway (C2 / D-1) (2026-09-11)
+
+Proposal: `docs/RMT_CAP_06_PROPOSAL.md` (APPROVED 2026-09-11). Above-Core;
+no `app/core/**` change; no C08.
+
+- **Objective:** prove the frozen Core generalises past homelab/Docker by
+  routing a real, non-homelab consequential action through the identical
+  governed lifecycle. Chosen target: git-tag create/remove in a dedicated
+  scratch repository (`backend/data/agent_git_target/`, gitignored, never the
+  project's own `.git`) — a real CI/coding-agent action (tagging a release),
+  fully reversible, no network, no credentials.
+- **New** `app/agent/git_adapter.py` — `GitTagAdapter(ExecutionAdapter)`
+  (`create`/`remove`, fixed `git` argv, no shell interpolation,
+  `cwd` pinned to the configured repo, never request-supplied) +
+  `register_git_adapter()`, inert unless `RMT_AGENT_GIT_REPO_PATH` resolves to
+  a real repo — same conditional-registration shape Docker's own bootstrap
+  uses, called from `app/main.py` `lifespan` (not a Core file; registers into
+  the Core's own `adapter_registry` singleton, the intended extension point).
+- **New** `app/ops/verification/git_observers.py` — a read-only
+  `git rev-parse --verify refs/tags/<name>` observer registered for
+  `("git","create")`/`("git","remove")`; `expected.py` gains
+  `("git","create")→"present"` / `("git","remove")→"absent"`. Zero change to
+  the registry, frozen verifier, or verification storage.
+- **Modified** `app/agent/contract.py`-adjacent: `app/agent/api.py`'s
+  `ProposeBody` gains `operational_context` (default `"homelab"`, every
+  existing caller unchanged) threaded into `AgentIdentity` — a field that
+  already existed on the MCR contract but no caller had ever set.
+  `app/agent/adapter.py::propose_and_govern` resolves the execution adapter
+  from `proposal.identity.operational_context` instead of unconditionally
+  importing homelab's `resolve_adapter_name` — fixing what was otherwise a
+  hardcoded Docker-only path (including the post-execution verification call,
+  previously hardcoded to `adapter_name="docker"`). Default context preserves
+  the original resolution byte-for-byte (regression-tested).
+- `llm_agent.py` / `reference_agent.py` / `dependency_guard.py` — **not
+  touched**: the first two are homelab-specific by construction and irrelevant
+  to this proof; the guard is already generic (an unrecognized target is a
+  harmless no-op).
+- **Tests:** `app/agent/testing/test_git_adapter.py` (12 — adapter + inert-by-
+  default registration, real disposable `tmp_path` repos), `app/ops/verification/testing/test_git_observers.py`
+  (5 — registry pairs, expected-state rows, present/absent), `app/agent/testing/test_git_domain.py`
+  (5 — `_resolve_adapter_name` behaviour incl. the homelab-default regression
+  guard, grant-scope refusal before governance, and a real end-to-end
+  proposal→hold→approve→execute→verify against a real disposable repo with
+  only the durable evidence stores isolated — same isolation discipline as
+  `test_remediation.py`, but the adapter and observer are real, not mocked).
+
+**Core integrity.** Diff confined to `app/agent/**`, `app/ops/verification/**`,
+one import + 6 lines in `app/main.py`, and docs. No `app/core/**` change
+(verified via `git diff --stat`). `AGENT_ENABLED` / `AGENT_LLM_ENABLED`
+semantics unchanged; the git adapter has its own independent inert-by-default
+gate; approval retained on every proposal.
+
+**Validation.** Full backend suite **480 passed** (459 baseline + 21 new);
+`ruff` (F, E9) clean; `import app.main` clean.
+
+**Live exercise (real homelab, 2026-09-11).** Owner-authorized. Same
+isolated-instance discipline as C1/CAP-04: `:8001`, `RMT_AGENT_ENABLED=true`,
+`RMT_AGENT_GIT_REPO_PATH` pointed at the real scratch repo; systemd `:8000`
+left untouched and active throughout.
+
+1. Granted `create` on `v1.0.0-cap06-proof` to a benign agent → proposed via
+   `POST /agent/act` (`operational_context: "git"`) → held
+   (`manual_approval_required`, "Action explicitly requires approval") — no
+   mutation yet. Approved via `POST /homelab/approve` → **executed** through
+   the real `git` adapter (execution `97357057…`) → `git tag` confirmed
+   present in the scratch repo.
+2. **Over-reaching agent, attempt 1:** re-used the now-consumed grant for
+   `remove` on the same tag → refused, `decision: no_authority`,
+   `detail: grant_consumed` — never reached governance.
+3. **Over-reaching agent, attempt 2 (cleaner signal):** a fresh grant scoped to
+   `create` on a *different* tag (`v2.0.0-scoped`), then attempted `remove` on
+   `v1.0.0-cap06-proof` → refused, `decision: no_authority`,
+   `detail: grant_scope_mismatch` — tag untouched, never reached governance.
+4. **Cleanup / rollback proof:** granted `remove` on `v1.0.0-cap06-proof` to
+   the benign agent → Core's own frozen risk engine classified `remove` as
+   **high-risk on its own** (`"detail": "High-risk action requires human
+   approval"`, distinct from the default-approval reason in step 1) — a real,
+   unprompted signal that the frozen policy/risk logic generalizes correctly
+   to a resource type it has never seen, with no domain-specific code in
+   Core. Approved → **executed** (execution `920c5d32…`) → tag removed;
+   scratch repo back to its initial commit, nothing left behind.
+
+**Result:** **PASS.** D-1's DoD met: two distinct external-agent calls against
+the git domain, one benign end-to-end, one (twice) refused for exceeding its
+grant, never reaching the governed boundary. `uptime-kuma`/`portainer`/`dozzle`
+unaffected; `:8000` systemd service active throughout; no code change during
+the exercise.
+
+**Recorded finding (not fixed — out of scope, honest limitation).** Both live
+executions above show `verification_status: observation_unavailable` even
+though the git observer is registered and correct (proven directly in
+`test_git_domain.py`). Cause: `POST /homelab/approve`'s continuation path only
+auto-invokes above-Core verification for targets with a Core `ComponentContext`
+(the T1-3 generalization, homelab-specific by construction) — a git-tag target
+has none, so the held→approved path never calls `verify_executed_action`,
+unlike the immediate (non-held) path inside `propose_and_govern` which does.
+This is the same shape of gap T1-3 closed for homelab; closing it for the
+agent/git domain generally is a candidate for C3 ("harden the agent surface"),
+not part of this proposal's approved scope.
+
+---
+
 ## Index
 
 | Capability | Status | Validation | Core integrity |
@@ -689,6 +791,7 @@ now fully done per the roadmap's "Done when" bar.
 | Tier 1 batch — T1-3 generalized `continue_remediation` attribution | COMPLETED & VERIFIED 2026-09-09 | `test_continuation.py` +2 + 122 Core + 389 full | no `app/core/**` change; keyed on `ComponentContext`; no-context holds pass straight through; closes the recorded 5B `dozzle` finding |
 | Tier 1 batch — T1-4 held-action channel shaping + escalation | COMPLETED & VERIFIED 2026-09-09 | `test_held_holds.py` ×8 + `test_notifications.py` +4 + 389 full | no `app/core/**` change; `generic` output byte-identical; escalation is out-of-process (`GET /ops/holds` + `rmt-escalate.sh`), no in-process timer; 300 s Core hold TTL a recorded constraint |
 | C1 / T1-1 — Broaden `REMEDIATION_POLICY` coverage (`portainer`) | COMPLETED & VERIFIED 2026-09-11; **live-demonstrated** (isolated `:8001`, `:8000` untouched) | 4 new + 459 full; live run PASS | no `app/core/**` change; T13 safe-envelope guard re-verified with two entries; `dozzle` intentionally kept outside policy |
+| RMT-CAP-06 (C2/D-1) — Second domain: git-tag Agent Governance Gateway | COMPLETED & VERIFIED 2026-09-11; **live-demonstrated** (isolated `:8001`, `:8000` untouched) | 21 new + 480 full; live run PASS (benign + 2 refusals + rollback) | no `app/core/**` change; adapter/observer registered via the existing extension points; recorded finding: continuation-path auto-verify is `ComponentContext`-only (candidate for C3) |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.

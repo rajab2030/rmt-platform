@@ -51,6 +51,7 @@ from app.homelab.operational_loop import operational_loop
 from app.core.intelligence.execution.adapters.bootstrap import (
     register_default_adapters,
 )
+from app.agent.git_adapter import register_git_adapter
 
 from app.core.intelligence.actions.models import (
     ActionRequest,
@@ -142,6 +143,13 @@ async def lifespan(app: FastAPI):
         )
 
     register_default_adapters()
+
+    # RMT-CAP-06 (C2/D-1): above-Core registration of the git-tag domain
+    # adapter into the Core's adapter_registry -- the same extension point
+    # register_default_adapters itself uses. Inert unless
+    # RMT_AGENT_GIT_REPO_PATH is set to a real git repo (see
+    # app/agent/git_adapter.py). No app/core/** change.
+    register_git_adapter()
 
     # Ensure the SQLite substrate exists before anything reads or writes it.
     # Both tables live in data/observability.db and are created by these

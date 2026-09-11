@@ -47,6 +47,10 @@ class ProposeBody(BaseModel):
     confidence: int = 0
     expected_state: str = "running"
     grant_id: str | None = None
+    # RMT-CAP-06 (C2/D-1): which domain this proposal targets, resolved to an
+    # execution adapter by propose_and_govern. Default preserves every
+    # existing caller's behavior unchanged.
+    operational_context: str = "homelab"
 
 
 class LlmActBody(BaseModel):
@@ -92,7 +96,10 @@ def act(body: ProposeBody):
         }
 
     proposal = AgentProposal(
-        identity=AgentIdentity(agent_id=body.agent_id),
+        identity=AgentIdentity(
+            agent_id=body.agent_id,
+            operational_context=body.operational_context,
+        ),
         intent=AgentIntent(
             goal=body.goal,
             target=body.target,

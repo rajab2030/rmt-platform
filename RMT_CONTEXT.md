@@ -391,9 +391,20 @@ Not deployed (safe defaults; additive route; cron-only script). **T1-1**
 second independent, approval-gated component; live-demonstrated on an isolated
 `:8001` instance (fault-inject → hold → approve → executed → verified_success
 → stood down), `uptime-kuma`/`dozzle` unaffected, `:8000` untouched. See
-`docs/RMT_CAPABILITIES_EVIDENCE.md` §"C1 / T1-1". Tier 1 is now fully closed;
-`docs/RMT_IMPROVEMENT_ROADMAP.md` Phase C (prove generality, C2 second domain)
-is next.
+`docs/RMT_CAPABILITIES_EVIDENCE.md` §"C1 / T1-1". Tier 1 is now fully closed.
+**C2** (second domain, D-1 Agent Governance Gateway) is **DONE** (2026-09-11):
+a git-tag domain (create/remove in a dedicated scratch repo) proves the frozen
+Core generalizes with **zero** `app/core/**` change — `propose_and_govern` now
+resolves its adapter from `AgentIdentity.operational_context` instead of
+always assuming Docker. Live-demonstrated: a benign agent tagged a release
+end-to-end; an over-reaching agent was refused twice without ever reaching
+governance; a rollback removal showed Core's own frozen risk engine correctly
+flagging `remove` as high-risk on a resource type it had never seen. See
+`docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-06". One recorded, not-fixed
+finding: `POST /homelab/approve`'s auto-verification is `ComponentContext`-only
+(homelab-specific), so a held git-domain action doesn't auto-verify the way
+homelab targets do — a candidate for C3. `docs/RMT_IMPROVEMENT_ROADMAP.md`
+Phase C's remaining item, **C3** (harden the agent surface), is next.
 
 ## 13. Environment limitations vs genuine implementation gaps
 
