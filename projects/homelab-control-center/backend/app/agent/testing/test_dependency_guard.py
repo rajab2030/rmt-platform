@@ -93,11 +93,13 @@ def test_escalation_can_be_disabled(monkeypatch):
 
 def test_adapter_forces_approval_on_real_map_edge(monkeypatch):
     import app.agent.adapter as adapter_mod
-    from app.agent.authority import authority_store
+    from app.agent.authority import authority_store, AuthorityGrantStorage
     from app.agent.contract import AgentIdentity, AgentIntent, AgentProposal
     from app.agent.adapter import propose_and_govern
     from app.core.intelligence.actions.models import ActionType
 
+    # RMT-CAP-08: authority_store is durably backed -- isolate for this test.
+    monkeypatch.setattr(authority_store, "_storage", AuthorityGrantStorage(file_path=None))
     monkeypatch.setattr(loop_config, "AGENT_ENABLED", True)
     monkeypatch.setattr(loop_config, "AGENT_DEFAULT_REQUIRES_APPROVAL", False)
     monkeypatch.setitem(deps_mod.HOMELAB_DEPENDENCIES, "web", ["db"])
@@ -112,7 +114,6 @@ def test_adapter_forces_approval_on_real_map_edge(monkeypatch):
     monkeypatch.setattr(adapter_mod, "resolve_adapter_name", lambda: "simulation")
     monkeypatch.setattr(adapter_mod, "record_learning", lambda *a, **k: None)
 
-    authority_store.reset()
     g = authority_store.grant("start", "db", "operator")
     out = propose_and_govern(
         AgentProposal(
@@ -124,7 +125,6 @@ def test_adapter_forces_approval_on_real_map_edge(monkeypatch):
             grant_id=g.grant_id,
         )
     )
-    authority_store.reset()
 
     assert captured["action"].requires_approval is True
     assert out.escalated is True
