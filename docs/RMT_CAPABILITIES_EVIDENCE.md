@@ -854,6 +854,60 @@ verification* boundary — a distinct, still-open item for a future pass.
 
 ---
 
+## Continuation-path verification gap closed (2026-09-11)
+
+Closes the finding recorded in RMT-CAP-06 and flagged again, un-addressed,
+in RMT-CAP-07: `POST /homelab/approve`'s continuation path
+(`app/homelab/continuation.py::continue_remediation`) only ran above-Core
+verification + Learn closure for a component with a Core `ComponentContext`
+(homelab), so an agent-originated hold in a non-homelab domain (the CAP-06
+git-tag demo) was silently continued with no verification and no Learn
+record at all. Above-Core; no `app/core/**` change; S-sized (owner selection
+only, per the roadmap's own process rule — no separate proposal doc).
+
+- **Root cause, same bug class already fixed once (C2):** verification was
+  hardcoded to `adapter_name="docker"` regardless of what adapter the hold
+  was actually destined for. The frozen Core's own `ApprovalHold` already
+  carries `adapter_name` — "the adapter it was destined for" — set correctly
+  at hold-creation time by whichever domain built the action; the
+  continuation path simply never read it.
+- **Modified** `app/homelab/continuation.py`:
+  1. Verification now resolves the observer from `hold.adapter_name`, not a
+     hardcoded string. An unresolved `(adapter, operation)` pair still
+     degrades gracefully to `observation_unavailable` (B1a's existing
+     behaviour) — never an error, never a false `verified_success`.
+  2. The attribution gate widened from "has a `ComponentContext`" to "has a
+     `ComponentContext` **or** is agent-originated" (`action.decision_id`
+     starts with `"agent-"`, set only by `propose_and_govern`, regardless of
+     domain). A held action that is neither — the operator `POST /execute`
+     flow — is unaffected: no extra Learn record, no verification, exactly
+     as before.
+- **Test fixture correction (not a design change):** two existing
+  `test_continuation.py` fixtures had `adapter_name="simulation"` on holds
+  that were actually meant to represent real homelab Docker remediations —
+  harmless before this fix (the hardcoded `"docker"` ignored the field
+  entirely), incorrect after it. Corrected to `adapter_name="docker"`,
+  matching what `resolve_adapter_name()` actually returns in production and
+  what these tests' own mocked Docker observer represents.
+- **New** `test_agent_originated_git_hold_gets_learn_and_verification` — a
+  real disposable git repo, a hand-placed hold with `adapter_name="git"` and
+  an `"agent-..."` `decision_id`, continued via `continue_remediation`:
+  `verified_success` and a Learn record now appear where before this fix
+  there would have been neither. The pre-existing narrowing guarantee
+  (`test_non_homelab_held_action_gets_no_learn_or_docker_verification`) is
+  unchanged and still passes — an arbitrary operator hold still gets
+  nothing.
+
+**Core integrity.** Diff confined to `app/homelab/continuation.py` +
+`app/homelab/testing/test_continuation.py` (2 files). No `app/core/**`
+change (verified via `git diff --stat`).
+
+**Validation.** Full backend suite **515 passed** (514 baseline + 2 new − 1
+redundant duplicate removed); `ruff check .` clean repo-wide; `import
+app.main` clean.
+
+---
+
 ## Index
 
 | Capability | Status | Validation | Core integrity |
@@ -868,8 +922,9 @@ verification* boundary — a distinct, still-open item for a future pass.
 | Tier 1 batch — T1-3 generalized `continue_remediation` attribution | COMPLETED & VERIFIED 2026-09-09 | `test_continuation.py` +2 + 122 Core + 389 full | no `app/core/**` change; keyed on `ComponentContext`; no-context holds pass straight through; closes the recorded 5B `dozzle` finding |
 | Tier 1 batch — T1-4 held-action channel shaping + escalation | COMPLETED & VERIFIED 2026-09-09 | `test_held_holds.py` ×8 + `test_notifications.py` +4 + 389 full | no `app/core/**` change; `generic` output byte-identical; escalation is out-of-process (`GET /ops/holds` + `rmt-escalate.sh`), no in-process timer; 300 s Core hold TTL a recorded constraint |
 | C1 / T1-1 — Broaden `REMEDIATION_POLICY` coverage (`portainer`) | COMPLETED & VERIFIED 2026-09-11; **live-demonstrated** (isolated `:8001`, `:8000` untouched) | 4 new + 459 full; live run PASS | no `app/core/**` change; T13 safe-envelope guard re-verified with two entries; `dozzle` intentionally kept outside policy |
-| RMT-CAP-06 (C2/D-1) — Second domain: git-tag Agent Governance Gateway | COMPLETED & VERIFIED 2026-09-11; **live-demonstrated** (isolated `:8001`, `:8000` untouched) | 21 new + 480 full; live run PASS (benign + 2 refusals + rollback) | no `app/core/**` change; adapter/observer registered via the existing extension points; recorded finding: continuation-path auto-verify is `ComponentContext`-only (candidate for C3) |
-| RMT-CAP-07 (C3) — Harden the agent surface: preview + rationale + adversarial gate | COMPLETED & VERIFIED 2026-09-11 | 34 new + 514 full; green in CI (A2 live) | no `app/core/**` change; preview reuses frozen pure policy/risk/approval functions unchanged; continuation-verify `ComponentContext` gap remains open (not in scope) |
+| RMT-CAP-06 (C2/D-1) — Second domain: git-tag Agent Governance Gateway | COMPLETED & VERIFIED 2026-09-11; **live-demonstrated** (isolated `:8001`, `:8000` untouched) | 21 new + 480 full; live run PASS (benign + 2 refusals + rollback) | no `app/core/**` change; adapter/observer registered via the existing extension points; recorded finding: continuation-path auto-verify is `ComponentContext`-only — **CLOSED below** |
+| RMT-CAP-07 (C3) — Harden the agent surface: preview + rationale + adversarial gate | COMPLETED & VERIFIED 2026-09-11 | 34 new + 514 full; green in CI (A2 live) | no `app/core/**` change; preview reuses frozen pure policy/risk/approval functions unchanged; continuation-verify `ComponentContext` gap flagged, not in scope — **CLOSED below** |
+| Continuation-path verification gap (agent-originated, non-homelab holds) | COMPLETED & VERIFIED 2026-09-11 | 1 new (+1 fixture correction) + 515 full | no `app/core/**` change; diff confined to `app/homelab/continuation.py` + its test file; reuses `ApprovalHold.adapter_name` (frozen Core) instead of a hardcoded string |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.

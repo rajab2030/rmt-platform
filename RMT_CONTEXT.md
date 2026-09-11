@@ -418,10 +418,20 @@ also done this session — 9 pending commits pushed, CI run `34585062939` green
 nightly). See `docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-07".
 
 `docs/RMT_IMPROVEMENT_ROADMAP.md` Phase C is now fully closed (C1, C2, C3 all
-done). The `ComponentContext`-only continuation-verify gap noted above remains
-open — the next concrete, named item if anyone picks it up. Otherwise
-everything else in the roadmap is "selected on demand" (Phase D is explicitly
-gated on needing an audience beyond the owner).
+done). The `ComponentContext`-only continuation-verify gap noted above is
+**also now closed** (2026-09-11): `app/homelab/continuation.py` resolves
+verification from `ApprovalHold.adapter_name` (the frozen Core's own record
+of what a hold was destined for) instead of a hardcoded `"docker"`, and the
+attribution gate widened to cover any agent-originated hold
+(`decision_id` prefix `"agent-"`), not just homelab `ComponentContext`
+components. An arbitrary operator hold (neither) is unaffected — same
+behavior as before. 1 new test + a fixture correction, 515 full suite
+passing, no `app/core/**` change. See `docs/RMT_CAPABILITIES_EVIDENCE.md`
+§"Continuation-path verification gap closed".
+
+There is no more open, named finding on the record. Everything left in the
+roadmap is "selected on demand" (Phase D is explicitly gated on needing an
+audience beyond the owner).
 
 ## 13. Environment limitations vs genuine implementation gaps
 
