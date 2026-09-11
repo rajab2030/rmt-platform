@@ -12,6 +12,11 @@
 
 ## 1. RMT identity and purpose
 
+**RMT = Risk-Mitigated Transactions** (defined 2026-09-11;
+`docs/RMT_MASTER_DEFINITION.md` is authoritative). Every consequential action
+in any domain is a transaction the platform risk-mitigates — policy, risk,
+authorization, execution, verification — never assumed safe by default.
+
 RMT is a general-purpose intelligent control, execution, and governance
 platform. The Core is domain-agnostic: it governs services, applications,
 systems, and AI agents without embedding the rules of any particular domain.

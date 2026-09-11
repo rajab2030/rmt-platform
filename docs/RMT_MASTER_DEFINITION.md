@@ -8,6 +8,13 @@ Conflicting historical descriptions of RMT are obsolete as definitions. They may
 
 ## RMT Identity and Purpose
 
+**RMT stands for Risk-Mitigated Transactions** — defined 2026-09-11 to match
+what the platform actually is, superseding any earlier or informal meaning of
+the initials. Every consequential action the platform touches, in any domain,
+is treated as a transaction that must be risk-mitigated — policy-checked,
+risk-assessed, authorized, and verified — before and after it happens, never
+assumed safe by default.
+
 RMT is a general-purpose intelligent control, execution, and governance platform. It is not a specialized application.
 
 RMT enables services, applications, systems, and AI agents to operate under a common control layer:
