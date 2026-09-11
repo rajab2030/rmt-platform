@@ -161,7 +161,11 @@ def _place_held_action(stores, *, component, action_type=ActionType.RESTART):
     hold = ApprovalHold(
         action_id=action.action_id,
         action=action,
-        adapter_name="simulation",
+        # C3 follow-up: verification now resolves the observer from the
+        # hold's own adapter_name (the adapter this action was actually
+        # destined for) instead of a hardcoded "docker" -- "docker" here
+        # matches the mocked Docker observer this fixture's callers use.
+        adapter_name="docker",
         reason="agent hold",
         status=ApprovalStatus.PENDING,
         expires_at=datetime.now(timezone.utc) + timedelta(seconds=300),
@@ -192,7 +196,11 @@ def _hold_a_homelab_remediation(monkeypatch):
     produced exactly as in the real flow."""
     evaluation = _critical_uptime_kuma()
     decision = make_decision(evaluation)
-    held = remediate_and_verify(evaluation, decision, adapter_name="simulation")
+    # C3 follow-up: continuation verification now resolves the observer from
+    # the hold's own adapter_name -- "docker" here matches the mocked Docker
+    # observer this fixture's callers use (real production homelab
+    # remediations resolve to "docker" too, via resolve_adapter_name()).
+    held = remediate_and_verify(evaluation, decision, adapter_name="docker")
     assert held["status"] == "manual_approval_required"
     assert held["approval_id"]
     return held["approval_id"]
@@ -380,3 +388,65 @@ def test_unknown_approval_id_returns_core_result_unchanged(monkeypatch):
 
     assert result["status"] == "approval_not_found"
     assert stores["memory"] == []
+
+
+# ---------------------------------------------------------------------------
+# C3 follow-up: an agent-originated, non-homelab (git) hold now gets the same
+# Learn/verify closure as a homelab one -- closes the RMT-CAP-06 finding.
+# ---------------------------------------------------------------------------
+
+def test_agent_originated_git_hold_gets_learn_and_verification(monkeypatch, tmp_path):
+    """Before this fix: a git-domain hold had no ComponentContext, so
+    continuation gave it no verification and no Learn record at all -- the
+    recorded CAP-06 finding. Now: any agent-originated hold (decision_id
+    ``"agent-..."``) gets verified against the adapter it was actually
+    destined for (``hold.adapter_name``), not a hardcoded ``"docker"``."""
+    import subprocess
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "config", "user.email", "t@example.com"], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "config", "user.name", "test"], check=True)
+    subprocess.run(["git", "commit", "--allow-empty", "-q", "-m", "init"], cwd=tmp_path, check=True)
+    # The tag genuinely exists -- standing in for what the real GitTagAdapter
+    # would have produced (execution itself is mocked here; only the
+    # continuation's own post-execution verification is under test).
+    subprocess.run(["git", "tag", "v1.0-proof"], cwd=tmp_path, check=True)
+    monkeypatch.setenv("RMT_AGENT_GIT_REPO_PATH", str(tmp_path))
+
+    stores = _setup_isolation(monkeypatch)
+
+    action = ActionRequest(
+        decision_id="agent-git-proof-agent-abcd1234",
+        component="v1.0-proof",
+        action_type=ActionType.CREATE,
+        reason="agent proposed a release tag",
+        confidence=90,
+        requires_approval=True,
+        expected_outcome=ExpectedOutcome(
+            target="v1.0-proof", operation="create", expected_state="present"
+        ),
+    )
+    hold = ApprovalHold(
+        action_id=action.action_id,
+        action=action,
+        adapter_name="git",  # what this hold was actually destined for
+        reason="agent hold",
+        status=ApprovalStatus.PENDING,
+        expires_at=datetime.now(timezone.utc) + timedelta(seconds=300),
+        risk_level="medium",
+    )
+    stores["hold"].save(hold)
+
+    result = continue_remediation(hold.approval_id, approved_by="operator")
+
+    assert result["status"] == "executed"
+    assert result["docker_verification_status"] == VerificationStatus.VERIFIED_SUCCESS
+
+    executed = [r for r in stores["memory"] if r.data.get("status") == "executed"]
+    assert len(executed) == 1
+    assert executed[0].component == "v1.0-proof"
+    assert executed[0].data["docker_verification_status"] == VerificationStatus.VERIFIED_SUCCESS
+    # The pre-existing narrowing guarantee is unaffected by this fix: a
+    # genuinely non-homelab, non-agent-originated hold (neither
+    # ComponentContext nor decision_id "agent-...") still gets nothing --
+    # see test_non_homelab_held_action_gets_no_learn_or_docker_verification.
