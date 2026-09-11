@@ -21,7 +21,7 @@ import pytest
 import app.agent.adapter as adapter_mod
 import app.homelab.dependencies as deps_mod
 from app.agent import loop_config
-from app.agent.authority import authority_store
+from app.agent.authority import authority_store, AuthorityGrantStorage
 from app.agent.adapter import propose_and_govern
 from app.agent.contract import AgentIdentity, AgentIntent, AgentProposal
 from app.agent.llm_agent import parse_proposal, LlmProposalError
@@ -30,11 +30,14 @@ from app.ops import separation as separation_mod
 
 
 @pytest.fixture(autouse=True)
-def _reset():
-    authority_store.reset()
+def _reset(monkeypatch):
+    # RMT-CAP-08: authority_store is now durably backed (real SQLite) --
+    # swap its storage for a fresh in-memory instance per test. Never call
+    # authority_store.reset() directly here: on the real singleton that
+    # deletes real, durable grants from the shared evidence DB.
+    monkeypatch.setattr(authority_store, "_storage", AuthorityGrantStorage(file_path=None))
     separation_mod.reset()
     yield
-    authority_store.reset()
     separation_mod.reset()
 
 

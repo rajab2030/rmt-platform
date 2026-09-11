@@ -35,7 +35,7 @@ from app.core.intelligence.verification.storage import VerificationStorage
 from app.core.intelligence.actions.models import ActionType
 
 from app.agent import loop_config
-from app.agent.authority import authority_store
+from app.agent.authority import authority_store, AuthorityGrantStorage
 from app.agent.adapter import propose_and_govern, _resolve_adapter_name
 from app.agent.contract import AgentIdentity, AgentIntent, AgentProposal
 from app.agent.git_adapter import GitTagAdapter
@@ -43,11 +43,11 @@ from app.ops import separation as separation_mod
 
 
 @pytest.fixture(autouse=True)
-def _reset():
-    authority_store.reset()
+def _reset(monkeypatch):
+    # RMT-CAP-08: authority_store is durably backed -- isolate per test.
+    monkeypatch.setattr(authority_store, "_storage", AuthorityGrantStorage(file_path=None))
     separation_mod.reset()
     yield
-    authority_store.reset()
     separation_mod.reset()
 
 

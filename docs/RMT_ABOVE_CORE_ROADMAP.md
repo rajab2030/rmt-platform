@@ -296,6 +296,17 @@ the proof the freeze holds.**
 > broader productization below (stable versioned external API, a fuller
 > multi-agent authority model, per-agent-class policy) was deliberately
 > deferred — a separate, later decision, same split CAP-05 used for 5A/5B.
+>
+> **Partially productized (2026-09-11)** — `docs/RMT_CAP_08_PROPOSAL.md` +
+> `docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-08" (owner directive: keep
+> building toward something usable). Closed the two gaps named above as
+> accepted limitations: authority grants are now durable (survive a process
+> restart, via the same `DurableStore` extension point six frozen-Core
+> stores already use — no `app/core/**` change) and
+> `docs/operations/AGENT_API.md` is a real external integration guide.
+> Still deferred: a stable *versioned* API, the fuller multi-agent authority
+> model, and per-agent-class policy — no concrete second caller yet to
+> justify committing to a shape for any of those.
 
 - **Objective:** a first-class surface other teams' agents call to get their
   consequential actions governed — the productization of CAP-05 (5A/5B).

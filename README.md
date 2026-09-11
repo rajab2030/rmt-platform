@@ -26,6 +26,9 @@ domain.
   does and does **not** assert, in plain language.
 - [`docs/RMT_THREAT_MODEL.md`](docs/RMT_THREAT_MODEL.md) — assets, trust
   boundary, assumed adversary, attack surface, residual risks.
+- [`docs/operations/AGENT_API.md`](docs/operations/AGENT_API.md) — the
+  integration guide for an external agent/caller: full lifecycle, decision
+  vocabulary, the evidence-receipt contract, what's guaranteed vs. not.
 - [`docs/RMT_FROZEN_CORE_DEBT.md`](docs/RMT_FROZEN_CORE_DEBT.md) — every
   recorded frozen-Core gap, its compensating control, and its trigger to
   revisit.

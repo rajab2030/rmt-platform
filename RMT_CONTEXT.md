@@ -438,6 +438,25 @@ There is no more open, named finding on the record. Everything left in the
 roadmap is "selected on demand" (Phase D is explicitly gated on needing an
 audience beyond the owner).
 
+**RMT-CAP-08 — productize the Agent Governance Gateway (2026-09-11):**
+owner directive, "keep building toward something usable" — building a
+product on the now-proven foundation, not proving the foundation further.
+Closed the two gaps CAP-06 had named and accepted as limitations: authority
+grants are now durable (`app/agent/authority.py`, backed by the same
+`DurableStore` extension point six frozen-Core evidence stores already use —
+a new table, `data/governance_evidence.db`, no `app/core/**` change; verified
+across a simulated restart and, live, against the real evidence DB without
+ever touching the running systemd service); and
+`docs/operations/AGENT_API.md` is a real external integration guide (full
+lifecycle, decision vocabulary, the evidence-receipt contract), linked from
+`README.md`. 7 new tests, 522 full suite passing. Six existing test files
+were re-isolated to guarantee `pytest` never wipes the real evidence DB — a
+real risk the persistence change introduced and closed in the same pass, not
+a residual one. Still deliberately deferred: a versioned external API, a
+fuller multi-agent authority model, per-agent-class policy — no concrete
+second caller yet to justify committing to a shape. See
+`docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-08".
+
 ## 13. Environment limitations vs genuine implementation gaps
 
 - **Shell-dependent tooling.** Git and Docker availability depend on which shell

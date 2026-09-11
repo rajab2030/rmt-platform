@@ -908,6 +908,74 @@ app.main` clean.
 
 ---
 
+## RMT-CAP-08 — Productize the Agent Governance Gateway (2026-09-11)
+
+Proposal: `docs/RMT_CAP_08_PROPOSAL.md` (APPROVED — owner directive: "keep
+building toward something usable"). Above-Core; no `app/core/**` change; no
+C08.
+
+- **Objective:** move the agent surface from "proven" to "usable by a real
+  caller" — the two gaps named and accepted as limitations in the CAP-06
+  proposal: no durable authority grants, no external integration
+  documentation.
+- **Persistent authority grants** — `app/agent/authority.py`:
+  `AuthorityGrant` converts from a plain `@dataclass` to a Pydantic
+  `BaseModel`; new `AuthorityGrantStorage(DurableStore)` (`_table =
+  "agent_authority_grants"`) is a new table in the **same shared** SQLite
+  evidence database (`data/governance_evidence.db`) six frozen-Core stores
+  already write to — the exact extension point `app/ops/verification/index.py`
+  already uses for its own above-Core persistence, so no `app/core/**`
+  change. `AuthorityStore`'s public API (`grant`/`check`/`consume`/`get`/
+  `list_active`/`reset`) is unchanged; internally it now reads/writes through
+  the durable storage instead of a bare dict. A grant now survives a process
+  restart.
+- **Safety-critical part of this change:** all 6 test files that call
+  `authority_store.reset()` directly on the module-level singleton
+  (`test_agent_governance.py`, `test_llm_agent.py`, `test_preview.py`,
+  `test_adversarial.py`, `test_dependency_guard.py`, `test_git_domain.py`)
+  were updated to `monkeypatch` the singleton's storage to a fresh
+  **in-memory** instance (`AuthorityGrantStorage(file_path=None)`) per test.
+  Without this, `reset()` against the now-durable singleton would `DELETE`
+  every row from the **real** evidence database on every test run — the same
+  file the live systemd service reads — on every `pytest` invocation in this
+  checkout. Verified directly: ran the full suite, then queried
+  `agent_authority_grants` in the real `data/governance_evidence.db` —
+  **0 rows**, confirming no test ever touched the real table.
+- **New** `docs/operations/AGENT_API.md` — the integration guide: full
+  lifecycle with worked `curl` examples (grant → preview → propose → approve
+  → receipt), the complete `decision` vocabulary table, which
+  `AgentOutcome.as_dict()` fields are stable vs. informational, and the
+  non-guarantees already recorded elsewhere, gathered in one place an
+  external integrator can actually use without reading source. Linked from
+  `README.md`.
+- **Tests:** `app/agent/testing/test_authority_persistence.py` (7 — grant
+  survives a simulated restart via a fresh instance on the same file,
+  `consume()` persists, `reset()` only clears the instance it's called on,
+  scope/expiry checks unchanged, `list_active` excludes consumed).
+
+**Core integrity.** Diff confined to `app/agent/authority.py`,
+6 existing test files (isolation-mechanism change only, no logic change),
+1 new test file, and docs. No `app/core/**` change (verified via
+`git diff --stat`); `DurableStore` and `EVIDENCE_DB_PATH` reused exactly as
+six existing stores already use them — a new table via
+`CREATE TABLE IF NOT EXISTS`, no existing table touched.
+
+**Validation.** Full backend suite **522 passed** (515 baseline + 7 new);
+`ruff check .` clean repo-wide; `import app.main` clean.
+
+**Live check (real evidence DB, 2026-09-11).** Not a fault-injection drill —
+persistence has no execution side effect to demonstrate live, so this
+directly exercises the real file instead: process A granted authority
+against the real, default `AuthorityStore()` (pointed at the actual
+`data/governance_evidence.db`); a second, independent process invocation
+(simulating a restart) read the same grant back and passed a live `check()`
+against it (`operation=create`, `target=cap08-live-check`) — `(True, "ok")`.
+Cleaned up via `authority_store.reset()` immediately after (the table was
+new and otherwise empty). The live systemd service (`:8000`) was never
+restarted or touched throughout — confirmed `active` before and after.
+
+---
+
 ## Index
 
 | Capability | Status | Validation | Core integrity |
@@ -925,6 +993,7 @@ app.main` clean.
 | RMT-CAP-06 (C2/D-1) — Second domain: git-tag Agent Governance Gateway | COMPLETED & VERIFIED 2026-09-11; **live-demonstrated** (isolated `:8001`, `:8000` untouched) | 21 new + 480 full; live run PASS (benign + 2 refusals + rollback) | no `app/core/**` change; adapter/observer registered via the existing extension points; recorded finding: continuation-path auto-verify is `ComponentContext`-only — **CLOSED below** |
 | RMT-CAP-07 (C3) — Harden the agent surface: preview + rationale + adversarial gate | COMPLETED & VERIFIED 2026-09-11 | 34 new + 514 full; green in CI (A2 live) | no `app/core/**` change; preview reuses frozen pure policy/risk/approval functions unchanged; continuation-verify `ComponentContext` gap flagged, not in scope — **CLOSED below** |
 | Continuation-path verification gap (agent-originated, non-homelab holds) | COMPLETED & VERIFIED 2026-09-11 | 1 new (+1 fixture correction) + 515 full | no `app/core/**` change; diff confined to `app/homelab/continuation.py` + its test file; reuses `ApprovalHold.adapter_name` (frozen Core) instead of a hardcoded string |
+| RMT-CAP-08 — Productize the Agent Governance Gateway (durable grants + integration guide) | COMPLETED & VERIFIED 2026-09-11; **live-checked** against the real evidence DB | 7 new + 522 full | no `app/core/**` change; new table via the existing `DurableStore` extension point; 6 test files re-isolated to prevent the real evidence DB from ever being touched by `pytest` |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.
