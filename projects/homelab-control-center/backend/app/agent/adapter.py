@@ -37,6 +37,28 @@ logger = logging.getLogger("rmt.agent")
 _ACCEPTED = {"executed", "manual_approval_required"}
 
 
+def _resolve_adapter_name(operational_context: str) -> str:
+    """RMT-CAP-06 (C2/D-1): resolve the execution adapter for the proposal's
+    domain instead of always routing through homelab/Docker.
+
+    ``operational_context`` (``AgentIdentity``, MCR sect 5) is the domain the
+    proposal belongs to. The default ``"homelab"`` preserves the original
+    Docker/simulation resolution byte-for-byte. Any other context is looked up
+    directly as an adapter name in the shared registry, falling back to
+    ``"simulation"`` when nothing is registered for it -- the same graceful
+    degradation ``resolve_adapter_name`` itself uses for Docker.
+    """
+    if operational_context == "homelab":
+        return resolve_adapter_name()
+    from app.core.intelligence.execution.adapters.registry import (
+        adapter_registry,
+    )
+
+    if adapter_registry.get(operational_context) is not None:
+        return operational_context
+    return "simulation"
+
+
 def _log_outcome(outcome: AgentOutcome, *, operation: str, target: str) -> AgentOutcome:
     """O1: one structured line per agent proposal that reached the adapter."""
     log_event(
@@ -93,9 +115,11 @@ def propose_and_govern(proposal: AgentProposal) -> AgentOutcome:
         expected_outcome=proposal.to_expected_outcome(),
     )
 
+    adapter_name = _resolve_adapter_name(proposal.identity.operational_context)
+
     try:
         result = execute_governed_action(
-            action, adapter_name=resolve_adapter_name()
+            action, adapter_name=adapter_name
         )
     except Exception as exc:  # defensive: the surface must not 500
         return _log_outcome(
@@ -153,7 +177,7 @@ def propose_and_govern(proposal: AgentProposal) -> AgentOutcome:
         if result.get("success") and action.expected_outcome is not None:
             verification = verify_executed_action(
                 result["execution_id"],
-                adapter_name="docker",
+                adapter_name=adapter_name,
                 operation=operation,
                 target=target,
                 expected=action.expected_outcome,

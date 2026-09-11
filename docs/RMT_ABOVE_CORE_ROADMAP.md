@@ -287,6 +287,16 @@ the proof the freeze holds.**
 
 ### D-1 — AI Agent Governance Gateway (extends CAP-05)
 
+> **DoD DEMONSTRATED (2026-09-11)** — `docs/RMT_CAP_06_PROPOSAL.md` (APPROVED,
+> explicitly scoped to the DoD below, not this section's full "in scope"
+> list) + `docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-06". Second, real,
+> non-homelab target (git-tag create/remove in a dedicated scratch repo)
+> proven end-to-end with zero `app/core/**` change; live-demonstrated: one
+> benign agent, two distinct refused over-reach attempts, one rollback. The
+> broader productization below (stable versioned external API, a fuller
+> multi-agent authority model, per-agent-class policy) was deliberately
+> deferred — a separate, later decision, same split CAP-05 used for 5A/5B.
+
 - **Objective:** a first-class surface other teams' agents call to get their
   consequential actions governed — the productization of CAP-05 (5A/5B).
 - **In scope:** a stable external API (`propose → hold → human approve →
@@ -503,10 +513,12 @@ not touched.
    (`docs/RMT_T1_BATCH_PROPOSAL.md`). ~~T1-1 (broaden `REMEDIATION_POLICY`)~~
    **DONE 2026-09-11** (`docs/RMT_CAPABILITIES_EVIDENCE.md` §"C1 / T1-1"). Tier
    1 is now fully closed.
-5. Pick **one Tier 2 domain** and prove it end-to-end with zero Core edits.
-   `D-1` (Agent Governance Gateway) is the natural first — it extends a live
-   capability rather than starting cold, and it is the domain with the clearest
-   external demand.
+5. ~~Pick **one Tier 2 domain** and prove it end-to-end with zero Core edits.~~
+   **DoD DEMONSTRATED 2026-09-11** — `D-1` (Agent Governance Gateway), a
+   git-tag domain, zero `app/core/**` change (`docs/RMT_CAPABILITIES_EVIDENCE.md`
+   §"RMT-CAP-06"). The Core generality claim is now proven, not assumed. The
+   fuller D-1 productization (stable external API, multi-agent authority
+   model) remains a separate, later decision.
 6. **P-B** (evidence console) once one domain is real and there is something
    worth looking at.
 7. ~~**C-1 path 1** whenever a domain needs failed-execution evidence; escalate
@@ -530,7 +542,7 @@ Everything else is selected on demand.
 | T1-2 Real dependency graph | above-Core / domain data | no | — |
 | T1-3 Generalize continuation Learn | above-Core / domain | no | — |
 | T1-4 Held-action notification sink | above-Core | no | — |
-| D-1 Agent Governance Gateway | above-Core / domain product | no | T0-1, T0-3 |
+| D-1 Agent Governance Gateway | above-Core / domain product | no | **DoD DEMONSTRATED 2026-09-11** |
 | D-2 Cloud / IaC Operations | above-Core / domain product | no | T0-1, T0-2 |
 | D-3 Kubernetes Operations | above-Core / domain product | no | T0-1, T0-3 |
 | D-4 Financial / Approval Control | above-Core / domain product | no | T0-1, T0-5 |

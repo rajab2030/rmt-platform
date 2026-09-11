@@ -250,6 +250,24 @@ adapter with a real workload proves the plumbing; it does not prove the claim.
 
 ### C2 — Second domain end-to-end: Agent Governance Gateway (D-1)
 
+> **DONE (2026-09-11)** — `docs/RMT_CAP_06_PROPOSAL.md` (APPROVED) +
+> `docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-06". Chosen non-homelab
+> target: git-tag create/remove in a dedicated scratch repo
+> (`app/agent/git_adapter.py` + `app/ops/verification/git_observers.py`,
+> registered into the existing Core extension points, zero `app/core/**`
+> change). `propose_and_govern` now resolves its execution adapter from
+> `AgentIdentity.operational_context` instead of always assuming homelab/
+> Docker (default unchanged, regression-tested). 21 new tests, 480 full suite
+> passing. Live-demonstrated on an isolated `:8001` instance: a benign agent
+> tagged a release end-to-end (held → approved → executed → real tag); an
+> over-reaching agent was refused twice (`grant_consumed`,
+> `grant_scope_mismatch`) without ever reaching governance; a cleanup/rollback
+> removal showed Core's frozen risk engine correctly classifying `remove` as
+> high-risk on a resource type it had never seen, unprompted. Recorded, not
+> fixed: `POST /homelab/approve`'s auto-verification is `ComponentContext`-only
+> (homelab-specific), so a held git-domain action doesn't get automatic
+> above-Core verification the way homelab targets do — a candidate for C3.
+
 - **Objective:** a structurally different adapter runs the full lifecycle
   `Understand → … → Verify → Learn` with **zero** Core edits, proving the
   frozen Core generalises.
