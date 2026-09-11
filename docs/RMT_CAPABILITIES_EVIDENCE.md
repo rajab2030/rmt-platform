@@ -777,6 +777,83 @@ not part of this proposal's approved scope.
 
 ---
 
+## RMT-CAP-07 — Harden the Agent Surface (C3) (2026-09-11)
+
+Proposal: `docs/RMT_CAP_07_PROPOSAL.md` (APPROVED 2026-09-11). Above-Core; no
+`app/core/**` change; no C08. Depends on A2 (done same session — CI activated
+by pushing 9 pending commits; run `34585062939` green, 480 passed, 0 skipped,
+real Docker e2e un-skipped on every push).
+
+- **Objective:** an operator sees exactly what an agent proposal will do
+  before approving it; the agent surface has a standing, named adversarial
+  gate instead of scattered one-off coverage.
+- **Key finding reused, not rebuilt:** `execute_governed_action` already calls
+  `evaluate_action_policy` → `simulate_action` → `process_approval` — all
+  three pure, all three already exported from frozen Core — *before* the
+  first write to storage. A genuinely accurate preview was therefore a matter
+  of calling the same three functions and stopping, not building a parallel
+  simulation.
+- **New** `app/agent/preview.py::preview_proposal` + **`POST
+  /agent/act/preview`** (`app/agent/api.py`, same `require_operator` gate as
+  `/agent/act`) — resolves the concrete `ActionRequest` + predicted
+  `policy_allowed`/`risk_level`/`approval_mode`/`approval_reason`. Zero
+  `execute_governed_action` calls, zero grant consumed, zero hold, zero
+  trace/audit/verification/Learn record. `app/agent/adapter.py` gained
+  `resolve_proposal()` (shared by both `propose_and_govern` and preview, so
+  they can never resolve a proposal differently) — a pure refactor, no
+  behavior change to the real path (regression-tested).
+- **Structured rationale** — `app/homelab/remediation.py::record_learning`
+  gained an optional `rationale` kwarg (`{goal, reason, mechanism,
+  operational_context}`, default `None`). Closes a real, previously-silent
+  gap: the Learn evidence record captured `status`/`ids`/`confidence` but
+  never *why* an action was proposed. Every homelab call site (`rationale`
+  omitted) is byte-identical to before (regression-tested); only
+  `propose_and_govern`'s two `record_learning` calls now pass it.
+- **New** `app/agent/testing/test_adversarial.py` — 20 cases, four
+  categories: (1) invalid/malformed proposals never build an `ActionRequest`;
+  (2) authority scope escape (wrong target, wrong operation, consumed,
+  expired, and a string-injection attempt against a granted target proving
+  grant matching is exact-string, never prefix/pattern) always
+  `no_authority`, grant left intact; (3) LLM prompt-injection shapes (no JSON
+  object, `propose:false` despite an urgent goal, unknown/path-traversal
+  target, disallowed mechanism, malformed confidence, injected unsolicited
+  JSON fields, goal/proposal semantic mismatch) always fail closed before
+  governance or land in a human hold, never auto-allowed; (4) T13
+  dependency-cascade probes — an allowed op on a declared dependency forces
+  `escalated_hold` **even when the agent's own default requires-approval flag
+  is off**, proving the escalation is not merely redundant with the default.
+- **New** `app/agent/testing/test_preview.py` — 12 cases: disabled gate,
+  structural `no_proposal`, a resolved-action case, an authority-not-gating
+  case (preview still resolves and reports `authority.ok=False` rather than
+  refusing), a high-risk `remove` case matching the real risk classification,
+  three zero-side-effect proofs (never calls `execute_governed_action`, never
+  consumes the grant, creates no hold), a **regression guard** asserting
+  preview's predicted `approval_mode` matches `propose_and_govern`'s real
+  `decision` for the same input, and 2 HTTP-route cases.
+
+**Core integrity.** Diff confined to `app/agent/**`, one optional kwarg in
+`app/homelab/remediation.py`, and docs. No `app/core/**` change (verified via
+`git diff --stat`); `evaluate_action_policy`/`simulate_action`/
+`process_approval` reused exactly as `execute_governed_action` already uses
+them, called through no new code path.
+
+**Validation.** Full backend suite **514 passed** (480 baseline + 34 new);
+`ruff check .` clean (repo-wide, not just changed files); `import app.main`
+clean. Already exercised for real by CI on push (A2 live) — no separate live
+drill needed: preview has no side effects to demonstrate live, and the
+adversarial suite's value *is* running in CI on every future change, which is
+now true by construction.
+
+**Recorded, not addressed by this proposal.** The CAP-06 finding above
+(`POST /homelab/approve`'s auto-verification is `ComponentContext`-only, so a
+held git-domain action doesn't auto-verify the way homelab targets do) was
+flagged as a C3 candidate but was **not** in this proposal's approved scope
+(§4 out of scope) and remains open. C3 hardened the *proposal* boundary
+(preview, rationale, adversarial coverage), not the *post-approval
+verification* boundary — a distinct, still-open item for a future pass.
+
+---
+
 ## Index
 
 | Capability | Status | Validation | Core integrity |
@@ -792,6 +869,7 @@ not part of this proposal's approved scope.
 | Tier 1 batch — T1-4 held-action channel shaping + escalation | COMPLETED & VERIFIED 2026-09-09 | `test_held_holds.py` ×8 + `test_notifications.py` +4 + 389 full | no `app/core/**` change; `generic` output byte-identical; escalation is out-of-process (`GET /ops/holds` + `rmt-escalate.sh`), no in-process timer; 300 s Core hold TTL a recorded constraint |
 | C1 / T1-1 — Broaden `REMEDIATION_POLICY` coverage (`portainer`) | COMPLETED & VERIFIED 2026-09-11; **live-demonstrated** (isolated `:8001`, `:8000` untouched) | 4 new + 459 full; live run PASS | no `app/core/**` change; T13 safe-envelope guard re-verified with two entries; `dozzle` intentionally kept outside policy |
 | RMT-CAP-06 (C2/D-1) — Second domain: git-tag Agent Governance Gateway | COMPLETED & VERIFIED 2026-09-11; **live-demonstrated** (isolated `:8001`, `:8000` untouched) | 21 new + 480 full; live run PASS (benign + 2 refusals + rollback) | no `app/core/**` change; adapter/observer registered via the existing extension points; recorded finding: continuation-path auto-verify is `ComponentContext`-only (candidate for C3) |
+| RMT-CAP-07 (C3) — Harden the agent surface: preview + rationale + adversarial gate | COMPLETED & VERIFIED 2026-09-11 | 34 new + 514 full; green in CI (A2 live) | no `app/core/**` change; preview reuses frozen pure policy/risk/approval functions unchanged; continuation-verify `ComponentContext` gap remains open (not in scope) |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.

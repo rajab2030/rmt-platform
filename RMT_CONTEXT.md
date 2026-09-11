@@ -403,8 +403,25 @@ flagging `remove` as high-risk on a resource type it had never seen. See
 `docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-06". One recorded, not-fixed
 finding: `POST /homelab/approve`'s auto-verification is `ComponentContext`-only
 (homelab-specific), so a held git-domain action doesn't auto-verify the way
-homelab targets do — a candidate for C3. `docs/RMT_IMPROVEMENT_ROADMAP.md`
-Phase C's remaining item, **C3** (harden the agent surface), is next.
+homelab targets do — flagged, not addressed by C3 below.
+
+**C3** (harden the agent surface) is **DONE** (2026-09-11): `POST
+/agent/act/preview` resolves a proposal to its concrete action + predicted
+outcome using the real frozen policy/risk/approval chain (already pure, no
+Core change needed) with zero side effects; `record_learning` gained a
+structured `rationale` field, closing a real gap where the Learn record never
+captured *why* an action was proposed; a new consolidated adversarial suite
+(`test_adversarial.py`, 20 cases) replaces scattered one-off coverage as the
+standing gate for the agent surface. Depended on **A2** (CI gate activation),
+also done this session — 9 pending commits pushed, CI run `34585062939` green
+(480 passed, 0 skipped, real Docker e2e un-skipped on every push, not just
+nightly). See `docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-07".
+
+`docs/RMT_IMPROVEMENT_ROADMAP.md` Phase C is now fully closed (C1, C2, C3 all
+done). The `ComponentContext`-only continuation-verify gap noted above remains
+open — the next concrete, named item if anyone picks it up. Otherwise
+everything else in the roadmap is "selected on demand" (Phase D is explicitly
+gated on needing an audience beyond the owner).
 
 ## 13. Environment limitations vs genuine implementation gaps
 
