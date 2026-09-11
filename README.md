@@ -1,46 +1,48 @@
-# RMT HomeLab
+# RMT Platform
 
-## Environment
+RMT is a general-purpose intelligent control, execution, and governance
+platform, not a specialized application. The Core is domain-agnostic: it
+governs services, applications, systems, and AI agents under one common
+lifecycle — **Understand → Decide → Govern → Authorize → Execute → Verify →
+Learn** — without embedding the rules of any particular domain. See
+[`docs/RMT_MASTER_DEFINITION.md`](docs/RMT_MASTER_DEFINITION.md) for the
+authoritative identity and purpose statement.
 
-- Host: Windows + VMware Workstation
-- Guest OS: Ubuntu Server 22.04 LTS
-- Container Platform: Docker
+The frozen Core lives at `projects/homelab-control-center/` (validated at
+commit `46a4441`; C01–C07 CLOSED, no C08). Domains built on top of it so far:
+homelab operations (the platform's first, low-stakes proving ground) and a
+git-tag Agent Governance Gateway (an AI agent proposes an action, RMT governs
+it end-to-end) — proof that the frozen Core generalizes past its original
+domain.
 
-## Goals
+## Start here
 
-- Learn DevOps practices
-- Build self-hosted services
-- Practice automation and monitoring
-
-## Services
-
-Planned:
-
-- Portainer
-- Uptime Kuma
-- Dozzle
-- Nginx Proxy Manager
-- n8n
-- Vaultwarden
-
-## Backup Strategy
-
-All Docker compose files and scripts are version controlled with Git.
-Docker volumes are backed up separately.
-
-## RMT — governed control plane
-
-This repo also hosts **RMT**, a domain-agnostic governed action gateway
-(`projects/homelab-control-center/`), with the frozen Core validated at commit
-`46a4441`. Start here to evaluate what it promises and where it stops:
-
+- [`RMT_CONTEXT.md`](RMT_CONTEXT.md) — stable project brain / bootstrap
+  context: identity, lifecycle, current status, next action.
+- [`docs/RMT_MASTER_DEFINITION.md`](docs/RMT_MASTER_DEFINITION.md) — top
+  architecture authority: identity, purpose, Core/domain boundary.
 - [`docs/RMT_GUARANTEES.md`](docs/RMT_GUARANTEES.md) — what each lifecycle stage
   does and does **not** assert, in plain language.
 - [`docs/RMT_THREAT_MODEL.md`](docs/RMT_THREAT_MODEL.md) — assets, trust
   boundary, assumed adversary, attack surface, residual risks.
-- [`docs/RMT_FROZEN_CORE_DEBT.md`](docs/RMT_FROZEN_CORE_DEBT.md) — every recorded
-  frozen-Core gap, its compensating control, and its trigger to revisit.
+- [`docs/RMT_FROZEN_CORE_DEBT.md`](docs/RMT_FROZEN_CORE_DEBT.md) — every
+  recorded frozen-Core gap, its compensating control, and its trigger to
+  revisit.
+- [`docs/RMT_CAPABILITIES_EVIDENCE.md`](docs/RMT_CAPABILITIES_EVIDENCE.md) —
+  the evidence ledger for every capability built on the Core, including live
+  exercises.
 - [`docs/RMT_IMPROVEMENT_ROADMAP.md`](docs/RMT_IMPROVEMENT_ROADMAP.md) —
   prioritized improvements to the platform as it stands.
-- `RMT_CONTEXT.md` — stable project brain; `docs/RMT_MASTER_DEFINITION.md` and
-  `docs/RMT_CORE_TARGET_STATE.md` — top architecture authority.
+
+## Homelab domain (the platform's first proving ground)
+
+Before RMT governed anything else, it was built and validated against a
+real, low-stakes domain: this host's own homelab services. That domain is
+still live and still governed by RMT — restarts, health checks, and remediation
+all go through the same governed lifecycle as everything else — but it is
+the platform's first proof, not its identity.
+
+- Host: Windows + VMware Workstation, guest Ubuntu Server 22.04 LTS, Docker.
+- Live, governed services: Portainer, Uptime Kuma, Dozzle.
+- All Docker compose files and scripts are version controlled with Git;
+  Docker volumes are backed up separately.
