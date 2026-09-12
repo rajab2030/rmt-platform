@@ -15,7 +15,7 @@ Above-Core / operational. Does not change C01–C07.
 | Piece | Location |
 |---|---|
 | Service unit | `/etc/systemd/system/rmt-control-center.service` — canonical copy in git: `deploy/systemd/rmt-control-center.service` |
-| Drop-ins | `/etc/systemd/system/rmt-control-center.service.d/*.conf` — canonical copies (except secret `auth.conf`) in `deploy/systemd/` |
+| Drop-ins | `/etc/systemd/system/rmt-control-center.service.d/*.conf` — canonical copies in `deploy/systemd/`, `auth.conf` included (it holds no secret itself — see below) |
 | Code | `/home/rmt-lab/homelab/projects/homelab-control-center/backend` |
 | venv | `…/backend/.venv` |
 | Governance evidence | `…/backend/app/core/intelligence/**/*.json` |
@@ -45,19 +45,27 @@ cd /home/rmt-lab/homelab/projects/homelab-control-center/backend
 
 ### 1.2 Operator tokens (S1 / S2-lite)
 
+T0-5 (2026-09-12): the token list is a systemd credential
+(`LoadCredential=`), not an `Environment=` value — `systemctl show -p
+Environment` exposes a unit's plain environment (drop-in secrets included)
+to *any local user*, not just root; a credential file's path is exposed the
+same way, but its content is not. See `docs/operations/SECRETS.md`.
+
 ```
 cd /home/rmt-lab/homelab/projects/homelab-control-center
-sudo install -m 0600 deploy/systemd/auth.conf.example \
+sudo install -d -m 0700 /etc/rmt
+sudo install -m 0600 /dev/null /etc/rmt/operator_tokens.secret
+echo "alice:$(openssl rand -hex 24),bob:$(openssl rand -hex 24)" \
+  | sudo tee /etc/rmt/operator_tokens.secret >/dev/null
+sudo install -m 0644 deploy/systemd/auth.conf.example \
   /etc/systemd/system/rmt-control-center.service.d/auth.conf
-# generate real tokens
-openssl rand -hex 24    # once per operator
-sudoedit /etc/systemd/system/rmt-control-center.service.d/auth.conf
-#   RMT_OPERATOR_TOKENS=alice:<tok1>,bob:<tok2>
-#   (optionally) RMT_NOTIFY_WEBHOOK_URL=…
+#   (optionally) sudoedit the drop-in to add RMT_NOTIFY_WEBHOOK_URL=…
+sudo systemctl daemon-reload && sudo systemctl restart rmt-control-center.service
 ```
 
 Distribute each operator their own token over a secure channel. The token is
-sent as `Authorization: Bearer <token>` (or `X-API-Key: <token>`).
+sent as `Authorization: Bearer <token>` (or `X-API-Key: <token>`). Rotate by
+overwriting `/etc/rmt/operator_tokens.secret` + `daemon-reload` + restart.
 
 ### 1.3 Loopback bind (S4)
 
@@ -174,12 +182,14 @@ emergency — leaves the surface open, so treat it as break-glass.)
 ## 4. Token rotation
 
 ```
-sudoedit /etc/systemd/system/rmt-control-center.service.d/auth.conf
-sudo systemctl daemon-reload && sudo systemctl restart rmt-control-center.service
+sudoedit /etc/rmt/operator_tokens.secret
+sudo systemctl restart rmt-control-center.service
 ```
 
-Old tokens stop working at the restart. Removing an operator = delete their
-`name:token` pair and restart.
+(No `daemon-reload` needed — the unit still points at the same path via
+`LoadCredential=`; only the file content changed.) Old tokens stop working
+at the restart. Removing an operator = delete their `name:token` pair and
+restart.
 
 ---
 

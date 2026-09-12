@@ -191,21 +191,25 @@ cat <<'MANUAL'
 
   ------------------------------------------------------------------
   MANUAL steps this script deliberately does NOT do (secrets / CA):
-    1. auth.conf -- operator tokens (S1/S2-lite):
-         sudo install -m 0600 deploy/systemd/auth.conf.example \
+    1. operator tokens (S1/S2-lite) -- T0-5: a systemd credential, not an
+       Environment= value (DEPLOY.md 1.2):
+         sudo install -d -m 0700 /etc/rmt
+         sudo install -m 0600 /dev/null /etc/rmt/operator_tokens.secret
+         echo "alice:$(openssl rand -hex 24),bob:$(openssl rand -hex 24)" \
+           | sudo tee /etc/rmt/operator_tokens.secret >/dev/null
+         sudo install -m 0644 deploy/systemd/auth.conf.example \
            /etc/systemd/system/rmt-control-center.service.d/auth.conf
-         # openssl rand -hex 24  (one per operator); sudoedit the file
     2. Caddy TLS proxy (S4):  DEPLOY.md 1.4  (apt install caddy;
        cp deploy/Caddyfile /etc/caddy/Caddyfile; caddy trust)
     3. journald cap (O1):     DEPLOY.md 5.2
     4. cron: rmt-evidence-backup.sh + rmt-heartbeat.sh
        (RMT_EVIDENCE_RECOVERY.md, CONFIG.md)
-  Without auth.conf the app REFUSES to start (RMT_AUTH_ENABLED defaults
-  on in the example). Install it before the next line.
+  Without a populated /etc/rmt/operator_tokens.secret the app REFUSES to
+  start (RMT_AUTH_ENABLED defaults on). Do this before the next line.
   ------------------------------------------------------------------
 
 MANUAL
-read -r -p "  auth.conf installed and populated? start the service now? [y/N] " ans
+read -r -p "  operator tokens installed? start the service now? [y/N] " ans
 [ "$ans" = "y" ] || [ "$ans" = "Y" ] || { echo "Stopped before start. Run: sudo systemctl enable --now rmt-control-center.service"; exit 0; }
 
 sudo systemctl enable --now rmt-control-center.service

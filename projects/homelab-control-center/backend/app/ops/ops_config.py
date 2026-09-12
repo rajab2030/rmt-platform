@@ -8,7 +8,21 @@ production-safe setting.
                                 escape hatch).
   * ``RMT_OPERATOR_TOKENS``   -- ``name:token`` pairs, comma-separated. When
                                 auth is enabled this must be non-empty or the
-                                app refuses to start.
+                                app refuses to start. Under systemd, prefer a
+                                ``LoadCredential=RMT_OPERATOR_TOKENS:<path>``
+                                unit directive over ``Environment=`` --
+                                ``systemctl show -p Environment`` exposes a
+                                unit's plain environment (including secrets
+                                set via ``Environment=`` in a drop-in) to any
+                                local user, not just root, while
+                                ``LoadCredential=`` only exposes the source
+                                *path* the same way -- the token file itself
+                                stays root-only. When ``$CREDENTIALS_DIRECTORY``
+                                is set (systemd sets it automatically for a
+                                unit using ``LoadCredential=``), the token
+                                list is read from
+                                ``$CREDENTIALS_DIRECTORY/RMT_OPERATOR_TOKENS``
+                                instead of the environment variable.
   * ``RMT_NOTIFY_WEBHOOK_URL``-- optional held-action notification sink. Unset
                                 => notifications are logged only.
   * ``RMT_AUTH_SEPARATION``   -- S3: enforce approver != grantor for
@@ -58,6 +72,24 @@ def auth_enabled() -> bool:
     return _env_bool("RMT_AUTH_ENABLED", True)
 
 
+def _operator_tokens_raw() -> str:
+    """The raw ``name:token,...`` string, preferring a systemd
+    ``LoadCredential=RMT_OPERATOR_TOKENS:<path>`` file (via
+    ``$CREDENTIALS_DIRECTORY``) over the ``RMT_OPERATOR_TOKENS`` environment
+    variable, so the token list never sits in a unit's plain environment
+    (``systemctl show -p Environment`` is readable by any local user, not
+    just root). Falls back to the env var when no credentials directory is
+    set (local dev, tests, non-systemd deployments)."""
+    creds_dir = os.environ.get("CREDENTIALS_DIRECTORY", "").strip()
+    if creds_dir:
+        try:
+            with open(os.path.join(creds_dir, "RMT_OPERATOR_TOKENS")) as f:
+                return f.read()
+        except OSError:
+            pass
+    return os.environ.get("RMT_OPERATOR_TOKENS", "") or ""
+
+
 def operator_tokens() -> dict[str, str]:
     """Parse ``RMT_OPERATOR_TOKENS`` -> ``{token: operator_name}``.
 
@@ -65,7 +97,7 @@ def operator_tokens() -> dict[str, str]:
     tolerated; malformed entries (no ``:``, empty name or token) are skipped.
     Read dynamically so rotating a token is just a drop-in edit + restart.
     """
-    raw = os.environ.get("RMT_OPERATOR_TOKENS", "") or ""
+    raw = _operator_tokens_raw()
     out: dict[str, str] = {}
     for entry in raw.split(","):
         entry = entry.strip()
