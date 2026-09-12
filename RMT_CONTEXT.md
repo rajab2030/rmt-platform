@@ -127,6 +127,19 @@ validation: **122 tests passed**; no reachable production-equivalent governance
 bypass; no remaining required Core capability. There is intentionally **no C08**.
 The RMT Core is now considered frozen.
 
+**The repository is now PUBLIC (2026-09-12):**
+[`github.com/rajab2030/rmt-platform`](https://github.com/rajab2030/rmt-platform).
+Owner directive, after (a) an explicit git-history secret audit (clean — only
+fixture test tokens and one benign private-LAN URL, no real credentials ever
+committed) and (b) a real, independently-corroborated live exercise of the
+Agent Governance Gateway against the production service (T0-6, see §12 below
+and `docs/RMT_CAPABILITIES_EVIDENCE.md` §"T0-6"). **Only the source
+repository and docs are public — the running service itself is unaffected:**
+still bound to `127.0.0.1:8000` behind the LAN-only Caddy reverse proxy
+(S4), operator-token-gated, not internet-reachable. Going public raises the
+bar on everything committed from here on — no exceptions, no "it's just a
+local homelab" framing anymore; assume every commit is read by a stranger.
+
 ## 10. Current verified implementation state
 
 - Full intelligence testing suite: **122 passed** (verified).
@@ -456,6 +469,60 @@ a residual one. Still deliberately deferred: a versioned external API, a
 fuller multi-agent authority model, per-agent-class policy — no concrete
 second caller yet to justify committing to a shape. See
 `docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-08".
+
+**Tier 0 (operational readiness) is now fully closed** (`docs/RMT_ABOVE_CORE_ROADMAP.md`
+§4/§9): **T0-1** SQLite evidence substrate (2026-09-09), **T0-2** genuine
+fresh-host rebuild/recovery drill on a real LXD container (2026-09-12),
+**T0-3** governed-lifecycle observability — approval-latency metrics +
+dashboards note (2026-09-12), **T0-4** CI gate (2026-09-09), **T0-5** S4
+Caddy/S3 separation-of-duties/S5 CORS-from-config finish — which also found
+and immediately fixed a **live** credential exposure (`systemctl show -p
+Environment` was printing the real `RMT_OPERATOR_TOKENS` to any local user;
+moved to a systemd `LoadCredential=` secret file, tokens rotated, owner
+confirmed the live migration complete) (2026-09-12). See
+`docs/RMT_CAPABILITIES_EVIDENCE.md` §"T0-2"/"T0-3"/"T0-5" and the `HANDOFF.md`
+session notes for each.
+
+**T0-6 — public-showcase live exercise (2026-09-12), DONE:** before making
+the repository public, ran the full Agent Governance Gateway lifecycle for
+real against the **production** `:8000` service for the first time (CAP-06's
+original live demo used an isolated `:8001`) — grant → preview → propose →
+hold → human approval → execute → verify, in both directions (create +
+remove a tag in the dedicated scratch repo), plus a refusal case (reused a
+spent grant → `no_authority`) and unprompted risk-differentiated approval
+reasoning (`create` vs `remove` got different `approval_reason` strings from
+the same frozen policy engine). Corroborated independently of the API: git
+tag state in the scratch repo before/after, and `journalctl`'s own
+`homelab_approve` log lines matching the API's `action_id`/`execution_id`/
+`approval_id` exactly. Config-only enablement of the pre-existing
+conditional git adapter (`RMT_AGENT_GIT_REPO_PATH` via a new
+`git-domain.conf` drop-in) — no `app/core/**` or `app/agent/**` change. See
+`docs/RMT_CAPABILITIES_EVIDENCE.md` §"T0-6".
+
+**Open item recorded, not yet actioned:** during T0-6, the operator token
+rotated in T0-5 no longer matched the live secret file (root cause not
+established — a second undocumented rotation, or a copy error when it was
+first saved). Verified via SHA-256 hash comparison, never by exposing
+plaintext in-session; rotated fresh and saved properly this time. There is
+still no durable record of *when* an operator token was last confirmed
+working, only of when it was set — a runbook-discipline gap, not a platform
+defect.
+
+**Repository made PUBLIC (2026-09-12)**, after the secret audit and the
+T0-6 exercise above. See the note at the top of §9.
+
+**Next action for a new session:** nothing above-Core is currently
+in-flight. Candidates, roughly in order of how directly they build on what's
+now proven and public: (a) close the operator-token custody gap just
+recorded (a documented rotation-verification step, not a code change); (b)
+**P-B** (governed-evidence console) — now genuinely justified, since a real
+public domain example (D-1) exists to look at; (c) pick a second Tier-2
+domain (`docs/RMT_ABOVE_CORE_ROADMAP.md` D-2..D-5) now that D-1 has proven
+the Core generalizes and the repo is public evidence of that; (d) **P-D**
+(multi-operator RBAC) if more than one real operator is now expected, given
+public visibility. Nothing here is authorized until the owner selects it and
+an approved per-capability proposal exists — same working method as every
+prior capability (§17).
 
 ## 13. Environment limitations vs genuine implementation gaps
 

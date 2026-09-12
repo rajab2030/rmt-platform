@@ -2585,3 +2585,89 @@ Roadmap §8: A1/A2/A3/B3/B1 done. Next build **C1** — broaden
 safe-envelope guard stays green) — then **B2** (durable approval request +
 minimal view) → **C2** (second domain, the thesis proof). Each still needs a
 per-item recon + owner approval before implementation.
+
+---
+
+## Session note — T0-6 public-showcase exercise + repository made PUBLIC
+
+**Date:** 2026-09-12. **Note on this file:** this is the first `HANDOFF.md`
+entry since the 2026-09-10 B1b note above — C1/T1-1, RMT-CAP-06, RMT-CAP-07,
+the continuation-path verification-gap close, RMT-CAP-08, and T0-2/T0-3/T0-5
+all happened in the interim and are **not** narrated here; they're fully
+recorded in `docs/RMT_CAPABILITIES_EVIDENCE.md` (§"C1 / T1-1" through
+§"T0-5") and summarized in `RMT_CONTEXT.md` §12. This note picks up from
+there rather than reconstructing sessions this one didn't witness.
+
+### Owner directive
+"We are trying to publish the platform" — followed by, once a plan was
+proposed, "before go public you suggest a demo that show how the platform
+perform a real test dealing with an AI agent (show case)." Two decisions
+were confirmed explicitly along the way: publish = make
+`github.com/rajab2030/rmt-platform` **public** (not just push commits), and
+proceed with a real live exercise, not a scripted/fabricated one.
+
+### Work performed
+- **Secret audit of the full git history**, before touching visibility:
+  `git log --all -p` scanned for token/key/password patterns. Found only
+  fixture test credentials (`alice-secret`, `bob-secret` in auth-header unit
+  tests) and one committed `frontend/.env` with a private-LAN URL
+  (`VITE_API_URL=http://192.168.235.128:8000`) — not a real secret. The
+  actual `RMT_OPERATOR_TOKENS` values were never in git, by design (T0-5's
+  own fix). Repo history judged clean for going public.
+- **T0-6 — live agent-governance exercise on the production `:8000` service**
+  (first time this domain ran there, not an isolated port): enabled the
+  pre-existing conditional git adapter via a new `git-domain.conf` drop-in
+  (`RMT_AGENT_GIT_REPO_PATH`), then ran the full lifecycle for real — grant,
+  preview, propose (→ `hold`), human approval, execute, verify, in both
+  directions (create + remove a tag in the dedicated scratch repo) — plus a
+  refusal case (spent-grant reuse → `no_authority`) and unprompted
+  risk-differentiated approval reasoning between `create` and `remove`.
+  Independently corroborated outside the API: `git tag` state in the scratch
+  repo, and `journalctl`'s `homelab_approve` log lines matching the API
+  receipts' `action_id`/`execution_id`/`approval_id` exactly. Written up in
+  `docs/RMT_CAPABILITIES_EVIDENCE.md` §"T0-6" (commit `299c746`).
+- **Operational hiccup mid-exercise:** the operator token rotated in T0-5 no
+  longer authenticated against the live secret file. Diagnosed without ever
+  exposing plaintext in this session — first ruled out a `curl -s`
+  error-swallowing red herring (fixed the demo script to use `-sS` +
+  poll-for-health instead of a blind `sleep`), then confirmed a genuine
+  mismatch via SHA-256 hash comparison of the typed token against every
+  stored token. Owner rotated fresh and saved the new value properly.
+  Recorded as an open item (no durable record of last-verified-working
+  token) — not a platform defect, a runbook gap.
+- **Pushed 6 pending local commits to origin** (`20f6e01..299c746..949793a`),
+  each through the repo's pre-push CI gate (full 528-test backend suite,
+  ~8 min, green both times).
+- **Made `rajab2030/rmt-platform` PUBLIC** (`gh repo edit --visibility
+  public`), confirmed via `gh repo view` (`isPrivate: false`).
+- **README.md** — added a `**Repository:**` link at the top pointing back
+  to the now-public GitHub URL (commit `949793a`).
+- **RMT_CONTEXT.md** — added the public-repository status note to §9 and a
+  T0-2/T0-3/T0-5/T0-6 + publish-sequence summary to §12, since this file had
+  not been updated since the RMT-CAP-08 note (2026-09-11).
+
+### Validation
+- Git history audit: clean (no real secrets in any commit, ever).
+- T0-6 exercise: all 9 steps behaved exactly as the frozen policy/risk/
+  approval chain predicts; independently corroborated by two data sources
+  outside the HTTP API (git state, journald).
+- Both pushes: CI gate PASSED (528 passed) before landing on `origin/master`.
+- Post-publish: `gh repo view` confirms `visibility: PUBLIC`.
+
+### Next
+No above-Core capability is currently in-flight. Recommended, roughly in
+order of how directly each builds on what's now proven and public:
+1. **Close the operator-token custody gap** — a documented step (e.g. "after
+   any rotation, immediately verify with one authenticated call and record
+   the date") in `docs/operations/SECRETS.md` or `DEPLOY.md` §4. Process
+   fix, no code.
+2. **P-B — governed-evidence console** (`docs/RMT_ABOVE_CORE_ROADMAP.md`):
+   now has a real justification — a second domain (D-1) is proven, public,
+   and demonstrable; there's something worth building a console to look at.
+3. **A second Tier-2 domain** (D-2..D-5 in the roadmap) to further prove the
+   Core's generality now that the first proof is public evidence, not just
+   an internal claim.
+4. **P-D — multi-operator RBAC** if the public repo brings in more than one
+   real operator.
+Each still needs the same per-capability recon + owner approval before
+implementation — publishing changes nothing about the working method.
