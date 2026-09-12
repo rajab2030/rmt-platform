@@ -976,6 +976,98 @@ restarted or touched throughout — confirmed `active` before and after.
 
 ---
 
+## T0-2 — Genuine fresh-host rebuild (2026-09-12)
+
+R3's tooling (`backend/scripts/rmt-rebuild.sh`, `docs/operations/
+RMT_PLATFORM_RECOVERY.md`) shipped 2026-09-08 with a scratch-dir `--drill`
+proof. The one open item was R3's own recorded "Required action": run it for
+real, not just `--drill`, since `--drill` skips the systemd + Caddy + cron
+steps entirely. Above-Core; operational; no `app/core/**` change; no code
+diff except the one script fix below.
+
+- **Fresh host:** a real, never-before-provisioned Ubuntu 24.04 LXD **system**
+  container (`rmt-t02-rebuild`) — genuine `systemd` PID 1, its own filesystem,
+  its own network namespace — not a Docker container (Docker containers don't
+  run a real init/systemd, which the unit-install step requires). Provisioned
+  from a bare `ubuntu:24.04` image; a `rmt-lab` user created to match the
+  systemd unit's hard-coded `User=rmt-lab` /
+  `/home/rmt-lab/homelab/projects/homelab-control-center` path.
+- **Environment constraint found and worked around:** this session's network
+  is sandboxed — the container had no outbound internet (confirmed: reaches
+  its own gateway, not the public internet), so `apt-get`/`pip` against real
+  package indexes failed. This is a property of the current execution
+  sandbox, not of RMT or of a real second host (per `STEWARD.md` §2,
+  environment limitations are not implementation defects). Worked around
+  entirely offline: `sqlite3` / `python3.12-venv` installed from `.deb` files
+  downloaded on the host (which has internet) and pushed in; the Python
+  dependency set installed from an offline wheelhouse
+  (`pip download -r requirements.lock.txt` on the host → pushed in → `pip
+  install --no-index --find-links=<wheelhouse> -r requirements.lock.txt` in
+  the container) — same lockfile, same exact pinned versions, different
+  transport.
+- **Full sequence run for real** (`--evidence <fresh backup>`, then step 6 by
+  hand after `--skip-systemd` for review):
+  1. Prerequisites — `python3.12`/`git`/`sqlite3`/`rsync` present; correctly
+     `WARN`ed on no `docker` group (no Docker socket in the container).
+  2. venv — populated from the offline wheelhouse (see above); the script's
+     own `pip install -r requirements.lock.txt` found everything already
+     satisfied and needed no network.
+  3. Evidence restore — a fresh backup made by `rmt-evidence-backup.sh` on
+     the live host **2026-09-12** (not the stale 2026-09-08 one), verified
+     `RESULT: OK` on the host *before* transport, then restored inside the
+     container and re-verified `RESULT: OK` there — twice (the restore
+     script's own internal re-verify, then the rebuild script's separate
+     step-4 check).
+  4. Integrity check — `RESULT: OK`.
+  5. Full test suite — **522 passed, 3 skipped** in the container (the 3 are
+     `test_e2e_docker.py`'s Docker-adapter tests, correctly auto-skipping —
+     matches the documented V1 behavior when no Docker daemon is reachable).
+  6. Systemd bring-up — the real `rmt-control-center.service` + all 4
+     non-secret drop-ins (`cap04-loop`, `cap05-agent`, `bind-loopback`,
+     `hardening`) installed; a throwaway `auth.conf` with a freshly generated
+     token (`openssl rand -hex 24`, never a production secret) installed so
+     the app would start; `daemon-reload` → `enable --now`.
+- **Live-verified on the fresh host:** `GET /health` → `{"status":"ok",...}`;
+  listening on `127.0.0.1:8000` only (`bind-loopback.conf` confirmed, not
+  `0.0.0.0`); `systemd-analyze security rmt-control-center.service` →
+  **4.1 OK** (`hardening.conf` confirmed — matches the original D3 result
+  exactly, proving the hardening directives are compatible with an
+  unprivileged nested container, not just the original bare host); structured
+  JSON logging (O1) present in the journal; CAP-04 loop and CAP-05 agent
+  drop-ins both active (`loop.enabled: true`, `running: true`); Docker
+  adapter correctly fell back to `simulation` with the documented D6
+  `adapter_degraded: true` warning (no Docker socket) — the expected
+  behavior, not a failure.
+- **Found and fixed a real bug** in `rmt-rebuild.sh`'s step-2 summary line:
+  `$(( "$BACKEND/.venv/bin/pip" list | wc -l ))` used an arithmetic context
+  (`$(( ))`) where a command substitution (`$( )`) was meant — exactly the
+  class of defect this genuine exercise exists to catch that `--drill` mode's
+  repeated, fast host-side runs apparently never surfaced. One-line fix; no
+  test coverage needed (a `set -euo pipefail` shell script has no pytest
+  suite — this is `scripts/`, not `app/`).
+- **Not exercised** (documented manual steps, unchanged): Caddy (S4) TLS
+  cutover and cron wiring (`rmt-evidence-backup.sh` / `rmt-heartbeat.sh`) —
+  both remain operator actions per the runbook; this drill's purpose was the
+  service rebuild itself, not the LAN-facing proxy or backup scheduling.
+- **Cleanup:** the container is disposable and was not torn down immediately
+  in case further inspection is wanted; `lxc delete rmt-t02-rebuild --force`
+  removes it completely (it consumed no live-host resources beyond the
+  container itself — the live `rmt-control-center.service` on `:8000` was
+  never touched, confirmed active throughout).
+
+**Core integrity.** Diff confined to one line in
+`backend/scripts/rmt-rebuild.sh`. No `app/core/**` change. No app code
+change at all — this exercise validated existing tooling; it produced one
+bug fix in that tooling.
+
+**Validation.** 522 passed + 3 skipped = 525 total inside the fresh
+container, matching the host's 525-passed, 0-skipped run exactly (same
+commit, T0-3 included) — the only difference is environment-driven: the 3
+Docker e2e tests correctly auto-skip in the container (no Docker socket)
+instead of running, as documented (V1).
+
+---
+
 ## T0-3 — Close the remaining observability gap (2026-09-12)
 
 Proposal: `docs/RMT_T0_3_PROPOSAL.md` (APPROVED 2026-09-12). Above-Core;
@@ -1048,6 +1140,7 @@ evidence, not a synthetic fixture.
 | RMT-CAP-07 (C3) — Harden the agent surface: preview + rationale + adversarial gate | COMPLETED & VERIFIED 2026-09-11 | 34 new + 514 full; green in CI (A2 live) | no `app/core/**` change; preview reuses frozen pure policy/risk/approval functions unchanged; continuation-verify `ComponentContext` gap flagged, not in scope — **CLOSED below** |
 | Continuation-path verification gap (agent-originated, non-homelab holds) | COMPLETED & VERIFIED 2026-09-11 | 1 new (+1 fixture correction) + 515 full | no `app/core/**` change; diff confined to `app/homelab/continuation.py` + its test file; reuses `ApprovalHold.adapter_name` (frozen Core) instead of a hardcoded string |
 | RMT-CAP-08 — Productize the Agent Governance Gateway (durable grants + integration guide) | COMPLETED & VERIFIED 2026-09-11; **live-checked** against the real evidence DB | 7 new + 522 full | no `app/core/**` change; new table via the existing `DurableStore` extension point; 6 test files re-isolated to prevent the real evidence DB from ever being touched by `pytest` |
+| T0-2 — Genuine fresh-host rebuild (real LXD system container, not `--drill`) | COMPLETED & VERIFIED 2026-09-12; **live-verified** systemd + hardening + loopback bind on the fresh host | 522 + 3 correctly-skipped = 525 full | no `app/core/**` change; no app code change; found + fixed a real `rmt-rebuild.sh` script bug; live service on `:8000` untouched throughout |
 | T0-3 — Close the remaining observability gap (approval latency + dashboards note) | COMPLETED & VERIFIED 2026-09-12; **live-checked** against the real running service | 3 new + 525 full | no `app/core/**` change; read-only derivation from stores `/metrics` already reads; also corrected a doc-sync gap (roadmap never marked O1/O3/O4 as covering T0-3) |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core

@@ -115,7 +115,21 @@ should not go live until Tier 0 is done.**
 - **Depends on:** nothing. **Rough size:** M.
 - **Why first:** it also de-risks E4, E6, and every high-volume Tier 2 domain.
 
-### T0-2 — RMT platform recovery (R3 / E5)
+### T0-2 — RMT platform recovery (R3 / E5)  — ✅ DONE 2026-09-12
+
+> The procedure/script (`backend/scripts/rmt-rebuild.sh`) and the drill mode
+> were already built 2026-09-08; the one open item was R3's own "Required
+> action" — running it for real on a fresh host, not just `--drill`. Closed
+> 2026-09-12: a real Ubuntu 24.04 LXD system container (own systemd, own
+> filesystem, never provisioned before) went through the full sequence —
+> prereqs → venv → evidence restore + integrity check → full suite (522
+> passed, 3 correctly-skipped) → real systemd unit + all 4 drop-ins →
+> `enable --now` → `/health` OK → loopback bind and hardening (4.1 OK) both
+> confirmed. Found and fixed a real script bug along the way (see
+> `docs/RMT_CAPABILITIES_EVIDENCE.md` §"T0-2"). Caddy/cron remain documented
+> manual steps, not exercised; this session's network sandboxing (not an RMT
+> property) was worked around with an offline pip wheelhouse for the venv
+> step.
 
 - **Objective:** a tested procedure + script to rebuild the RMT service on a
   fresh host from the repo + a restored evidence set.
@@ -542,7 +556,7 @@ not touched.
    domain.~~ **DONE 2026-09-09** (see §5; E5 restore/verify follow-up also done).
 2. ~~**T0-3**~~, ~~**T0-4**~~, **T0-5** in parallel — ~~observability~~ (**done
    2026-09-12**; see §4), ~~CI gate~~ (**done 2026-09-09**), security finish.
-3. **T0-2** — platform recovery.
+3. ~~**T0-2**~~ — platform recovery. **DONE 2026-09-12** (see §4).
 4. ~~**T1-2, T1-3, T1-4** — cheap homelab depth; each is S.~~ **DONE 2026-09-09**
    (`docs/RMT_T1_BATCH_PROPOSAL.md`). ~~T1-1 (broaden `REMEDIATION_POLICY`)~~
    **DONE 2026-09-11** (`docs/RMT_CAPABILITIES_EVIDENCE.md` §"C1 / T1-1"). Tier
@@ -568,7 +582,7 @@ Everything else is selected on demand.
 | Item | Class | Touches Core? | Prereq |
 |---|---|---|---|
 | T0-1 SQLite substrate | above-Core substrate | interface unchanged | **DONE 2026-09-09** |
-| T0-2 Platform recovery | operational | no | T0-1 |
+| T0-2 Platform recovery | operational | no | **DONE 2026-09-12** |
 | T0-3 Lifecycle observability | above-Core | no | **DONE 2026-09-12** |
 | T0-4 CI gate | tooling | no | **DONE 2026-09-09** |
 | T0-5 S4/S3/S5 finish | above-Core | no | — |

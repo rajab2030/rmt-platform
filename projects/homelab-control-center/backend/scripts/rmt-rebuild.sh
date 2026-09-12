@@ -116,7 +116,7 @@ fi
 "$BACKEND/.venv/bin/pip" install --quiet --upgrade pip
 "$BACKEND/.venv/bin/pip" install --quiet -r "$BACKEND/requirements.lock.txt"
 "$BACKEND/.venv/bin/python" --version
-echo "  ok ($(("$BACKEND/.venv/bin/pip" list 2>/dev/null | wc -l)) packages)"
+echo "  ok ($("$BACKEND/.venv/bin/pip" list 2>/dev/null | wc -l) packages)"
 
 # ------------------------------------------------------------- 3. evidence restore
 step "3/6  restore governance evidence from $EVIDENCE"
