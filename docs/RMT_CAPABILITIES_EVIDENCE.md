@@ -1158,7 +1158,7 @@ no `app/core/**` change.
   is the single choke point already used by both call sites
   (`app/main.py`'s startup-refusal check, `app/ops/auth.py`'s auth check) —
   neither needed to change. `deploy/systemd/auth.conf.example` now uses
-  `LoadCredential=RMT_OPERATOR_TOKENS:/etc/rmt/operator_tokens.secret`
+  `LoadCredential=RMT_OPERATOR_TOKENS:/etc/rmt-control-center/operator_tokens.secret`
   instead of `Environment=RMT_OPERATOR_TOKENS=...`; the drop-in itself holds
   no secret and no longer needs `0600`. This is exactly the pattern
   `docs/operations/SECRETS.md` had already pre-designed and pre-approved
@@ -1170,7 +1170,7 @@ no `app/core/**` change.
   exposure, the fix, and corrects the prior claim),
   `projects/homelab-control-center/deploy/systemd/README.md`, and
   `backend/scripts/rmt-rebuild.sh`'s printed manual-steps checklist — all
-  updated to the two-file `auth.conf` + `/etc/rmt/operator_tokens.secret`
+  updated to the two-file `auth.conf` + `/etc/rmt-control-center/operator_tokens.secret`
   layout and the new rotation procedure (no `daemon-reload` needed, only a
   restart, since the unit/drop-in content itself doesn't change on
   rotation).
@@ -1199,7 +1199,7 @@ No `app/core/**` change. No other call site of `operator_tokens()` touched.
 `ruff check .` clean.
 
 **Live status.** Token rotation and the `auth.conf` →
-`LoadCredential=`/`/etc/rmt/operator_tokens.secret` migration are owner
+`LoadCredential=`/`/etc/rmt-control-center/operator_tokens.secret` migration are owner
 actions this session cannot execute (no `sudo`); commands were provided for
 the owner to run in a private terminal. The live service was not restarted
 or otherwise touched by this session during this item.

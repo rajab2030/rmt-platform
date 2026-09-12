@@ -45,14 +45,14 @@ Governing refs: `docs/RMT_ABOVE_CORE_ROADMAP.md` §4 T0-5,
   instead of reading the env var directly. No other function changes; no
   call-site changes (`app/main.py`, `app/ops/auth.py` are unaffected).
 - `deploy/systemd/auth.conf.example` — `LoadCredential=
-  RMT_OPERATOR_TOKENS:/etc/rmt/operator_tokens.secret` replaces
+  RMT_OPERATOR_TOKENS:/etc/rmt-control-center/operator_tokens.secret` replaces
   `Environment=RMT_OPERATOR_TOKENS=...`. The drop-in itself now holds no
   secret and does not need `0600`.
 - `docs/operations/DEPLOY.md`, `docs/operations/CONFIG.md`,
   `docs/operations/SECRETS.md`,
   `projects/homelab-control-center/deploy/systemd/README.md`,
   `backend/scripts/rmt-rebuild.sh` (its printed manual-steps checklist) —
-  updated to the two-file setup (`auth.conf` + `/etc/rmt/operator_tokens.secret`)
+  updated to the two-file setup (`auth.conf` + `/etc/rmt-control-center/operator_tokens.secret`)
   and rotation procedure.
 - `docs/RMT_ABOVE_CORE_ROADMAP.md` — S4/S3/S5 marked done with cross-refs,
   matching the T0-2/T0-3 corrections already made this session.
@@ -83,10 +83,10 @@ Governing refs: `docs/RMT_ABOVE_CORE_ROADMAP.md` §4 T0-5,
 - Single new choke-point function in `app/ops/ops_config.py`; every existing
   call site (`app/main.py`, `app/ops/auth.py`) is unchanged and unaware of
   the new precedence.
-- No test opens `/etc/rmt/operator_tokens.secret` or any real credential —
+- No test opens `/etc/rmt-control-center/operator_tokens.secret` or any real credential —
   `tmp_path` + `monkeypatch.setenv("CREDENTIALS_DIRECTORY", ...)` throughout.
 - Token rotation itself (owner-executed, not this session) touches only
-  `/etc/rmt/operator_tokens.secret` and triggers one `systemctl restart` —
+  `/etc/rmt-control-center/operator_tokens.secret` and triggers one `systemctl restart` —
   no other live-host state changes.
 
 ## 5. Done when
@@ -101,7 +101,7 @@ Governing refs: `docs/RMT_ABOVE_CORE_ROADMAP.md` §4 T0-5,
 - Full backend suite green; `ruff check .` clean; no `app/core/**` diff.
 - (Owner action, tracked but not executed by this session) the two exposed
   tokens rotated; the live deployment migrated to the new `auth.conf` +
-  `/etc/rmt/operator_tokens.secret` layout.
+  `/etc/rmt-control-center/operator_tokens.secret` layout.
 
 ## 6. Tests
 

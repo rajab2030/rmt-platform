@@ -193,10 +193,10 @@ cat <<'MANUAL'
   MANUAL steps this script deliberately does NOT do (secrets / CA):
     1. operator tokens (S1/S2-lite) -- T0-5: a systemd credential, not an
        Environment= value (DEPLOY.md 1.2):
-         sudo install -d -m 0700 /etc/rmt
-         sudo install -m 0600 /dev/null /etc/rmt/operator_tokens.secret
+         sudo install -d -m 0700 /etc/rmt-control-center
+         sudo install -m 0600 /dev/null /etc/rmt-control-center/operator_tokens.secret
          echo "alice:$(openssl rand -hex 24),bob:$(openssl rand -hex 24)" \
-           | sudo tee /etc/rmt/operator_tokens.secret >/dev/null
+           | sudo tee /etc/rmt-control-center/operator_tokens.secret >/dev/null
          sudo install -m 0644 deploy/systemd/auth.conf.example \
            /etc/systemd/system/rmt-control-center.service.d/auth.conf
     2. Caddy TLS proxy (S4):  DEPLOY.md 1.4  (apt install caddy;
@@ -204,7 +204,7 @@ cat <<'MANUAL'
     3. journald cap (O1):     DEPLOY.md 5.2
     4. cron: rmt-evidence-backup.sh + rmt-heartbeat.sh
        (RMT_EVIDENCE_RECOVERY.md, CONFIG.md)
-  Without a populated /etc/rmt/operator_tokens.secret the app REFUSES to
+  Without a populated /etc/rmt-control-center/operator_tokens.secret the app REFUSES to
   start (RMT_AUTH_ENABLED defaults on). Do this before the next line.
   ------------------------------------------------------------------
 

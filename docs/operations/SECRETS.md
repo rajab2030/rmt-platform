@@ -25,11 +25,11 @@ operator tokens, which were rotated immediately once found. See
 ## The standing pattern (current)
 
 The operator token list is a **systemd credential**
-(`LoadCredential=RMT_OPERATOR_TOKENS:/etc/rmt/operator_tokens.secret` in
+(`LoadCredential=RMT_OPERATOR_TOKENS:/etc/rmt-control-center/operator_tokens.secret` in
 `auth.conf`) — `systemctl show -p LoadCredential` exposes only the source
 *path* the same way `Environment=` exposed values, never the file's content:
 
-- secret file: `/etc/rmt/operator_tokens.secret`, mode **`0600`**, owner
+- secret file: `/etc/rmt-control-center/operator_tokens.secret`, mode **`0600`**, owner
   `root`, outside git entirely (not even a template — created fresh per
   deployment, `DEPLOY.md` §1.2)
 - the drop-in itself (`auth.conf`) holds **no secret** and is safe to commit
