@@ -29,6 +29,9 @@ domain.
 - [`docs/operations/AGENT_API.md`](docs/operations/AGENT_API.md) — the
   integration guide for an external agent/caller: full lifecycle, decision
   vocabulary, the evidence-receipt contract, what's guaranteed vs. not.
+- [`docs/operations/METRICS.md`](docs/operations/METRICS.md) — every
+  `/metrics` signal, the PromQL for decisions/min and approval latency, and
+  where RMT's own alerting already lives.
 - [`docs/RMT_FROZEN_CORE_DEBT.md`](docs/RMT_FROZEN_CORE_DEBT.md) — every
   recorded frozen-Core gap, its compensating control, and its trigger to
   revisit.

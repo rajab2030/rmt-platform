@@ -976,6 +976,60 @@ restarted or touched throughout — confirmed `active` before and after.
 
 ---
 
+## T0-3 — Close the remaining observability gap (2026-09-12)
+
+Proposal: `docs/RMT_T0_3_PROPOSAL.md` (APPROVED 2026-09-12). Above-Core;
+operational; no `app/core/**` change.
+
+- **Recon finding first:** T0-3's core objective (structured logs + a
+  metrics endpoint) was already shipped 2026-09-08 as O1/O3/O4
+  (`docs/RMT_PRODUCTION_READINESS.md` Group O), but
+  `docs/RMT_ABOVE_CORE_ROADMAP.md` never cross-referenced it — a doc-sync
+  gap between two governing docs, found and corrected in this change
+  (doc-only edit, no code). T0-3 is now marked "substantially done
+  2026-09-08" in the roadmap, with only the real remainder open.
+- **Approval latency** — `app/ops/metrics.py` gained
+  `rmt_approval_latency_seconds_sum` / `_count` (labelled by `decision`): for
+  every `ApprovalRecord` whose `approval_id` matches an actual
+  `ApprovalHold` (an auto-approval never held, so it's excluded by
+  construction), sums `record.created_at − hold.created_at`. Read-only
+  derivation from the same two stores `/metrics` already reads; wrapped in
+  the module's existing fail-open `try/except` pattern.
+- **Decisions/min deliberately NOT added as a server-computed metric** — the
+  existing `rmt_approval_records_total` counter is the correct Prometheus
+  shape for a rate; `rate(rmt_approval_records_total[5m]) * 60` is a
+  scraper-side query, not a field RMT should compute itself. Documented
+  instead of implemented.
+- **New** `docs/operations/METRICS.md` — the "minimal dashboards note" named
+  in T0-3's original scope: every `/metrics` signal, the PromQL for
+  decisions/min and average approval latency, and a pointer to RMT's
+  already-live O2/O3 alerting rather than a duplicate description. Linked
+  from `README.md`.
+- **Tests:** `app/ops/testing/test_metrics.py` — 3 new (`+` existing 5):
+  latency computed correctly across two decisions, a record with no matching
+  hold contributes to neither `_sum` nor `_count`, and the section fails
+  open (a broken `approval_hold_storage` degrades only its own signals —
+  correctly counted as 2 scrape errors since the store backs both the
+  existing holds-by-status section and this new one).
+
+**Core integrity.** Diff confined to `backend/app/ops/metrics.py`,
+`backend/app/ops/testing/test_metrics.py`, `docs/operations/METRICS.md`,
+`README.md`, and `docs/RMT_ABOVE_CORE_ROADMAP.md` (status correction only).
+No `app/core/**` change. No new store, no new evidence category, no write
+path — only `.get_all()` on stores `/metrics` already reads.
+
+**Validation.** Full backend suite **525 passed** (522 baseline + 3 new);
+`ruff check .` clean.
+
+**Live check (real service, 2026-09-12).** `rmt-control-center.service`
+confirmed `active`/`running` throughout (no restart); `curl
+localhost:8000/metrics` on the live instance shows real data —
+`rmt_approval_latency_seconds_count{decision="approved"} 3`,
+`{decision="rejected"} 1` — computed from the service's actual accumulated
+evidence, not a synthetic fixture.
+
+---
+
 ## Index
 
 | Capability | Status | Validation | Core integrity |
@@ -994,6 +1048,7 @@ restarted or touched throughout — confirmed `active` before and after.
 | RMT-CAP-07 (C3) — Harden the agent surface: preview + rationale + adversarial gate | COMPLETED & VERIFIED 2026-09-11 | 34 new + 514 full; green in CI (A2 live) | no `app/core/**` change; preview reuses frozen pure policy/risk/approval functions unchanged; continuation-verify `ComponentContext` gap flagged, not in scope — **CLOSED below** |
 | Continuation-path verification gap (agent-originated, non-homelab holds) | COMPLETED & VERIFIED 2026-09-11 | 1 new (+1 fixture correction) + 515 full | no `app/core/**` change; diff confined to `app/homelab/continuation.py` + its test file; reuses `ApprovalHold.adapter_name` (frozen Core) instead of a hardcoded string |
 | RMT-CAP-08 — Productize the Agent Governance Gateway (durable grants + integration guide) | COMPLETED & VERIFIED 2026-09-11; **live-checked** against the real evidence DB | 7 new + 522 full | no `app/core/**` change; new table via the existing `DurableStore` extension point; 6 test files re-isolated to prevent the real evidence DB from ever being touched by `pytest` |
+| T0-3 — Close the remaining observability gap (approval latency + dashboards note) | COMPLETED & VERIFIED 2026-09-12; **live-checked** against the real running service | 3 new + 525 full | no `app/core/**` change; read-only derivation from stores `/metrics` already reads; also corrected a doc-sync gap (roadmap never marked O1/O3/O4 as covering T0-3) |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.

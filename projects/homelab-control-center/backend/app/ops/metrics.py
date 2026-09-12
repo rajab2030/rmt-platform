@@ -156,6 +156,33 @@ def render_prometheus() -> str:
     except Exception:
         errors += 1
 
+    # --- approval latency (T0-3): hold.created_at -> record.created_at ------
+    # Only records whose approval_id matches an actual hold count -- an
+    # auto-approval never held, so it has no latency to measure.
+    try:
+        holds_by_id = {h.approval_id: h for h in approval_hold_storage.get_all()}
+        latency = Counter()
+        count = Counter()
+        for r in approval_record_storage.get_all():
+            hold = holds_by_id.get(r.approval_id)
+            if hold is None:
+                continue
+            seconds = (r.created_at - hold.created_at).total_seconds()
+            latency[str(r.decision)] += seconds
+            count[str(r.decision)] += 1
+        out.append(
+            "# HELP rmt_approval_latency_seconds Time from hold creation to "
+            "approval decision, by decision."
+        )
+        out.append("# TYPE rmt_approval_latency_seconds_sum counter")
+        out.append("# TYPE rmt_approval_latency_seconds_count counter")
+        for decision in sorted(count):
+            lbl = {"decision": decision}
+            out.append(_line("rmt_approval_latency_seconds_sum", latency[decision], lbl))
+            out.append(_line("rmt_approval_latency_seconds_count", count[decision], lbl))
+    except Exception:
+        errors += 1
+
     # --- agent surface ------------------------------------------------------
     try:
         from app.agent.authority import authority_store
