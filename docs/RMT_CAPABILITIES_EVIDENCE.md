@@ -1198,11 +1198,23 @@ No `app/core/**` change. No other call site of `operator_tokens()` touched.
 **Validation.** Full backend suite **528 passed** (525 baseline + 3 new);
 `ruff check .` clean.
 
-**Live status.** Token rotation and the `auth.conf` →
-`LoadCredential=`/`/etc/rmt-control-center/operator_tokens.secret` migration are owner
-actions this session cannot execute (no `sudo`); commands were provided for
-the owner to run in a private terminal. The live service was not restarted
-or otherwise touched by this session during this item.
+**Live migration COMPLETE (owner-executed, 2026-09-12).** Token rotation and
+the `auth.conf` → `LoadCredential=` migration required `sudo`, which this
+session does not have; commands were provided for the owner to run in a
+private terminal (not through this session, to avoid re-exposing the new
+tokens into the same transcript that leaked the old ones). One path
+collision was found and fixed along the way: `/etc/rmt` already existed on
+this Ubuntu host as a symlink to `/usr/sbin/rmt` (the unrelated, long-lived
+Unix remote-magnetic-tape utility) — the secret directory was moved to
+`/etc/rmt-control-center/operator_tokens.secret` everywhere (docs, script,
+`auth.conf.example`; no code change, since `app/ops/ops_config.py` never
+hardcoded the path — it only reads `$CREDENTIALS_DIRECTORY`, which systemd
+sets from the unit's own `LoadCredential=` directive). Owner confirmed: all
+steps passed — `systemctl show -p LoadCredential` shows only the credential
+name and file path, `systemctl show -p Environment` no longer shows
+`RMT_OPERATOR_TOKENS`, `/health` came back healthy after the restart, and
+both tokens were rotated. The exposure this item exists to fix is closed on
+the live host, not just in code.
 
 ---
 
@@ -1226,7 +1238,7 @@ or otherwise touched by this session during this item.
 | RMT-CAP-08 — Productize the Agent Governance Gateway (durable grants + integration guide) | COMPLETED & VERIFIED 2026-09-11; **live-checked** against the real evidence DB | 7 new + 522 full | no `app/core/**` change; new table via the existing `DurableStore` extension point; 6 test files re-isolated to prevent the real evidence DB from ever being touched by `pytest` |
 | T0-2 — Genuine fresh-host rebuild (real LXD system container, not `--drill`) | COMPLETED & VERIFIED 2026-09-12; **live-verified** systemd + hardening + loopback bind on the fresh host | 522 + 3 correctly-skipped = 525 full | no `app/core/**` change; no app code change; found + fixed a real `rmt-rebuild.sh` script bug; live service on `:8000` untouched throughout |
 | T0-3 — Close the remaining observability gap (approval latency + dashboards note) | COMPLETED & VERIFIED 2026-09-12; **live-checked** against the real running service | 3 new + 525 full | no `app/core/**` change; read-only derivation from stores `/metrics` already reads; also corrected a doc-sync gap (roadmap never marked O1/O3/O4 as covering T0-3) |
-| T0-5 — Security group finish (S4/S3/S5 doc-sync) + live `RMT_OPERATOR_TOKENS` exposure fix | COMPLETED & VERIFIED 2026-09-12; found + immediately flagged a live token exposure, fixed via `LoadCredential=` | 3 new + 528 full | no `app/core/**` change; single choke-point fix (`operator_tokens()`); token rotation is an owner action outside this session (no `sudo`); D3 `hardening.conf`-not-installed gap found, recorded, not fixed (out of scope) |
+| T0-5 — Security group finish (S4/S3/S5 doc-sync) + live `RMT_OPERATOR_TOKENS` exposure fix | COMPLETED & VERIFIED 2026-09-12; found + immediately flagged a live token exposure, fixed via `LoadCredential=`, **live migration confirmed complete by owner** | 3 new + 528 full | no `app/core/**` change; single choke-point fix (`operator_tokens()`); tokens rotated + live host migrated (owner-executed); D3 `hardening.conf`-not-installed gap found, recorded, not fixed (out of scope) |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.
