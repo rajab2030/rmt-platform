@@ -140,6 +140,32 @@ def test_token_parsing_tolerant(monkeypatch):
     assert ops_config.operator_tokens() == {"s1": "alice", "s2": "bob"}
 
 
+# --- LoadCredential=: token file takes precedence over Environment= --------
+# systemd's `systemctl show -p Environment` exposes a unit's plain
+# environment (drop-in secrets included) to any local user, not just root;
+# `LoadCredential=` only exposes the source path the same way, so the file
+# itself must win when $CREDENTIALS_DIRECTORY is set.
+
+
+def test_credentials_directory_takes_precedence(tmp_path, monkeypatch):
+    monkeypatch.setenv("RMT_OPERATOR_TOKENS", "envuser:env-secret")
+    (tmp_path / "RMT_OPERATOR_TOKENS").write_text("fileuser:file-secret")
+    monkeypatch.setenv("CREDENTIALS_DIRECTORY", str(tmp_path))
+    assert ops_config.operator_tokens() == {"file-secret": "fileuser"}
+
+
+def test_credentials_directory_missing_file_falls_back_to_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("RMT_OPERATOR_TOKENS", "envuser:env-secret")
+    monkeypatch.setenv("CREDENTIALS_DIRECTORY", str(tmp_path))  # empty dir, no file
+    assert ops_config.operator_tokens() == {"env-secret": "envuser"}
+
+
+def test_no_credentials_directory_uses_env(monkeypatch):
+    monkeypatch.setenv("RMT_OPERATOR_TOKENS", "envuser:env-secret")
+    monkeypatch.delenv("CREDENTIALS_DIRECTORY", raising=False)
+    assert ops_config.operator_tokens() == {"env-secret": "envuser"}
+
+
 # --- HTTP: every mutating route rejects the unauthenticated caller ---------
 
 MUTATING = [

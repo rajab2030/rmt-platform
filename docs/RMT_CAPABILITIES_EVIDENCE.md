@@ -1122,6 +1122,90 @@ evidence, not a synthetic fixture.
 
 ---
 
+## T0-5 — Security group finish + a live credential-exposure fix (2026-09-12)
+
+Proposal: `docs/RMT_T0_5_PROPOSAL.md` (APPROVED 2026-09-12). Above-Core;
+no `app/core/**` change.
+
+- **Recon finding first (same pattern as T0-2/T0-3):** all three of T0-5's
+  named items — S4 Caddy cutover, S3 separation-of-duties, S5
+  CORS-from-config — were already shipped and live 2026-09-08
+  (`docs/RMT_PRODUCTION_READINESS.md` Group S), never cross-referenced in
+  `docs/RMT_ABOVE_CORE_ROADMAP.md`. Verified live: `systemctl is-active
+  caddy` → `active` (2.6.2); S3's `RMT_AUTH_SEPARATION` code exists and is
+  tested (15 tests) but confirmed still off in the live environment; S5's
+  `RMT_CORS_ORIGINS` config-driven CORS already in place.
+- **Unplanned, critical finding during that same recon:** `systemctl show -p
+  Environment rmt-control-center.service`, run as the unprivileged
+  `rmt-lab` user (no `sudo`), printed the live `RMT_OPERATOR_TOKENS` value
+  in full — both production operator tokens — to this session. systemd
+  exposes a unit's resolved plain environment to any local user via
+  `systemctl show`, regardless of the `0600` file permission on the
+  `auth.conf` drop-in that set it; `docs/operations/SECRETS.md`'s prior
+  claim that those permissions meant "the `rmt-lab` service user cannot
+  read it" was true of the file, not of the value systemd exposes.
+- **Immediate response:** the exposure was flagged to the owner in the same
+  turn it was found; both tokens were rotated by the owner (this session has
+  no `sudo` and cannot touch the live `auth.conf` or restart the live
+  service) via commands run in a private terminal, not through this
+  session's own `!` mechanism, specifically to avoid re-exposing the *new*
+  tokens into the same transcript that leaked the old ones.
+- **Structural fix:** `app/ops/ops_config.py` gained
+  `_operator_tokens_raw()` — prefers `$CREDENTIALS_DIRECTORY/
+  RMT_OPERATOR_TOKENS` (set automatically by systemd for a unit using
+  `LoadCredential=`) over the `RMT_OPERATOR_TOKENS` env var, which remains
+  the fallback for local dev / tests / non-systemd runs. `operator_tokens()`
+  is the single choke point already used by both call sites
+  (`app/main.py`'s startup-refusal check, `app/ops/auth.py`'s auth check) —
+  neither needed to change. `deploy/systemd/auth.conf.example` now uses
+  `LoadCredential=RMT_OPERATOR_TOKENS:/etc/rmt/operator_tokens.secret`
+  instead of `Environment=RMT_OPERATOR_TOKENS=...`; the drop-in itself holds
+  no secret and no longer needs `0600`. This is exactly the pattern
+  `docs/operations/SECRETS.md` had already pre-designed and pre-approved
+  ("the pre-agreed next step... scoped and ready to implement the moment a
+  credentialed dependency is proposed") — it had just never been triggered,
+  since that doc framed the operator token map as not needing it. It does.
+- **Docs updated to match:** `docs/operations/DEPLOY.md`,
+  `docs/operations/CONFIG.md`, `docs/operations/SECRETS.md` (records the
+  exposure, the fix, and corrects the prior claim),
+  `projects/homelab-control-center/deploy/systemd/README.md`, and
+  `backend/scripts/rmt-rebuild.sh`'s printed manual-steps checklist — all
+  updated to the two-file `auth.conf` + `/etc/rmt/operator_tokens.secret`
+  layout and the new rotation procedure (no `daemon-reload` needed, only a
+  restart, since the unit/drop-in content itself doesn't change on
+  rotation).
+- **Raised, not bundled:** enabling `RMT_AUTH_SEPARATION=true` on the live
+  deployment — the code and tests already exist, but flipping the default
+  is a genuine behavior change (an agent-hold approval by the grantor starts
+  returning 403), not a doc or credential-storage fix. `CONFIG.md`'s own
+  "enable only when you have one [second identity]" condition is now met
+  (a second operator token exists), so this is recorded as an owner
+  decision, not a further build item.
+- **Found, not fixed (out of T0-5 scope):** `hardening.conf` is **not**
+  actually installed on the live host — contradicts D3's "DONE" framing at
+  the drop-in-inventory level. A pre-existing gap, found during this
+  recon, not part of T0-5's named scope; not acted on here.
+- **Tests:** `app/ops/testing/test_auth.py` — 3 new (credentials-directory
+  takes precedence over a conflicting env var; a missing credential file
+  falls back to the env var rather than hard-failing; no
+  `$CREDENTIALS_DIRECTORY` set preserves existing behavior exactly).
+
+**Core integrity.** Diff confined to `backend/app/ops/ops_config.py`, one
+test file, deploy artifacts (`auth.conf.example`,
+`deploy/systemd/README.md`, `rmt-rebuild.sh`'s printed checklist), and docs.
+No `app/core/**` change. No other call site of `operator_tokens()` touched.
+
+**Validation.** Full backend suite **528 passed** (525 baseline + 3 new);
+`ruff check .` clean.
+
+**Live status.** Token rotation and the `auth.conf` →
+`LoadCredential=`/`/etc/rmt/operator_tokens.secret` migration are owner
+actions this session cannot execute (no `sudo`); commands were provided for
+the owner to run in a private terminal. The live service was not restarted
+or otherwise touched by this session during this item.
+
+---
+
 ## Index
 
 | Capability | Status | Validation | Core integrity |
@@ -1142,6 +1226,7 @@ evidence, not a synthetic fixture.
 | RMT-CAP-08 — Productize the Agent Governance Gateway (durable grants + integration guide) | COMPLETED & VERIFIED 2026-09-11; **live-checked** against the real evidence DB | 7 new + 522 full | no `app/core/**` change; new table via the existing `DurableStore` extension point; 6 test files re-isolated to prevent the real evidence DB from ever being touched by `pytest` |
 | T0-2 — Genuine fresh-host rebuild (real LXD system container, not `--drill`) | COMPLETED & VERIFIED 2026-09-12; **live-verified** systemd + hardening + loopback bind on the fresh host | 522 + 3 correctly-skipped = 525 full | no `app/core/**` change; no app code change; found + fixed a real `rmt-rebuild.sh` script bug; live service on `:8000` untouched throughout |
 | T0-3 — Close the remaining observability gap (approval latency + dashboards note) | COMPLETED & VERIFIED 2026-09-12; **live-checked** against the real running service | 3 new + 525 full | no `app/core/**` change; read-only derivation from stores `/metrics` already reads; also corrected a doc-sync gap (roadmap never marked O1/O3/O4 as covering T0-3) |
+| T0-5 — Security group finish (S4/S3/S5 doc-sync) + live `RMT_OPERATOR_TOKENS` exposure fix | COMPLETED & VERIFIED 2026-09-12; found + immediately flagged a live token exposure, fixed via `LoadCredential=` | 3 new + 528 full | no `app/core/**` change; single choke-point fix (`operator_tokens()`); token rotation is an owner action outside this session (no `sudo`); D3 `hardening.conf`-not-installed gap found, recorded, not fixed (out of scope) |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.

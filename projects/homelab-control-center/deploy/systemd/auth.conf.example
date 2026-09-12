@@ -1,20 +1,31 @@
 # production-readiness S1 / S2-lite / O2 -- operator authentication + alerting.
 #
-# Install (as root, restrictive mode -- the file holds shared secrets):
-#   sudo install -m 0600 deploy/systemd/auth.conf.example \
+# T0-5 (2026-09-12): the token list is a systemd credential (LoadCredential=),
+# NOT an Environment= value. `systemctl show -p Environment` exposes a unit's
+# plain environment -- secrets set via Environment= in a drop-in included --
+# to any local user, not just root; `LoadCredential=` only exposes the source
+# *path* the same way, so the secret content itself stays root-only. See
+# docs/operations/SECRETS.md.
+#
+# Install:
+#   sudo install -d -m 0700 /etc/rmt
+#   sudo install -m 0600 /dev/null /etc/rmt/operator_tokens.secret
+#   echo "alice:$(openssl rand -hex 24),bob:$(openssl rand -hex 24)" \
+#     | sudo tee /etc/rmt/operator_tokens.secret >/dev/null
+#   sudo install -m 0644 deploy/systemd/auth.conf.example \
 #     /etc/systemd/system/rmt-control-center.service.d/auth.conf
-#   sudo $EDITOR /etc/systemd/system/rmt-control-center.service.d/auth.conf
 #   sudo systemctl daemon-reload && sudo systemctl restart rmt-control-center.service
 #
-# Generate each token with:  openssl rand -hex 24
-# Rotate by editing this file + daemon-reload + restart.
+# Rotate: overwrite /etc/rmt/operator_tokens.secret + daemon-reload + restart.
+# (No secret value lives in this drop-in file, so this file itself does not
+# need 0600 -- but the token file it points to does.)
 #
-# With RMT_AUTH_ENABLED=true and RMT_OPERATOR_TOKENS empty the app refuses to
-# start (no unauthenticated mutating surface).
+# With RMT_AUTH_ENABLED=true and the token file empty/absent the app refuses
+# to start (no unauthenticated mutating surface).
 
 [Service]
 Environment=RMT_AUTH_ENABLED=true
-Environment=RMT_OPERATOR_TOKENS=alice:REPLACE_WITH_RANDOM_1,bob:REPLACE_WITH_RANDOM_2
+LoadCredential=RMT_OPERATOR_TOKENS:/etc/rmt/operator_tokens.secret
 
 # --- O2: held-action notifications (optional) ---------------------------------
 # Unset  => a held remediation / agent proposal is written to the service log.

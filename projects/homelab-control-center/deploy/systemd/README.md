@@ -17,7 +17,7 @@ before a replacement.
 | `cap05-agent.conf` | CAP-05 | ✅ | `RMT_AGENT_ENABLED` / `RMT_AGENT_LLM_ENABLED=true` |
 | `bind-loopback.conf` | S4 | ✅ | rebinds `ExecStart` to `127.0.0.1:8000` (Caddy is the only LAN listener) |
 | `hardening.conf` | D3 | ✅ | sandboxing + resource ceilings + restart backoff (`systemd-analyze security` 9.2 → 4.1) |
-| `auth.conf` | S1/S2-lite/O2 | ❌ **secret** | `RMT_OPERATOR_TOKENS=…` and optional `RMT_NOTIFY_WEBHOOK_URL`. Template: `auth.conf.example`. Mode `0600`, root-owned. **Never commit the populated file.** |
+| `auth.conf` | S1/S2-lite/O2 | ✅ (T0-5, 2026-09-12) | `RMT_AUTH_ENABLED=true`, `LoadCredential=RMT_OPERATOR_TOKENS:/etc/rmt/operator_tokens.secret`, and optional `RMT_NOTIFY_WEBHOOK_URL`. Holds **no secret itself** — install verbatim from `auth.conf.example`. The actual token list lives at `/etc/rmt/operator_tokens.secret` (mode `0600`, root-owned, outside git entirely — not even a template, created fresh per deployment; see `docs/operations/SECRETS.md`). Rationale: `systemctl show -p Environment` exposes a unit's plain environment to any local user, not just root — `LoadCredential=` doesn't. |
 | `logging.conf` | O1 | ❌ optional | `RMT_LOG_LEVEL=DEBUG` etc. — only if raising verbosity from the `INFO` default |
 
 **Expected live drop-in inventory:** `cap04-loop.conf`, `cap05-agent.conf`,

@@ -210,7 +210,35 @@ should not go live until Tier 0 is done.**
   real-time waits) is documented.
 - **Depends on:** nothing. **Rough size:** S.
 
-### T0-5 — S4 Caddy cutover + S3 separation-of-duties + S5 CORS-from-config
+### T0-5 — S4 Caddy cutover + S3 separation-of-duties + S5 CORS-from-config  — ✅ DONE 2026-09-12
+
+> All three items were already shipped and live 2026-09-08
+> (`docs/RMT_PRODUCTION_READINESS.md` Group S), never cross-referenced here —
+> the same doc-sync gap already found and fixed for T0-2/T0-3 this session,
+> corrected 2026-09-12 (no code change). **S4**: Caddy `2.6.2` TLS reverse
+> proxy live on the LAN, `bind-loopback.conf` confirms loopback-only origin
+> bind, verified `https://` 200 CA-validated / `http://` 308 redirect on the
+> live host. **S3** (`app/ops/separation.py`, `RMT_AUTH_SEPARATION`, 15
+> tests): approver-≠-grantor/proposer enforcement exists and is tested,
+> config-gated off by default; confirmed still off on the live deployment —
+> raised to the owner as a separate decision (now that 2 operators exist,
+> the "enable only when you have one" condition in `CONFIG.md` is met), not
+> bundled into this closure. **S5**: `RMT_CORS_ORIGINS` config-driven,
+> scoped methods/headers, `test_cors.py` — done.
+>
+> **Unplanned, live security finding fixed in the same pass**
+> (`docs/RMT_T0_5_PROPOSAL.md`, `docs/RMT_CAPABILITIES_EVIDENCE.md`
+> §"T0-5"): `systemctl show -p Environment` exposed the live
+> `RMT_OPERATOR_TOKENS` value — both production tokens — to any local user,
+> not just root, contradicting `docs/operations/SECRETS.md`'s prior claim
+> that 0600 file permissions were sufficient. Fixed by moving to the
+> `LoadCredential=` pattern that doc had already pre-designed;
+> `app/ops/ops_config.py` now prefers `$CREDENTIALS_DIRECTORY/
+> RMT_OPERATOR_TOKENS` over the env var. Tokens rotated (owner-executed,
+> outside this session, since this session has no `sudo`). D3's
+> `hardening.conf` was found **not actually installed** on the live host
+> during this recon (contradicting its "DONE" framing at the drop-in level)
+> — noted, not fixed here; out of T0-5's scope.
 
 - **Objective:** finish the Security group for threat model (b).
 - **In scope:** run the `DEPLOY.md` §1.4 Caddy install (root operator step);
@@ -554,9 +582,11 @@ not touched.
 
 1. ~~**T0-1** (SQLite substrate) — unblocks scale, closes E4/E6, de-risks every
    domain.~~ **DONE 2026-09-09** (see §5; E5 restore/verify follow-up also done).
-2. ~~**T0-3**~~, ~~**T0-4**~~, **T0-5** in parallel — ~~observability~~ (**done
-   2026-09-12**; see §4), ~~CI gate~~ (**done 2026-09-09**), security finish.
-3. ~~**T0-2**~~ — platform recovery. **DONE 2026-09-12** (see §4).
+2. ~~**T0-3**~~, ~~**T0-4**~~, ~~**T0-5**~~ in parallel — ~~observability~~
+   (**done 2026-09-12**; see §4), ~~CI gate~~ (**done 2026-09-09**),
+   ~~security finish~~ (**done 2026-09-12**; see §4).
+3. ~~**T0-2**~~ — platform recovery. **DONE 2026-09-12** (see §4). Tier 0 is
+   now fully closed.
 4. ~~**T1-2, T1-3, T1-4** — cheap homelab depth; each is S.~~ **DONE 2026-09-09**
    (`docs/RMT_T1_BATCH_PROPOSAL.md`). ~~T1-1 (broaden `REMEDIATION_POLICY`)~~
    **DONE 2026-09-11** (`docs/RMT_CAPABILITIES_EVIDENCE.md` §"C1 / T1-1"). Tier
@@ -585,7 +615,7 @@ Everything else is selected on demand.
 | T0-2 Platform recovery | operational | no | **DONE 2026-09-12** |
 | T0-3 Lifecycle observability | above-Core | no | **DONE 2026-09-12** |
 | T0-4 CI gate | tooling | no | **DONE 2026-09-09** |
-| T0-5 S4/S3/S5 finish | above-Core | no | — |
+| T0-5 S4/S3/S5 finish | above-Core | no | **DONE 2026-09-12** |
 | T1-1 Broaden remediation policy | above-Core / domain | no | **DONE 2026-09-11** |
 | T1-2 Real dependency graph | above-Core / domain data | no | — |
 | T1-3 Generalize continuation Learn | above-Core / domain | no | — |
