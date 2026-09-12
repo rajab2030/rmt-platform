@@ -53,10 +53,10 @@ same way, but its content is not. See `docs/operations/SECRETS.md`.
 
 ```
 cd /home/rmt-lab/homelab/projects/homelab-control-center
-sudo install -d -m 0700 /etc/rmt
-sudo install -m 0600 /dev/null /etc/rmt/operator_tokens.secret
+sudo install -d -m 0700 /etc/rmt-control-center
+sudo install -m 0600 /dev/null /etc/rmt-control-center/operator_tokens.secret
 echo "alice:$(openssl rand -hex 24),bob:$(openssl rand -hex 24)" \
-  | sudo tee /etc/rmt/operator_tokens.secret >/dev/null
+  | sudo tee /etc/rmt-control-center/operator_tokens.secret >/dev/null
 sudo install -m 0644 deploy/systemd/auth.conf.example \
   /etc/systemd/system/rmt-control-center.service.d/auth.conf
 #   (optionally) sudoedit the drop-in to add RMT_NOTIFY_WEBHOOK_URL=…
@@ -65,7 +65,7 @@ sudo systemctl daemon-reload && sudo systemctl restart rmt-control-center.servic
 
 Distribute each operator their own token over a secure channel. The token is
 sent as `Authorization: Bearer <token>` (or `X-API-Key: <token>`). Rotate by
-overwriting `/etc/rmt/operator_tokens.secret` + `daemon-reload` + restart.
+overwriting `/etc/rmt-control-center/operator_tokens.secret` + `daemon-reload` + restart.
 
 ### 1.3 Loopback bind (S4)
 
@@ -182,7 +182,7 @@ emergency — leaves the surface open, so treat it as break-glass.)
 ## 4. Token rotation
 
 ```
-sudoedit /etc/rmt/operator_tokens.secret
+sudoedit /etc/rmt-control-center/operator_tokens.secret
 sudo systemctl restart rmt-control-center.service
 ```
 

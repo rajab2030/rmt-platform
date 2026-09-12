@@ -15,7 +15,7 @@ rmt-control-center.service`.
 | Variable | Default | Effect | Set by |
 |---|---|---|---|
 | `RMT_AUTH_ENABLED` | `true` | Master switch. `false` is a **local-dev only** escape hatch — leaves every mutating route open. | `auth.conf` |
-| `RMT_OPERATOR_TOKENS` | *(empty)* | `name:token` pairs, comma-separated. **With auth enabled and this empty, the app refuses to start.** The matched `name` is recorded as `authorized_by` / `approved_by` / `granted_by` in the evidence. **T0-5 (2026-09-12):** on a systemd deployment this is a `LoadCredential=RMT_OPERATOR_TOKENS:/etc/rmt/operator_tokens.secret` in `auth.conf`, not an `Environment=` value — `systemctl show -p Environment` exposes plain env vars to any local user, `LoadCredential=` doesn't. The env var remains a fallback for local dev/tests. | `/etc/rmt/operator_tokens.secret` (via `auth.conf`) |
+| `RMT_OPERATOR_TOKENS` | *(empty)* | `name:token` pairs, comma-separated. **With auth enabled and this empty, the app refuses to start.** The matched `name` is recorded as `authorized_by` / `approved_by` / `granted_by` in the evidence. **T0-5 (2026-09-12):** on a systemd deployment this is a `LoadCredential=RMT_OPERATOR_TOKENS:/etc/rmt-control-center/operator_tokens.secret` in `auth.conf`, not an `Environment=` value — `systemctl show -p Environment` exposes plain env vars to any local user, `LoadCredential=` doesn't. The env var remains a fallback for local dev/tests. | `/etc/rmt-control-center/operator_tokens.secret` (via `auth.conf`) |
 | `RMT_AUTH_SEPARATION` | `false` | **S3.** When `true`, `/approve` and `/homelab/approve` return **403** if the operator continuing an *agent-originated* hold is the one who granted the agent's authority (or is the proposing agent id). Non-agent holds are unaffected. Fails closed. With one operator, agent-hold approvals need a second identity — enable only when you have one. | `auth.conf` |
 | `RMT_CORS_ORIGINS` | `http://localhost:5173` | **S5.** Comma-separated list of browser origins allowed to call the API. Default is the local Vite dev origin only (the old hardcoded `192.168.235.128` is gone). Set to the deployed frontend origin(s). Methods are scoped to `GET, POST` and headers to `Authorization, X-API-Key, Content-Type, X-Request-ID` (no longer `*`). | `auth.conf` or a `cors.conf` drop-in |
 | `RMT_RATELIMIT_ENABLED` | `true` | **S7.** Per-principal fixed-window rate limiting on the expensive routes. `false` disables it. | `auth.conf` |
@@ -178,6 +178,6 @@ mismatch is logged as a `WARNING` at startup. Full host-capability list:
 ├── cap04-loop.conf      # RMT_HOMELAB_LOOP_ENABLED=true
 └── cap05-agent.conf     # RMT_AGENT_ENABLED=true, RMT_AGENT_LLM_ENABLED=true
 
-/etc/rmt/
+/etc/rmt-control-center/
 └── operator_tokens.secret   # the actual token list (mode 0600, root) — T0-5
 ```
