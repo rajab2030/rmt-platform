@@ -127,7 +127,30 @@ should not go live until Tier 0 is done.**
   passes an integrity check.
 - **Depends on:** T0-1 (simpler with one DB file). **Rough size:** S–M.
 
-### T0-3 — Observability of the governed lifecycle (O1 / O3)
+### T0-3 — Observability of the governed lifecycle (O1 / O3 / O4)  — ✅ DONE 2026-09-12
+
+> Shipped under `docs/RMT_PRODUCTION_READINESS.md` Group O on 2026-09-08, but
+> never cross-referenced here — a doc-sync gap between the two governing docs,
+> found and corrected 2026-09-12 (no code change, doc only). **O1**
+> (`app/ops/logging_config.py`): stdlib structured JSON logging, one line per
+> governed-lifecycle boundary (the 4 mutating HTTP routes, the CAP-04 loop,
+> every agent proposal), correlated by `action_id`/`execution_id`/
+> `approval_id`. **O3** (`app/ops/notifications.py::notify_ops` +
+> unauthenticated `GET /health` + `rmt-heartbeat.sh`): alerts on loop
+> quarantine, cycle error, and service-down. **O4** (`app/ops/metrics.py` +
+> unauthenticated `GET /metrics`, Prometheus text format, **no new
+> dependency**): loop state, approval holds by status (queue depth), approval
+> decisions, verification outcomes, executions by adapter, authorizations
+> issued, agent grants, a scrape-error counter — all read-only derivation from
+> the existing durable evidence stores, fail-open per store.
+>
+> **Remainder CLOSED 2026-09-12** (`docs/RMT_T0_3_PROPOSAL.md`,
+> `docs/RMT_CAPABILITIES_EVIDENCE.md` §"T0-3"): `rmt_approval_latency_seconds_sum`/
+> `_count` added to `/metrics` (read-only, joins `ApprovalHold.created_at` ↔
+> `ApprovalRecord.created_at` by `approval_id`); decisions/min deliberately
+> left as a scraper-side PromQL query over the existing counter, not a new
+> server-computed field; `docs/operations/METRICS.md` is the dashboards note.
+> Live-checked against the real running service, no restart.
 
 - **Objective:** structured logs + a metrics endpoint for RMT's own operation
   (decisions/min, holds open, approvals latency, verification outcomes,
@@ -517,8 +540,8 @@ not touched.
 
 1. ~~**T0-1** (SQLite substrate) — unblocks scale, closes E4/E6, de-risks every
    domain.~~ **DONE 2026-09-09** (see §5; E5 restore/verify follow-up also done).
-2. **T0-3, ~~T0-4~~, T0-5** in parallel — observability, ~~CI gate~~ (**done
-   2026-09-09**), security finish.
+2. ~~**T0-3**~~, ~~**T0-4**~~, **T0-5** in parallel — ~~observability~~ (**done
+   2026-09-12**; see §4), ~~CI gate~~ (**done 2026-09-09**), security finish.
 3. **T0-2** — platform recovery.
 4. ~~**T1-2, T1-3, T1-4** — cheap homelab depth; each is S.~~ **DONE 2026-09-09**
    (`docs/RMT_T1_BATCH_PROPOSAL.md`). ~~T1-1 (broaden `REMEDIATION_POLICY`)~~
@@ -546,7 +569,7 @@ Everything else is selected on demand.
 |---|---|---|---|
 | T0-1 SQLite substrate | above-Core substrate | interface unchanged | **DONE 2026-09-09** |
 | T0-2 Platform recovery | operational | no | T0-1 |
-| T0-3 Lifecycle observability | above-Core | no | — |
+| T0-3 Lifecycle observability | above-Core | no | **DONE 2026-09-12** |
 | T0-4 CI gate | tooling | no | **DONE 2026-09-09** |
 | T0-5 S4/S3/S5 finish | above-Core | no | — |
 | T1-1 Broaden remediation policy | above-Core / domain | no | **DONE 2026-09-11** |

@@ -1,4 +1,6 @@
 """RMT-PROD P2 (O4) -- Prometheus /metrics exposition."""
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -99,3 +101,64 @@ def test_executed_actions_counters_from_index(monkeypatch):
     assert 'rmt_executed_actions_state_mismatch_total{adapter="docker",operation="restart"} 1' in out
     assert 'rmt_executed_actions_unverified_total{adapter="simulation",operation="restart"} 1' in out
     assert "rmt_metrics_scrape_errors_total 0" in out
+
+
+def test_render_computes_approval_latency(monkeypatch):
+    class _H:
+        def __init__(self, approval_id, created_at):
+            self.approval_id = approval_id
+            self.created_at = created_at
+
+    class _R:
+        def __init__(self, approval_id, decision, created_at):
+            self.approval_id = approval_id
+            self.decision = decision
+            self.created_at = created_at
+
+    t0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    monkeypatch.setattr(
+        metrics.approval_hold_storage, "get_all",
+        lambda: [_H("h1", t0), _H("h2", t0)],
+    )
+    monkeypatch.setattr(
+        metrics.approval_record_storage, "get_all",
+        lambda: [
+            _R("h1", "approved", t0 + timedelta(seconds=30)),
+            _R("h2", "rejected", t0 + timedelta(seconds=10)),
+        ],
+    )
+    out = metrics.render_prometheus()
+    assert 'rmt_approval_latency_seconds_sum{decision="approved"} 30.0' in out
+    assert 'rmt_approval_latency_seconds_count{decision="approved"} 1' in out
+    assert 'rmt_approval_latency_seconds_sum{decision="rejected"} 10.0' in out
+    assert 'rmt_approval_latency_seconds_count{decision="rejected"} 1' in out
+
+
+def test_latency_excludes_records_without_a_matching_hold(monkeypatch):
+    class _R:
+        def __init__(self, approval_id, decision, created_at):
+            self.approval_id = approval_id
+            self.decision = decision
+            self.created_at = created_at
+
+    monkeypatch.setattr(metrics.approval_hold_storage, "get_all", lambda: [])
+    monkeypatch.setattr(
+        metrics.approval_record_storage, "get_all",
+        lambda: [_R("no-hold", "approved", datetime.now(timezone.utc))],
+    )
+    out = metrics.render_prometheus()
+    assert "rmt_approval_latency_seconds_sum{" not in out
+    assert "rmt_approval_latency_seconds_count{" not in out
+
+
+def test_latency_survives_a_broken_store(monkeypatch):
+    def _boom():
+        raise RuntimeError("store unreadable")
+
+    monkeypatch.setattr(metrics.approval_hold_storage, "get_all", _boom)
+    out = metrics.render_prometheus()
+    # approval_hold_storage backs both the holds-by-status section and the
+    # new latency section, so a broken store fails both independently.
+    assert "rmt_metrics_scrape_errors_total 2" in out
+    assert "rmt_up 1" in out
+    assert "rmt_approval_latency_seconds_sum" not in out
