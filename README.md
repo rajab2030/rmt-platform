@@ -1,5 +1,7 @@
 # RMT Platform
 
+**Repository:** [github.com/rajab2030/rmt-platform](https://github.com/rajab2030/rmt-platform)
+
 **RMT = Risk-Mitigated Transactions.** RMT is a general-purpose intelligent
 control, execution, and governance platform, not a specialized application.
 The Core is domain-agnostic: it
