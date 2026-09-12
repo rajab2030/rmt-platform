@@ -1218,6 +1218,93 @@ the live host, not just in code.
 
 ---
 
+## T0-6 — Public-showcase live exercise: Agent Governance Gateway on the production service (2026-09-12)
+
+**Context.** Before making the `rmt-platform` GitHub repository public, the
+README's central claim — "an AI agent proposes an action, RMT governs it
+end-to-end" — was exercised for real against the actual production service
+on `:8000`, not an isolated test port. RMT-CAP-06's original live
+demonstration (2026-09-11) ran on an isolated `:8001` instance specifically
+to leave `:8000` untouched; this exercise is the first time the git-tag
+Agent Governance Gateway ran on the real production service.
+
+**Enablement (config-only, no code change).** The git adapter
+(`app/agent/git_adapter.py`) is conditional-by-design — it only registers
+when `RMT_AGENT_GIT_REPO_PATH` resolves to a directory containing a `.git`
+(the same graceful-degradation shape Docker's own adapter registration
+uses). It was never enabled on the live service until now. Owner added a new
+drop-in:
+
+```
+# /etc/systemd/system/rmt-control-center.service.d/git-domain.conf
+[Service]
+Environment=RMT_AGENT_GIT_REPO_PATH=/home/rmt-lab/homelab/projects/homelab-control-center/backend/data/agent_git_target
+```
+
+— pointing at the dedicated scratch repository approved in
+`docs/RMT_CAP_06_PROPOSAL.md` §3a/§7 (`data/agent_git_target/`, distinct
+from this project's own `.git`), then `daemon-reload` + restart. No
+`app/core/**` or `app/agent/**` change; this only turns on an extension
+point that already existed.
+
+**Operational hiccup, recorded for accuracy.** The operator token rotated
+during T0-5 no longer matched the live `/etc/rmt-control-center/operator_tokens.secret`
+by the time this exercise ran — confirmed by comparing SHA-256 hashes of the
+typed token against every stored token, never the plaintext itself, in the
+owner's own terminal. Root cause not established (a second undocumented
+rotation, or a copy error when the T0-5 value was first saved) — owner
+rotated fresh and this time saved the new value to a password manager
+immediately. **Recorded as an open item:** there is no durable record of
+*when* an operator token was last successfully verified working, only of
+when it was set. No code or Core implication; a process gap in this
+project's own runbook discipline, not the platform's.
+
+**The exercise (real request/response, principal `alice`).** Full lifecycle
+run against the scratch repo, target tag `rmt-showcase-demo`:
+
+1. `POST /agent/authority/grant {"operation":"create","target":"rmt-showcase-demo"}`
+   → `grant_id: 72459d60f443`.
+2. `POST /agent/act/preview` (same body) → `decision: "preview"`,
+   `predicted: {policy_allowed: true, risk_level: "medium", approval_mode:
+   "manual", approval_reason: "Action explicitly requires approval"}` — the
+   real policy/risk functions, zero side effects.
+3. `POST /agent/act` (real proposal) → `decision: "hold"`,
+   `governed_status: "manual_approval_required"`, `approval_id:
+   1add5da4-5e37-4f51-a9f9-0961de47d872`. Held, not executed.
+4. `POST /homelab/approve?approval_id=...&approved=true` (human/operator
+   `alice`) → `status: "executed"`, `success: true`,
+   `docker_verification_status: "verified_success"` (field name is a
+   cross-domain artifact — shared key, not literal Docker — reason string
+   correctly reads `[layer=above_core adapter=git ...]`).
+5. **Independent proof, outside the API:** `git -C
+   data/agent_git_target tag -l rmt-showcase-demo` → tag present.
+6. **Refusal path** — re-proposed with the same, now-consumed `grant_id` →
+   `decision: "no_authority"`, `detail: "grant_consumed"`. Governance refused
+   before running again, as designed.
+7. **Cleanup lifecycle** — fresh grant for `operation: "remove"`, proposed,
+   held (this time `detail: "High-risk action requires human approval"` —
+   the policy engine gave `remove` a different, more specific reason than
+   `create`'s, unprompted), approved, executed, `verified_success`.
+8. **Independent proof again:** `git tag -l rmt-showcase-demo` → empty. Tag
+   genuinely gone.
+
+**Corroboration from outside the API entirely.** This session independently
+re-checked, without touching the operator token: the scratch repo has zero
+tags after the run, and `journalctl -u rmt-control-center.service` shows two
+`homelab_approve` log lines whose `action_id` / `execution_id` /
+`approval_id` / `principal: "alice"` match the API responses exactly —
+the receipts are not self-reported fiction, they're corroborated by a
+second, independent data source (the service's own structured logs).
+
+**Disposition.** T0-6 → DONE. First live, production-service exercise of a
+second execution domain through the full governed lifecycle, including a
+real refusal and risk-differentiated approval reasoning — the evidence base
+for the README's agent-governance claim ahead of the repository going
+public. No `app/core/**` change; config-only enablement of an existing
+extension point; scratch-repo blast radius only.
+
+---
+
 ## Index
 
 | Capability | Status | Validation | Core integrity |
@@ -1239,6 +1326,7 @@ the live host, not just in code.
 | T0-2 — Genuine fresh-host rebuild (real LXD system container, not `--drill`) | COMPLETED & VERIFIED 2026-09-12; **live-verified** systemd + hardening + loopback bind on the fresh host | 522 + 3 correctly-skipped = 525 full | no `app/core/**` change; no app code change; found + fixed a real `rmt-rebuild.sh` script bug; live service on `:8000` untouched throughout |
 | T0-3 — Close the remaining observability gap (approval latency + dashboards note) | COMPLETED & VERIFIED 2026-09-12; **live-checked** against the real running service | 3 new + 525 full | no `app/core/**` change; read-only derivation from stores `/metrics` already reads; also corrected a doc-sync gap (roadmap never marked O1/O3/O4 as covering T0-3) |
 | T0-5 — Security group finish (S4/S3/S5 doc-sync) + live `RMT_OPERATOR_TOKENS` exposure fix | COMPLETED & VERIFIED 2026-09-12; found + immediately flagged a live token exposure, fixed via `LoadCredential=`, **live migration confirmed complete by owner** | 3 new + 528 full | no `app/core/**` change; single choke-point fix (`operator_tokens()`); tokens rotated + live host migrated (owner-executed); D3 `hardening.conf`-not-installed gap found, recorded, not fixed (out of scope) |
+| T0-6 — Public-showcase live exercise: Agent Governance Gateway on the production service | COMPLETED & VERIFIED 2026-09-12; **first live run on `:8000` itself** (not an isolated port); full lifecycle + refusal + risk-differentiated approval, corroborated via independent `git tag` check + journal log cross-check | 0 new (operational exercise, no code change) | no `app/core/**` change; config-only enablement of the pre-existing conditional git adapter; scratch-repo blast radius only; open item recorded: no durable record of last-verified operator token |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.
