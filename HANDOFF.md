@@ -2712,3 +2712,69 @@ Candidates unchanged except (a) removed: **P-B** (governed-evidence
 console), a second Tier-2 domain (D-2..D-5), or **P-D** (multi-operator
 RBAC). Owner to select; same per-capability recon + approval method
 applies.
+
+---
+
+## Session note — RMT-CAP-09 (Governed Operations Console, P-B) completed
+
+**Date:** 2026-09-13. Owner selected candidate (a) from the prior session's
+list and approved `docs/RMT_CAP_09_PROPOSAL.md` +
+`docs/RMT_CAP_09_IMPLEMENTATION.md`. This session picked up the resulting
+working tree from an earlier session that had implemented the backend
+(tested) and written the frontend, but — in a shell with no `node`/`npm`/
+`git` — could not compile it or commit anything. This session's shell had
+all three.
+
+### What this session did
+1. **Verified the carried-over state first, not on faith:** ran the new
+   `test_evidence_chain.py` (7 passed) and the full backend suite (**535
+   passed**, no regressions) with the unstaged review-fixup diff already
+   applied (fail-open made end-to-end; holds-table fields corrected to the
+   real `component`/`action_type`; approval routed through the single
+   `/homelab/approve` superset). Confirmed zero `app/core/**` diff.
+2. **Compiled and linted the frontend** (`tsc -b && vite build`, `oxlint`) —
+   both clean, closing the one DoD item the prior shell physically could not
+   run.
+3. **Committed the change in the 5 slices the implementation plan laid
+   out**, each a separate commit: (1) `evidence_chain.py` + tests, (2) the
+   `GET /ops/evidence` route, (3) frontend API client + types + vite proxy,
+   (4) frontend components, (5) this docs sync.
+4. **Ran the live `:8001` walkthrough** — the last open DoD item — the same
+   pattern as every prior CAP live demo: a second instance on `:8001` (loop
+   and agent disabled, its own throwaway token, never the live secret)
+   against the same real `data/` evidence stores and containers as the live
+   `:8000` service, which was left running and untouched throughout
+   (`GET /health` on `:8000` before and after showed its own CAP-04 loop
+   cycling normally). Fault-injected `uptime-kuma` → governed remediation
+   held → **the hold surfaced through the exact `GET /ops/holds` call the
+   console's Holds queue makes**, with the real field names the fixed table
+   reads → **approved through the exact `POST /homelab/approve` call the
+   console's Approve button makes** → executed, `docker_verification_status:
+   verified_success` → **the full chain resolved through the exact
+   `GET /ops/evidence?action_id=` call the console's Evidence Chain view
+   makes** (authorization → approval → hold → audit → trace → both
+   verifications). `uptime-kuma` healthy after; `:8001` stood down cleanly;
+   throwaway token deleted. Full evidence bundle in
+   `docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-09".
+
+### One gap recorded, not glossed over
+This shell has no browser. The live walkthrough drove the identical HTTP
+calls the compiled console's own code makes — the same requests a browser
+session would produce — but that is not the same thing as a human looking
+at the rendered page. Recorded explicitly in
+`docs/RMT_CAPABILITIES_EVIDENCE.md` rather than claimed as a full browser
+validation.
+
+### Validation summary
+Backend: 7 new + **535 full** passed; `import app.main` clean; zero
+`app/core/**` diff. Frontend: `tsc -b && vite build` clean; `oxlint` clean.
+Live: fault-inject → hold-in-console-call → approve-via-console-call →
+`verified_success` → full-evidence-chain-via-console-call, all PASS; live
+`:8000` unaffected.
+
+### Next
+Nothing above-Core is currently in-flight. Candidates per
+`docs/RMT_ABOVE_CORE_ROADMAP.md`: a second Tier-2 domain (D-2..D-5); **P-D**
+(multi-operator RBAC); or further console depth (agent dependency-map / T13
+status, loop quarantine state) if the console proves useful in practice.
+Owner to select; same per-capability recon + approval method applies.
