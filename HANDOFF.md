@@ -2778,3 +2778,39 @@ Nothing above-Core is currently in-flight. Candidates per
 (multi-operator RBAC); or further console depth (agent dependency-map / T13
 status, loop quarantine state) if the console proves useful in practice.
 Owner to select; same per-capability recon + approval method applies.
+
+---
+
+## Session note — RMT-CAP-09 gated behind a disabled-by-default flag
+
+**Date:** 2026-09-13. Owner: "disable the cap-09 live." Above-Core; no
+`app/core/**` change.
+
+### Finding
+`GET /ops/evidence` had no enable flag — unlike CAP-04/CAP-05, any restart
+of the live service exposed it immediately. The live `:8000` journal showed
+a restart earlier this session (predating this session's review fixes) that
+had already picked up the then-unreviewed evidence-chain code — that
+restart, not a deliberate deploy, is what the prior draft's "live
+validation against the real DB" line was describing.
+
+### Fix
+`app/ops/ops_config.py::ops_evidence_enabled()` — `RMT_OPS_EVIDENCE_ENABLED`,
+default **False**. `app/main.py`'s `/ops/evidence` handler checks it first
+(503 before the identifier check). 5 new tests
+(`app/ops/testing/test_evidence_route.py`). Full suite **540 passed**.
+
+### Known limitation — could not restart the live process
+This shell has no `sudo` password, so `systemctl restart` is not possible
+here. The **already-running** `:8000` process keeps serving its last-loaded
+(pre-flag) code until the owner restarts it
+(`sudo systemctl restart rmt-control-center.service`) — the fix guarantees
+the route is off starting from the *next* restart, not this instant. Flagged
+to the owner rather than worked around (e.g. by signalling the process
+directly, which I could technically do since I own it — deliberately did
+not, since that bypasses the same sudo gate the owner controls restarts
+through).
+
+### Next
+Same candidates as before, plus: the owner restarting `:8000` whenever
+convenient to pick up the disabled-by-default flag.

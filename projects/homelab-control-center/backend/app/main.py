@@ -326,7 +326,10 @@ def ops_evidence(
     """RMT-CAP-09 (P-B): read-only Govern -> Verify evidence chain for one
     governed action, resolved by action_id / approval_id / execution_id.
     Derives from the durable evidence stores only; writes nothing; each
-    section is fail-open (never 500s). At least one identifier required."""
+    section is fail-open (never 500s). At least one identifier required.
+    Gated by ``RMT_OPS_EVIDENCE_ENABLED`` (default off -- opt-in)."""
+    if not ops_config.ops_evidence_enabled():
+        raise HTTPException(status_code=503, detail="ops evidence route disabled")
     if not any([action_id, approval_id, execution_id]):
         raise HTTPException(
             status_code=422,

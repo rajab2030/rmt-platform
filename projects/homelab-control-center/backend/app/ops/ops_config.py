@@ -41,6 +41,13 @@ production-safe setting.
                                 (default ``INFO``).
   * ``RMT_LOG_JSON``         -- O1: ``true`` (default) => one JSON line per
                                 record; ``false`` => plain text (local dev).
+  * ``RMT_OPS_EVIDENCE_ENABLED`` -- RMT-CAP-09 (P-B): master switch for
+                                ``GET /ops/evidence`` (default False; opt-in,
+                                mirrors ``RMT_HOMELAB_LOOP_ENABLED`` /
+                                ``RMT_AGENT_ENABLED``). Read dynamically so a
+                                drop-in edit + restart is enough to turn the
+                                route on; disabled => 503, route never reaches
+                                the evidence-correlation code.
 """
 import os
 
@@ -118,6 +125,16 @@ def separation_enabled() -> bool:
     holds. Default off (opt-in); read dynamically so a drop-in edit + restart
     is enough."""
     return _env_bool("RMT_AUTH_SEPARATION", False)
+
+
+# --- RMT-CAP-09 (P-B): Governed Operations Console -----------------------------
+
+
+def ops_evidence_enabled() -> bool:
+    """Master switch for ``GET /ops/evidence``. Default off (opt-in), mirrors
+    ``RMT_HOMELAB_LOOP_ENABLED`` / ``RMT_AGENT_ENABLED``. Read dynamically so a
+    drop-in edit + restart is enough to turn the route on."""
+    return _env_bool("RMT_OPS_EVIDENCE_ENABLED", False)
 
 
 # --- T1-2: operator-declarable homelab dependency edges --------------------
