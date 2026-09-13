@@ -499,30 +499,32 @@ conditional git adapter (`RMT_AGENT_GIT_REPO_PATH` via a new
 `git-domain.conf` drop-in) — no `app/core/**` or `app/agent/**` change. See
 `docs/RMT_CAPABILITIES_EVIDENCE.md` §"T0-6".
 
-**Open item recorded, not yet actioned:** during T0-6, the operator token
-rotated in T0-5 no longer matched the live secret file (root cause not
-established — a second undocumented rotation, or a copy error when it was
-first saved). Verified via SHA-256 hash comparison, never by exposing
-plaintext in-session; rotated fresh and saved properly this time. There is
-still no durable record of *when* an operator token was last confirmed
-working, only of when it was set — a runbook-discipline gap, not a platform
-defect.
+**Operator-token custody gap — CLOSED (2026-09-13, docs-only, no code
+change):** during T0-6, the operator token rotated in T0-5 no longer matched
+the live secret file (root cause not established — a second undocumented
+rotation, or a copy error when it was first saved). Verified via SHA-256
+hash comparison, never by exposing plaintext in-session; rotated fresh and
+saved properly at the time. The gap — no durable record of *when* a token
+was last confirmed working, only of when it was set — is now closed:
+`docs/operations/DEPLOY.md` §4 requires one authenticated call immediately
+after every rotation plus a timestamp-only record
+(`/etc/rmt-control-center/operator_tokens.rotated_on`, no secret, outside
+git); `docs/operations/SECRETS.md` cross-references the same requirement.
 
 **Repository made PUBLIC (2026-09-12)**, after the secret audit and the
 T0-6 exercise above. See the note at the top of §9.
 
 **Next action for a new session:** nothing above-Core is currently
-in-flight. Candidates, roughly in order of how directly they build on what's
-now proven and public: (a) close the operator-token custody gap just
-recorded (a documented rotation-verification step, not a code change); (b)
-**P-B** (governed-evidence console) — now genuinely justified, since a real
-public domain example (D-1) exists to look at; (c) pick a second Tier-2
-domain (`docs/RMT_ABOVE_CORE_ROADMAP.md` D-2..D-5) now that D-1 has proven
-the Core generalizes and the repo is public evidence of that; (d) **P-D**
-(multi-operator RBAC) if more than one real operator is now expected, given
-public visibility. Nothing here is authorized until the owner selects it and
-an approved per-capability proposal exists — same working method as every
-prior capability (§17).
+in-flight (the operator-token custody gap above is now closed). Candidates,
+roughly in order of how directly they build on what's now proven and
+public: (a) **P-B** (governed-evidence console) — now genuinely justified,
+since a real public domain example (D-1) exists to look at; (b) pick a
+second Tier-2 domain (`docs/RMT_ABOVE_CORE_ROADMAP.md` D-2..D-5) now that
+D-1 has proven the Core generalizes and the repo is public evidence of
+that; (c) **P-D** (multi-operator RBAC) if more than one real operator is
+now expected, given public visibility. Nothing here is authorized until the
+owner selects it and an approved per-capability proposal exists — same
+working method as every prior capability (§17).
 
 ## 13. Environment limitations vs genuine implementation gaps
 
