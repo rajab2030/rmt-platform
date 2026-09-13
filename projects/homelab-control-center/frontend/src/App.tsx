@@ -13,6 +13,7 @@ import {
 import { getPlatformState } from "./api/platform";
 
 import PlatformState from "./components/PlatformState";
+import GovernedConsole from "./components/GovernedConsole";
 import ObservabilityPanel from "./components/ObservabilityPanel";
 
 import type { PlatformState as PlatformStateType } from "./types/platform";
@@ -41,6 +42,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [platformState, setPlatformState] =
     useState<PlatformStateType | null>(null);
+  const [activeView, setActiveView] = useState<"containers" | "governed">("containers");
   
 
   const [selectedContainer, setSelectedContainer] =
@@ -125,6 +127,15 @@ function App() {
   return (
     <div>
 
+      <nav className="app-nav">
+        <button onClick={() => setActiveView("containers")}>Containers</button>
+        <button onClick={() => setActiveView("governed")}>Governed Ops</button>
+      </nav>
+
+      {activeView === "governed" ? (
+        <GovernedConsole />
+      ) : (
+        <>
       <h1>RMT Platform Control Center</h1>
   {
   platformState && (
@@ -208,6 +219,9 @@ function App() {
 
       )}
 
+
+        </>
+      )}
 
     </div>
   );
