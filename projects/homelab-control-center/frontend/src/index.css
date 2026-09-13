@@ -109,3 +109,19 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* RMT-CAP-09 -- Governed Operations console */
+.app-nav { margin-bottom: 1rem; }
+.app-nav button { margin-right: 0.5rem; padding: 0.35rem 0.8rem; }
+.governed-head { display: flex; gap: 1rem; align-items: center; }
+.governed-nav button { margin-right: 0.4rem; padding: 0.3rem 0.7rem; }
+.governed-table { border-collapse: collapse; width: 100%; }
+.governed-table th, .governed-table td {
+  border: 1px solid #ccc; padding: 4px 8px; text-align: left;
+}
+.governed-error { color: #b00; }
+.governed-ok { color: #060; }
+.governed-token { max-width: 480px; }
+.governed-token input { width: 100%; padding: 6px; }
+.governed-evidence p { margin: 0.2rem 0; }
+.governed-status { font-style: italic; }
