@@ -13,6 +13,36 @@ export default defineConfig({
         changeOrigin: true,
       },
 
+      "/ops": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+
+      "/approve": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+
+      "/homelab": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+
+      "/agent": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+
+      "/health": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+
+      "/metrics": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+
       "/containers": {
         target: "http://127.0.0.1:8000",
         changeOrigin: true,
