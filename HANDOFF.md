@@ -2671,3 +2671,44 @@ order of how directly each builds on what's now proven and public:
    real operator.
 Each still needs the same per-capability recon + owner approval before
 implementation — publishing changes nothing about the working method.
+
+---
+
+## Session note — operator-token custody gap closed (docs-only)
+
+**Date:** 2026-09-13. Owner selected candidate (a) from the prior session's
+list. Documentation-only fix, **no code change**, no `app/**` diff, no test
+run needed.
+
+### What changed
+- **`docs/operations/DEPLOY.md` §4 (Token rotation)** — added a mandatory
+  verify-and-record step right after every rotation: one authenticated
+  `curl` against the live service confirming `200` with the new token, then
+  a plaintext-only timestamp written to
+  `/etc/rmt-control-center/operator_tokens.rotated_on` (mode `0600`, beside
+  the secret file, outside git). This is a durable record of *when a
+  rotation was last confirmed working*, distinct from the existing record
+  of when the file was edited.
+- **`docs/operations/SECRETS.md`** — cross-referenced the same requirement
+  in the rotation bullet, and added a "Rotation-verification gap" note
+  under Disposition explaining what T0-6 found and how this closes it.
+- **`RMT_CONTEXT.md` §12** — the T0-6 "open item recorded, not yet actioned"
+  paragraph rewritten to "CLOSED (2026-09-13, docs-only)"; the "Next action
+  for a new session" candidate list re-numbered now that (a) is done.
+
+### Why this shape
+The gap was never "tokens aren't stored securely" (T0-5 already closed
+that) — it was "a rotation can silently fail to take, and nothing records
+whether it was ever confirmed." A one-line authenticated smoke check plus a
+timestamp file closes that without introducing new code, new
+infrastructure, or a new credential to manage.
+
+### Validation
+Docs only; no suite run. Manually re-read both edited runbook files for
+internal consistency after editing.
+
+### Next
+Candidates unchanged except (a) removed: **P-B** (governed-evidence
+console), a second Tier-2 domain (D-2..D-5), or **P-D** (multi-operator
+RBAC). Owner to select; same per-capability recon + approval method
+applies.

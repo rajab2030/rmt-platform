@@ -41,7 +41,9 @@ The operator token list is a **systemd credential**
   in preference to the `RMT_OPERATOR_TOKENS` env var, which remains a
   fallback for local dev / tests / non-systemd runs only
 - rotation = overwrite the secret file + restart (no `daemon-reload` needed —
-  the unit/drop-in content didn't change) (`DEPLOY.md` §4)
+  the unit/drop-in content didn't change), **then verify with one
+  authenticated call and record the confirmation timestamp** in
+  `/etc/rmt-control-center/operator_tokens.rotated_on` (`DEPLOY.md` §4)
 
 This closes the gap above and is adequate for the current single-host,
 single-trusted-operator posture (threat model (b) in
@@ -80,3 +82,12 @@ Whichever is chosen, the rules are fixed:
 is now on the `LoadCredential=` pattern (T0-5, 2026-09-12). The same pattern
 is pre-approved and ready to reuse the moment a new credentialed dependency
 is proposed.
+
+**Rotation-verification gap (found T0-6, closed here, 2026-09-13):** T0-5
+fixed *where* the token lives; it didn't guarantee a rotation was ever
+confirmed to work. T0-6 hit exactly that — a rotated token silently didn't
+match the live secret file, caught only mid-exercise. `DEPLOY.md` §4 now
+requires one authenticated call right after every rotation plus a
+plaintext-only timestamp record (`operator_tokens.rotated_on`, no secret,
+outside git) — a durable answer to "when was this last confirmed working,"
+not just "when was it last edited."

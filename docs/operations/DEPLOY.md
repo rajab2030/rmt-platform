@@ -191,6 +191,26 @@ sudo systemctl restart rmt-control-center.service
 at the restart. Removing an operator = delete their `name:token` pair and
 restart.
 
+**Verify immediately, every time — do not treat "saved" as "working".**
+T0-6 (2026-09-12) found a rotated token silently not matching the live
+secret file, discovered only mid-exercise. Close the loop the same session
+you rotate:
+
+```
+TOKEN=<the new token you just set>
+curl -sS -o /dev/null -w '%{http_code}\n' \
+  -H "Authorization: Bearer $TOKEN" \
+  https://192.168.223.128/agent/status        # must print 200, not 401
+sudo install -m 0600 /dev/null /etc/rmt-control-center/operator_tokens.rotated_on
+date -Iseconds | sudo tee /etc/rmt-control-center/operator_tokens.rotated_on >/dev/null
+```
+
+`operator_tokens.rotated_on` holds only a timestamp (no secret) and lives
+beside the secret file, outside git — it is the durable record of *when a
+rotation was last confirmed working*, distinct from when the file was
+merely edited. Check it (`sudo cat …/operator_tokens.rotated_on`) whenever
+you're unsure a rotation actually took.
+
 ---
 
 ## 5. Hardening (D3) & log retention (O1)
