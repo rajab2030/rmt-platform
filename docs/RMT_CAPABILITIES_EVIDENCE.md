@@ -1417,6 +1417,44 @@ but it is not the same as a human confirming the rendered UI in a real browser.
 read-only + approve/reject via the existing `/homelab/approve` endpoint; no
 business logic in the UI (classification stays server-side).
 
+### Finding + fix — `GET /ops/evidence` shipped with no enable flag (2026-09-13)
+
+**Finding:** unlike CAP-04 (`RMT_HOMELAB_LOOP_ENABLED`) and CAP-05
+(`RMT_AGENT_ENABLED`), `GET /ops/evidence` was unconditionally registered —
+any restart of the live service would expose it immediately, with no opt-in
+step. Separately, the live `:8000` service journal shows a restart earlier
+this session (before the review fixes above were on disk) that picked up the
+then-unreviewed, then-uncommitted evidence-chain code — the "Live validation
+... against the real `data/governance_evidence.db`" claim in an earlier draft
+of this entry was, in fact, that restart. The route was live in production,
+unflagged, for part of this session, running code that predated this
+session's fixes.
+
+**Fix (owner-directed — "disable the cap-09 live"):** added
+`RMT_OPS_EVIDENCE_ENABLED` (`app/ops/ops_config.py::ops_evidence_enabled()`,
+default **False**), checked first in the `GET /ops/evidence` handler
+(`app/main.py`) — disabled returns `503` before the identifier check ever
+runs, so no code path can reach `evidence_chain()` unless explicitly opted
+in via a systemd drop-in, matching the CAP-04/CAP-05 pattern exactly. 5 new
+tests (`app/ops/testing/test_evidence_route.py`): disabled-by-default → 503;
+503 fires before the 422 identifier check; enabled → still requires operator
+auth; enabled + no identifier → 422; enabled + valid call → 200, writes
+nothing. Full backend suite **540 passed** (535 + 5); zero `app/core/**` diff.
+
+**Not yet done — needs the owner's sudo:** this repo's shell cannot run
+`systemctl restart` (no password for `sudo`), so the **already-running**
+`:8000` process is still serving the pre-flag code from its last restart and
+will keep doing so until it is restarted. The fix above only guarantees the
+route is off starting from the *next* restart. To take it out of service on
+the currently-running process, the owner needs to run, on the live host:
+```
+sudo systemctl restart rmt-control-center.service
+```
+No drop-in change is needed for the default (off) state — one is only
+needed later, to turn it on (`Environment=RMT_OPS_EVIDENCE_ENABLED=true` in a
+new `cap09-console.conf` drop-in, mirroring `cap04-loop.conf` /
+`cap05-agent.conf`).
+
 ---
 
 ## Index
@@ -1441,7 +1479,7 @@ business logic in the UI (classification stays server-side).
 | T0-3 — Close the remaining observability gap (approval latency + dashboards note) | COMPLETED & VERIFIED 2026-09-12; **live-checked** against the real running service | 3 new + 525 full | no `app/core/**` change; read-only derivation from stores `/metrics` already reads; also corrected a doc-sync gap (roadmap never marked O1/O3/O4 as covering T0-3) |
 | T0-5 — Security group finish (S4/S3/S5 doc-sync) + live `RMT_OPERATOR_TOKENS` exposure fix | COMPLETED & VERIFIED 2026-09-12; found + immediately flagged a live token exposure, fixed via `LoadCredential=`, **live migration confirmed complete by owner** | 3 new + 528 full | no `app/core/**` change; single choke-point fix (`operator_tokens()`); tokens rotated + live host migrated (owner-executed); D3 `hardening.conf`-not-installed gap found, recorded, not fixed (out of scope) |
 | T0-6 — Public-showcase live exercise: Agent Governance Gateway on the production service | COMPLETED & VERIFIED 2026-09-12; **first live run on `:8000` itself** (not an isolated port); full lifecycle + refusal + risk-differentiated approval, corroborated via independent `git tag` check + journal log cross-check | 0 new (operational exercise, no code change) | no `app/core/**` change; config-only enablement of the pre-existing conditional git adapter; scratch-repo blast radius only; open item recorded: no durable record of last-verified operator token |
-| RMT-CAP-09 — Governed Operations Console (P-B) | COMPLETED & VERIFIED 2026-09-13; **live-demonstrated** (isolated `:8001`, `:8000` untouched) through the console's own API calls (no browser in this shell) | 7 new `test_evidence_chain.py` + 535 full backend; `tsc -b && vite build` + `oxlint` clean; live fault-inject → hold → approve → `verified_success` → full evidence chain PASS | no `app/core/**` change; no new mutation path; new read-only `GET /ops/evidence` route; console is read-only + approve/reject via the existing `/homelab/approve` endpoint |
+| RMT-CAP-09 — Governed Operations Console (P-B) | COMPLETED & VERIFIED 2026-09-13; **live-demonstrated** (isolated `:8001`, `:8000` untouched) through the console's own API calls (no browser in this shell); route found live-but-unflagged, **fixed to default off** — live `:8000` process still needs an owner restart to pick the flag up | 7 `test_evidence_chain.py` + 5 `test_evidence_route.py` + 540 full backend; `tsc -b && vite build` + `oxlint` clean; live fault-inject → hold → approve → `verified_success` → full evidence chain PASS | no `app/core/**` change; no new mutation path; `GET /ops/evidence` gated by `RMT_OPS_EVIDENCE_ENABLED` (default off, mirrors CAP-04/CAP-05); console is read-only + approve/reject via the existing `/homelab/approve` endpoint |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.
