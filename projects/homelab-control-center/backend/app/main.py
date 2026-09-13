@@ -316,6 +316,29 @@ def ops_verifications(
         )
     }
 
+@app.get("/ops/evidence")
+def ops_evidence(
+    action_id: str | None = None,
+    approval_id: str | None = None,
+    execution_id: str | None = None,
+    operator: OperatorIdentity = Depends(require_operator),
+):
+    """RMT-CAP-09 (P-B): read-only Govern -> Verify evidence chain for one
+    governed action, resolved by action_id / approval_id / execution_id.
+    Derives from the durable evidence stores only; writes nothing; each
+    section is fail-open (never 500s). At least one identifier required."""
+    if not any([action_id, approval_id, execution_id]):
+        raise HTTPException(
+            status_code=422,
+            detail="exactly one of action_id / approval_id / execution_id required",
+        )
+    from app.ops.evidence_chain import evidence_chain
+
+    return evidence_chain(
+        action_id=action_id, approval_id=approval_id, execution_id=execution_id
+    )
+
+
 
 @app.get("/containers", response_model=list[Container])
 def containers():
