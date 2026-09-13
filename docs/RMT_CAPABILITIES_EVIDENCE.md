@@ -1303,6 +1303,120 @@ for the README's agent-governance claim ahead of the repository going
 public. No `app/core/**` change; config-only enablement of an existing
 extension point; scratch-repo blast radius only.
 
+## RMT-CAP-09 — Governed Operations Console (roadmap P-B) (2026-09-13)
+
+**Status: COMPLETED & VERIFIED.** `docs/RMT_CAP_09_PROPOSAL.md` is APPROVED
+(2026-09-13); `docs/RMT_CAP_09_IMPLEMENTATION.md` is the detailed plan it
+follows. Backend and frontend are both implemented, tested, compiled, and
+committed (5 reviewable slices); the live `:8001` isolated-instance
+walkthrough (the last open Definition-of-Done item) has run and passed. This
+entry records what has been built and verified, honestly, including the one
+verification gap that remains (no browser in this shell).
+
+**Objective (P-B):** the missing usability layer — a real, read-only web console
+over the authorization / approval / hold / audit / trace / verification evidence
+and the loop/agent status, with approve/reject for held items. Preconditions the
+roadmap set for P-B (a real second domain — D-1 — and a public repo with an
+audience beyond the owner) were both met.
+
+**Back-end built:**
+- `app/ops/evidence_chain.py` — read-only, **fail-open end-to-end**
+  `evidence_chain(action_id|approval_id|execution_id)` returning the
+  **Govern → Verify** chain: authorization → approval record (decision) → hold
+  (if held) → execution audit → decision trace → verification, plus S3
+  provenance. Reads the existing durable stores via their accessors; **writes
+  nothing**; any store read *or* assembly error degrades to an empty chain, never
+  a 500. No `app/core/**` change.
+- `GET /ops/evidence` in `app/main.py` — operator-auth (`require_operator`),
+  422 if no identifier; not on the governed mutation path.
+- `app/ops/testing/test_evidence_chain.py` — 7 tests, all passing: full chain by
+  `action_id`; resolution by `approval_id` / `execution_id`; unknown id → empty
+  fail-open; store-read failure → degraded section not 500; **asserts no writes**.
+  All stores are in-memory-isolated; no test touches the real evidence DB.
+
+**Review fixes (from a deliberate review pass before this entry):**
+- Holds table was reading nonexistent fields (`action` / `risk_level`) — fixed to
+  the real `/ops/holds` output (`component` / `action_type`).
+- Fragile approve heuristic removed — the console now routes every approval
+  through `/homelab/approve`, the documented superset of `/approve` (homelab
+  holds get the Learn + verify closure; non-homelab holds pass through exactly
+  like `/approve`).
+- `evidence_chain` made fail-open for the whole call (assembly exceptions no
+  longer 500).
+
+**Front-end built and compiled:**
+- `frontend/src/types/governance.ts`, `api/auth.ts` (client-side operator token,
+  never logged), `api/governance.ts` (typed read-only client),
+  `components/GovernedConsole.tsx` (token gate → Holds queue with Approve/Reject →
+  Verification ledger → Evidence-by-action → agent/SoD status), `App.tsx` view
+  toggle (Containers / Governed Ops), `vite.config.ts` dev proxies, `index.css`
+  styles.
+- `tsc -b && vite build` — clean (`dist/` produced, 545ms). `oxlint` — clean.
+  (A later shell in this same session had `node`/`npm` available, unlike the
+  shell that originally wrote the "not yet compiled" status above.)
+
+**Committed (2026-09-13), 5 reviewable slices, no `app/core/**` diff in any:**
+1. `app/ops/evidence_chain.py` + `test_evidence_chain.py`.
+2. `GET /ops/evidence` route + `app/main.py` registration.
+3. Frontend `api/auth.ts` + `api/governance.ts` + `types/governance.ts` +
+   `vite.config.ts` dev proxies.
+4. Frontend `components/GovernedConsole.tsx` + `App.tsx` view toggle +
+   `index.css`.
+5. This docs sync.
+
+**Backend regression (full suite, post-fixup):** **535 passed**; `import
+app.main` clean; zero `app/core/**` diff across the whole change.
+
+**Read-only correlation validation (against the real `data/governance_evidence.db`,
+pre-commit):** from a real `action_id`, the chain resolved 1 authorization + 1
+approval + 1 audit + 1 trace + 2 verifications; `approval_id` and `execution_id`
+both resolved back to the same `action_id`; an unknown id returned the empty
+chain (no 500); a store that raised degraded to `[]` for that section only.
+
+**Live end-to-end walkthrough — isolated `:8001` instance, real Docker, real
+`data/` evidence stores, live `:8000` untouched throughout (2026-09-13):**
+1. Started a second instance on `:8001` (loop disabled, agent disabled, its own
+   throwaway operator token — not the live secret) against the same real
+   evidence stores and containers as `:8000`. `GET /health` → `docker_available:
+   true`.
+2. Fault-injected `uptime-kuma`: `POST /execute?operation=stop&target=uptime-kuma`
+   → container `Exited (0)`.
+3. Governed remediation: `POST /homelab/remediate?component=uptime-kuma` →
+   `manual_approval_required` (action `6a083293…`, approval `c550b920…`).
+4. **The hold surfaced via the exact call the console's Holds queue makes**
+   (`GET /ops/holds`), with the real field names the fixed table now reads
+   (`component: "uptime-kuma"`, `action_type: "restart"`, `actionable: true`) —
+   confirming the earlier review fix (nonexistent `action`/`risk_level` fields
+   were the bug) actually resolves against a live hold, not just in review.
+5. **Approved via the exact call the console's Approve button makes**
+   (`POST /homelab/approve?approval_id=c550b920…&approved=true`, the single
+   path the console now uses for every hold) → `status: executed`,
+   `docker_verification_status: verified_success`; container back
+   `Up (health: starting)`.
+6. **The full chain resolved via the exact call the console's Evidence Chain
+   view makes** (`GET /ops/evidence?action_id=6a083293…`): authorization
+   (`status: approved`) → approval record (`decision: approved`) → hold
+   (`status: approved`) → audit (`status: completed`) → trace
+   (`outcome: completed`) → both verifications (`observation_unavailable`
+   Core fail-safe + `verified_success` above-Core Docker observer,
+   `reason` carrying the `supersedes=observation_unavailable` provenance tag).
+7. `uptime-kuma` confirmed `healthy` after; `portainer`/`dozzle` untouched
+   throughout; live `:8000`'s own CAP-04 loop kept cycling normally the whole
+   time (`cycle_count` advanced, no interruption); `:8001` killed cleanly and
+   the throwaway token deleted.
+
+**Result: PASS.** Every DoD item from `docs/RMT_CAP_09_IMPLEMENTATION.md` §4 is
+met except one, explicitly recorded rather than silently claimed: **no browser
+was available in this shell** to click through the compiled SPA visually. The
+walkthrough instead drove the identical HTTP calls the console's compiled code
+makes (`getHolds`/`approveHomelabHold`/`getEvidence` in `api/governance.ts`),
+which is what a browser session running that same code would also produce —
+but it is not the same as a human confirming the rendered UI in a real browser.
+
+**Boundaries:** no `app/core/**` change; no new mutation path; console is
+read-only + approve/reject via the existing `/homelab/approve` endpoint; no
+business logic in the UI (classification stays server-side).
+
 ---
 
 ## Index
@@ -1327,6 +1441,7 @@ extension point; scratch-repo blast radius only.
 | T0-3 — Close the remaining observability gap (approval latency + dashboards note) | COMPLETED & VERIFIED 2026-09-12; **live-checked** against the real running service | 3 new + 525 full | no `app/core/**` change; read-only derivation from stores `/metrics` already reads; also corrected a doc-sync gap (roadmap never marked O1/O3/O4 as covering T0-3) |
 | T0-5 — Security group finish (S4/S3/S5 doc-sync) + live `RMT_OPERATOR_TOKENS` exposure fix | COMPLETED & VERIFIED 2026-09-12; found + immediately flagged a live token exposure, fixed via `LoadCredential=`, **live migration confirmed complete by owner** | 3 new + 528 full | no `app/core/**` change; single choke-point fix (`operator_tokens()`); tokens rotated + live host migrated (owner-executed); D3 `hardening.conf`-not-installed gap found, recorded, not fixed (out of scope) |
 | T0-6 — Public-showcase live exercise: Agent Governance Gateway on the production service | COMPLETED & VERIFIED 2026-09-12; **first live run on `:8000` itself** (not an isolated port); full lifecycle + refusal + risk-differentiated approval, corroborated via independent `git tag` check + journal log cross-check | 0 new (operational exercise, no code change) | no `app/core/**` change; config-only enablement of the pre-existing conditional git adapter; scratch-repo blast radius only; open item recorded: no durable record of last-verified operator token |
+| RMT-CAP-09 — Governed Operations Console (P-B) | COMPLETED & VERIFIED 2026-09-13; **live-demonstrated** (isolated `:8001`, `:8000` untouched) through the console's own API calls (no browser in this shell) | 7 new `test_evidence_chain.py` + 535 full backend; `tsc -b && vite build` + `oxlint` clean; live fault-inject → hold → approve → `verified_success` → full evidence chain PASS | no `app/core/**` change; no new mutation path; new read-only `GET /ops/evidence` route; console is read-only + approve/reject via the existing `/homelab/approve` endpoint |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.

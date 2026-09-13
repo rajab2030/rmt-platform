@@ -42,6 +42,11 @@ domain.
   exercises.
 - [`docs/RMT_IMPROVEMENT_ROADMAP.md`](docs/RMT_IMPROVEMENT_ROADMAP.md) —
   prioritized improvements to the platform as it stands.
+- [`docs/RMT_CAP_09_PROPOSAL.md`](docs/RMT_CAP_09_PROPOSAL.md) /
+  [`docs/RMT_CAP_09_IMPLEMENTATION.md`](docs/RMT_CAP_09_IMPLEMENTATION.md) —
+  **Governed Operations Console (RMT-CAP-09)**, in build: a read-only web
+  console over the evidence + approval queue (see `docs/RMT_CAPABILITIES_EVIDENCE.md`
+  §"RMT-CAP-09" for status).
 
 ## Homelab domain (the platform's first proving ground)
 

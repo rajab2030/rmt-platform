@@ -514,17 +514,52 @@ git); `docs/operations/SECRETS.md` cross-references the same requirement.
 **Repository made PUBLIC (2026-09-12)**, after the secret audit and the
 T0-6 exercise above. See the note at the top of §9.
 
+**RMT-CAP-09 — Governed Operations Console (P-B): COMPLETED & VERIFIED
+(2026-09-13).** Owner-approved (`docs/RMT_CAP_09_PROPOSAL.md`,
+`docs/RMT_CAP_09_IMPLEMENTATION.md`). A real, read-only web console over the
+authorization/approval/hold/audit/trace/verification evidence and
+loop/agent status, with approve/reject for held items.
+- **Backend:** `app/ops/evidence_chain.py` — read-only, fail-open end-to-end
+  `evidence_chain(action_id|approval_id|execution_id)` returning the full
+  Govern → Verify chain; `GET /ops/evidence` (operator-auth, 422 on
+  none/multiple identifiers). No `app/core/**` change; no new mutation path.
+- **Frontend:** `api/auth.ts` (client-side operator token, never logged),
+  `api/governance.ts` (typed read-only client + `approveHomelabHold`, the
+  documented superset of `/approve`), `types/governance.ts`,
+  `components/GovernedConsole.tsx` (token gate → Holds queue with
+  Approve/Reject → Verification ledger → Evidence-by-action → agent/SoD
+  status), `App.tsx` view toggle, `vite.config.ts` dev proxies.
+- **Validation:** 7 new backend tests; full backend suite **535 passed**;
+  `tsc -b && vite build` clean; `oxlint` clean; `import app.main` clean; zero
+  `app/core/**` diff. Committed in 5 reviewable slices.
+- **Live validation — isolated `:8001` instance, live `:8000` untouched
+  throughout:** fault-injected `uptime-kuma` (stopped it for real) →
+  governed remediation held (`manual_approval_required`) → hold appeared via
+  the exact `GET /ops/holds` call the console's Holds queue makes, with the
+  real field names (`component`/`action_type`) the fixed table reads →
+  approved via the exact `POST /homelab/approve` call the console's Approve
+  button makes → executed or restart → `docker_verification_status:
+  verified_success` → `GET /ops/evidence?action_id=` (the console's
+  Evidence Chain view) resolved the complete chain: authorization → approval
+  record → hold → audit → trace → both verifications
+  (`observation_unavailable` Core + `verified_success` above-Core). PASS.
+  `uptime-kuma` healthy after; `portainer`/`dozzle` untouched; live `:8000`
+  loop kept cycling normally throughout; `:8001` stood down cleanly. (No
+  browser was available in this shell to click through the compiled SPA
+  directly — validated through the identical API calls the console's code
+  makes, which is what a browser session would also produce.)
+- See `docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-09" for the full record.
+
 **Next action for a new session:** nothing above-Core is currently
-in-flight (the operator-token custody gap above is now closed). Candidates,
-roughly in order of how directly they build on what's now proven and
-public: (a) **P-B** (governed-evidence console) — now genuinely justified,
-since a real public domain example (D-1) exists to look at; (b) pick a
-second Tier-2 domain (`docs/RMT_ABOVE_CORE_ROADMAP.md` D-2..D-5) now that
-D-1 has proven the Core generalizes and the repo is public evidence of
-that; (c) **P-D** (multi-operator RBAC) if more than one real operator is
-now expected, given public visibility. Nothing here is authorized until the
-owner selects it and an approved per-capability proposal exists — same
-working method as every prior capability (§17).
+in-flight. Candidates, per `docs/RMT_ABOVE_CORE_ROADMAP.md`: (a) pick a
+second Tier-2 domain (D-2..D-5) now that D-1 has proven the Core
+generalizes and the repo is public evidence of that; (b) **P-D**
+(multi-operator RBAC) if more than one real operator is now expected, given
+public visibility; (c) further console depth (e.g. surfacing the agent
+dependency map / T13 status, or the loop's quarantine state) if the console
+proves useful in practice. Nothing here is authorized until the owner
+selects it and an approved per-capability proposal exists — same working
+method as every prior capability (§17).
 
 ## 13. Environment limitations vs genuine implementation gaps
 
