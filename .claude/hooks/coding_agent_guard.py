@@ -22,8 +22,19 @@ Configuration (env, all optional):
   RMT_CODING_AGENT_TOKEN          -- operator bearer token (needed only if
                                       the backend has RMT_AUTH_ENABLED on)
   RMT_CODING_AGENT_POLL_TIMEOUT_S -- max seconds to wait for a human
-                                      decision before failing open
-                                      (default 120)
+                                      decision before failing open (default
+                                      1800 -- 30 min). A live exercise found
+                                      the original 120s default tuned for a
+                                      human already at a terminal, not one
+                                      reached by the notification this hold
+                                      also fires (POST /coding-agent/propose
+                                      -> notify_held): 120s left users failing
+                                      open before they could even see the
+                                      alert. If you raise this further, also
+                                      raise the matching hook `timeout` (in
+                                      seconds) in .claude/settings.json --
+                                      Claude Code kills the hook process at
+                                      that mark regardless of this value.
 """
 import json
 import os
@@ -34,7 +45,7 @@ import urllib.request
 
 BASE_URL = os.environ.get("RMT_CODING_AGENT_URL", "http://127.0.0.1:8000")
 TOKEN = os.environ.get("RMT_CODING_AGENT_TOKEN")
-POLL_TIMEOUT_S = float(os.environ.get("RMT_CODING_AGENT_POLL_TIMEOUT_S", "120"))
+POLL_TIMEOUT_S = float(os.environ.get("RMT_CODING_AGENT_POLL_TIMEOUT_S", "1800"))
 POLL_INTERVAL_S = 2.0
 REQUEST_TIMEOUT_S = 5.0
 

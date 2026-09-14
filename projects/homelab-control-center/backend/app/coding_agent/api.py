@@ -10,6 +10,12 @@ fabricated. Gated by ``RMT_CODING_AGENT_ENABLED`` (default off). No
 ``app/core/**`` change; no new mutation path -- this only decides whether a
 shell command proposed by *this repository's own Claude Code session* is
 allowed to run, via the project-scoped ``PreToolUse`` hook.
+
+A new hold fires the same fail-open ``notify_held`` sink every other domain's
+holds already use (``app/ops/notifications.py``) -- the hook only polls for
+``RMT_CODING_AGENT_POLL_TIMEOUT_S`` before failing open, so a real alert
+matters here more than most: a human who never sees the hold otherwise finds
+out only after the command already went through unreviewed.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -20,6 +26,7 @@ from app.coding_agent.models import CommandHold
 from app.coding_agent.review import assess
 from app.coding_agent.store import command_hold_store
 from app.ops.auth import OperatorIdentity, require_operator
+from app.ops.notifications import notify_held
 
 router = APIRouter(prefix="/coding-agent", tags=["Coding Agent"])
 
@@ -67,6 +74,17 @@ def propose(body: ProposeBody):
         verdict=verdict,
     )
     command_hold_store.create(hold)
+    # O2-equivalent: a human is needed and the hook only polls for so long
+    # (RMT_CODING_AGENT_POLL_TIMEOUT_S) before failing open -- a real alert
+    # gives them a chance to act before that window closes, same fail-open
+    # notification sink every other domain's holds already use.
+    notify_held(
+        kind="coding_agent_command",
+        component=match.rule.name,
+        approval_id=hold.hold_id,
+        detail=f"{body.command!r} in {body.cwd} (verdict: {verdict})",
+        source="coding_agent",
+    )
     return {
         "decision": "hold",
         "hold_id": hold.hold_id,
