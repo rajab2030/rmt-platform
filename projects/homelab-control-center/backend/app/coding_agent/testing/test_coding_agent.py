@@ -7,6 +7,7 @@ decide updates status/decided_by from the authenticated operator).
 import pytest
 from fastapi.testclient import TestClient
 
+from app.coding_agent import api as coding_agent_api
 from app.coding_agent import config as coding_agent_config
 from app.coding_agent import risk_rules
 from app.coding_agent.models import EvidenceItem
@@ -224,6 +225,35 @@ def test_decide_rejects_unknown_hold(client, enabled):
         "/coding-agent/decide", json={"hold_id": "does-not-exist", "approved": True}
     )
     assert resp.status_code == 404
+
+
+def test_propose_matching_command_notifies(client, enabled, tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        coding_agent_api, "notify_held", lambda **kwargs: calls.append(kwargs)
+    )
+
+    resp = client.post(
+        "/coding-agent/propose",
+        json={"command": "git reset --hard", "cwd": str(tmp_path)},
+    )
+    hold_id = resp.json()["hold_id"]
+
+    assert len(calls) == 1
+    assert calls[0]["kind"] == "coding_agent_command"
+    assert calls[0]["component"] == "git-hard-reset"
+    assert calls[0]["approval_id"] == hold_id
+
+
+def test_propose_auto_allow_does_not_notify(client, enabled, monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        coding_agent_api, "notify_held", lambda **kwargs: calls.append(kwargs)
+    )
+
+    client.post("/coding-agent/propose", json={"command": "ls -la", "cwd": "/tmp"})
+
+    assert calls == []
 
 
 def test_decide_twice_conflicts(client, enabled, tmp_path):
