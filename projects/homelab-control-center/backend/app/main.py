@@ -44,6 +44,7 @@ from app.core.intelligence.memory.storage import (
 from app.core.intelligence.api import router as intelligence_router
 from app.engineering.api import router as engineering_router
 from app.agent.api import router as agent_router
+from app.coding_agent.api import router as coding_agent_router
 
 from app.homelab import loop_config
 from app.homelab.operational_loop import operational_loop
@@ -236,6 +237,10 @@ app.include_router(engineering_router)
 # S1: the agent surface (grant / act / act.llm and its read-only status) is
 # entirely behind operator authentication.
 app.include_router(agent_router, dependencies=[Depends(require_operator)])
+
+# RMT-CAP-10: coding-agent command governance -- entirely behind operator
+# authentication, same as every other above-Core mutation-adjacent surface.
+app.include_router(coding_agent_router, dependencies=[Depends(require_operator)])
 
 
 @app.get("/")

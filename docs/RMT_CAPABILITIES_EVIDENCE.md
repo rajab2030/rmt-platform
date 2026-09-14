@@ -1457,6 +1457,142 @@ new `cap09-console.conf` drop-in, mirroring `cap04-loop.conf` /
 
 ---
 
+## RMT-CAP-10 — Coding-Agent Command Governance (MCR: Claude Code as a governed child) (2026-09-14)
+
+**Status: COMPLETED & VERIFIED.** `docs/RMT_CAP_10_PROPOSAL.md` is APPROVED
+(owner, 2026-09-13, in-session). Backend package, tests, `app/main.py`
+wiring, and the project-scoped Claude Code hook are all implemented,
+tested, and live-validated end-to-end on an isolated dev instance in this
+session.
+
+**Objective:** the MCR pattern — one supervisor, one evidence trail, one
+approval gate, in front of an independent child system — applied to Claude
+Code itself. A small, explicit list of risky shell-command patterns is held
+for a human decision instead of executing immediately, and the hold always
+carries strictly real, checkable evidence (a matched rule, prior-decision
+history, a situational git check) — never an LLM opinion standing in as
+evidence.
+
+**Backend built** (`app/coding_agent/`, all new, no `app/core/**` change):
+- `models.py` — `CommandHold` / `EvidenceItem` record shapes (pre-existing
+  from a prior session; unchanged).
+- `risk_rules.py` — deterministic pattern list (`git-force-push`,
+  `git-hard-reset`, `git-clean-force`, `recursive-delete`, `sudo`,
+  `service-restart`); `recursive-delete` carves out paths confined to
+  `/tmp` as ordinary scratch cleanup (pre-existing; unchanged).
+- `store.py` — **fixed a real gap found this session**: the singleton
+  `command_hold_storage = CommandHoldStorage()` had no `file_path`, so
+  every hold lived in memory only and vanished on restart, contradicting
+  the proposal's own "new table in the shared evidence DB" design (the
+  same `DurableStore` extension point CAP-08's grants table uses). Restructured
+  into `CommandHoldStorage` (the `DurableStore` subclass, `_table =
+  "coding_agent_holds"`, gained an `update()` method) + `CommandHoldStore` (a
+  thin wrapper defaulting to `EVIDENCE_DB_PATH`, same two-layer pattern
+  `app/agent/authority.py`'s `AuthorityGrantStorage` / `AuthorityStore`
+  already uses, so tests can swap `_storage` for an isolated instance).
+- `config.py` — `RMT_CODING_AGENT_ENABLED` (default **False**), same
+  dynamically-read opt-in shape as `RMT_OPS_EVIDENCE_ENABLED`.
+- `history.py` — evidence source 2: tallies approved vs. rejected prior
+  *decided* holds for the same risk rule; returns `None` (no item) when no
+  decided hold exists yet — absence of history is never itself evidence.
+- `situational.py` — evidence source 3: `git status --porcelain`
+  (uncommitted changes) always attempted; for `git-force-push`
+  specifically, an additional `git rev-list --left-right --count` check
+  against the real upstream (commits the push would discard). Each check
+  contributes an item only when determinable (a real repo, a real
+  upstream); a 5 s subprocess timeout and non-zero exit both degrade to no
+  item, never a guess.
+- `review.py` — assembles the rule item (always present; `reject` for
+  `high`, `neutral` for `medium`) + the history item (0–1) + the
+  situational items (0–2) into one evidence list, then applies the
+  proposal's exact verdict rule: `reject` if any item leans `reject`; else
+  `approve` if any leans `approve` and none leans `reject`; else `reject`
+  (the safe default — absence of evidence is not evidence of safety). No
+  LLM anywhere in this module.
+- `api.py` — `POST /coding-agent/propose` (no rule match → `auto_allow`,
+  zero cost, no hold created; a match → hold created + evidence/verdict
+  returned), `GET /coding-agent/holds` (`?status=` filter), `GET
+  /coding-agent/holds/{hold_id}`, `POST /coding-agent/decide`
+  (`decided_by` comes from the authenticated operator, never the request
+  body — same pattern `/approve` already established). Every route gated
+  by `RMT_CODING_AGENT_ENABLED` (503 when off, before any evidence code
+  runs); `/decide` additionally requires `require_operator`.
+- `app/main.py` — one import + `app.include_router(coding_agent_router,
+  dependencies=[Depends(require_operator)])`, identical shape to the
+  existing `agent_router` registration.
+
+**Tests** (`app/coding_agent/testing/test_coding_agent.py`, 26 new, all
+isolated via a fresh in-memory `CommandHoldStorage` — never the real
+evidence DB): every risk rule matches its intended commands and only those
+(including the `/tmp`-confined `rm -rf` carve-out); verdict logic for
+no-signal (default reject), reject-leaning, approve-leaning-with-no-reject,
+and mixed (reject wins); `assess()` end-to-end for a high-risk rule with no
+repo signal and for history-seeded approval; routes 503 while disabled;
+`propose` auto-allows a non-matching command with zero hold created;
+`propose` on a matching command creates a pending hold with real evidence;
+`decide` updates status + `decided_by` from the authenticated operator (not
+the body), 404s an unknown hold, 409s a double-decide; `/holds?status=`
+filtering; `/decide` requires auth when `RMT_AUTH_ENABLED=true`.
+
+**Backend regression:** full suite **566 passed**; `import app.main` clean;
+`ruff --select F,E9` clean; zero `app/core/**` diff.
+
+**The hook** (`.claude/settings.json` + `.claude/hooks/coding_agent_guard.py`,
+project-scoped to this repo only, not `~/.claude/settings.json`): a
+`PreToolUse` hook matched to the `Bash` tool. Reads `tool_name` /
+`tool_input.command` / `cwd` / `session_id` from stdin, `POST`s to
+`/coding-agent/propose`. `auto_allow` → exit 0 immediately. `hold` → polls
+`GET /coding-agent/holds/{hold_id}` (2 s interval, `RMT_CODING_AGENT_POLL_TIMEOUT_S`
+default 120) until a decision or timeout. Decision surface deliberately
+uses only the plain exit-code contract (`0` = allow, `2` = block with the
+reason on stderr) rather than the newer, less-certain `hookSpecificOutput`
+JSON extras — confirmed against the official hooks guide via a dedicated
+lookup pass in this session before writing the script, rather than guessed.
+**Fail-open by design**: backend unreachable, malformed hook input, or a
+poll timeout all resolve to exit 0 with a warning on stderr, never a block —
+a governance layer that can brick the tool it governs is worse than one
+that occasionally lets a command through unreviewed while loudly saying so.
+
+**Live end-to-end validation — isolated dev instance, real hook script, real
+scratch git repo, `:8000` untouched throughout (2026-09-14):**
+1. Started `uvicorn` on `:8099` (`RMT_CODING_AGENT_ENABLED=true`,
+   `RMT_AUTH_ENABLED=false`, throwaway `RMT_EVIDENCE_DB`), separate from the
+   live `:8000` service (confirmed still running afterward, untouched).
+2. A real scratch git repo (`git init`, one commit, clean tree).
+3. **Auto-allow:** `ls -la` through the actual hook script → exit `0`,
+   no stderr, no hold created.
+4. **Held → approved:** `git reset --hard HEAD~1` → hook exited only after
+   polling; `GET /coding-agent/holds?status=pending` showed the real
+   evidence (`policy_rule`: matched `git-hard-reset`, high, `leans:
+   reject`; `situational`: clean working tree, `leans: neutral`) and
+   verdict `reject`. Approved via `POST /coding-agent/decide` → the hook,
+   still polling, saw `status: approved` and exited `0` — the human
+   decision correctly overrode the reviewer's own `reject` verdict.
+5. **Held → rejected:** `rm -rf /home/rmt-lab/homelab/projects` → held
+   (`recursive-delete`, high); rejected via the same route → the hook
+   exited `2` with `BLOCKED: rejected by local-dev` on stderr.
+6. **Fail-open:** dev instance killed (`pkill` scoped to the `:8099`
+   command line only); the same `git reset --hard` proposal through the
+   hook → `backend unreachable -- failing open` on stderr, exit `0`.
+7. Scratch dev artifacts removed after the run; nothing in this validation
+   touched the real `data/governance_evidence.db` or the live `:8000`
+   process.
+
+**Result: PASS.** Every Definition-of-Done item in
+`docs/RMT_CAP_10_PROPOSAL.md` §6 is met: full suite green; a non-matching
+command passes through unchanged; a matching command holds with
+traceable, real evidence; approve/reject both observed end-to-end through
+the actual hook, not just the API; fail-open verified, not assumed.
+
+**Boundaries:** no `app/core/**` change; new table via the existing
+`DurableStore` extension point (as CAP-08 did); ships disabled
+(`RMT_CODING_AGENT_ENABLED=False`); the hook is scoped to this one
+repository's `.claude/settings.json`; not wired to the live `:8000` service
+(a separate, explicit owner decision, per the proposal's own out-of-scope
+list); no console UI tab; no LLM anywhere in the review path.
+
+---
+
 ## Index
 
 | Capability | Status | Validation | Core integrity |
@@ -1480,6 +1616,7 @@ new `cap09-console.conf` drop-in, mirroring `cap04-loop.conf` /
 | T0-5 — Security group finish (S4/S3/S5 doc-sync) + live `RMT_OPERATOR_TOKENS` exposure fix | COMPLETED & VERIFIED 2026-09-12; found + immediately flagged a live token exposure, fixed via `LoadCredential=`, **live migration confirmed complete by owner** | 3 new + 528 full | no `app/core/**` change; single choke-point fix (`operator_tokens()`); tokens rotated + live host migrated (owner-executed); D3 `hardening.conf`-not-installed gap found, recorded, not fixed (out of scope) |
 | T0-6 — Public-showcase live exercise: Agent Governance Gateway on the production service | COMPLETED & VERIFIED 2026-09-12; **first live run on `:8000` itself** (not an isolated port); full lifecycle + refusal + risk-differentiated approval, corroborated via independent `git tag` check + journal log cross-check | 0 new (operational exercise, no code change) | no `app/core/**` change; config-only enablement of the pre-existing conditional git adapter; scratch-repo blast radius only; open item recorded: no durable record of last-verified operator token |
 | RMT-CAP-09 — Governed Operations Console (P-B) | COMPLETED & VERIFIED 2026-09-13; **live-demonstrated** (isolated `:8001`, `:8000` untouched) through the console's own API calls (no browser in this shell); route found live-but-unflagged, **fixed to default off** — live `:8000` process still needs an owner restart to pick the flag up | 7 `test_evidence_chain.py` + 5 `test_evidence_route.py` + 540 full backend; `tsc -b && vite build` + `oxlint` clean; live fault-inject → hold → approve → `verified_success` → full evidence chain PASS | no `app/core/**` change; no new mutation path; `GET /ops/evidence` gated by `RMT_OPS_EVIDENCE_ENABLED` (default off, mirrors CAP-04/CAP-05); console is read-only + approve/reject via the existing `/homelab/approve` endpoint |
+| RMT-CAP-10 — Coding-Agent Command Governance (Claude Code as a governed child) | COMPLETED & VERIFIED 2026-09-14; **live-demonstrated** through the actual `PreToolUse` hook script (isolated `:8099`, `:8000` untouched) | 26 new + 566 full backend; live hook run: auto-allow + held-approved + held-rejected + fail-open, all PASS | no `app/core/**` change; new table via the existing `DurableStore` extension point; ships disabled (`RMT_CODING_AGENT_ENABLED=False`); hook scoped to this repo's `.claude/settings.json` only; no LLM in the review path; fixed a real gap found this session (hold storage was in-memory-only, not durable) |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.
