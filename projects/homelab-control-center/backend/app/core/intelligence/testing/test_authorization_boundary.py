@@ -14,6 +14,10 @@ from app.core.intelligence.execution.policy import PolicyDecision
 from app.core.intelligence.execution.risk import ExecutionRisk
 from app.core.intelligence.execution.storage import ExecutionAuditStorage
 from app.core.intelligence.execution.trace_storage import ExecutionTraceStorage
+from app.core.intelligence.actions.binding import (
+    CANONICALIZATION_VERSION,
+    bind_execution_request,
+)
 
 
 def _make_auth(
@@ -79,6 +83,15 @@ def _setup_isolation(monkeypatch):
     )
 
 
+def _bind(auth, request, adapter_name="simulation"):
+    request.adapter_name = adapter_name
+    request.canonicalization_version = CANONICALIZATION_VERSION
+    digest, _ = bind_execution_request(request, adapter_name)
+    request.instruction_digest = digest
+    auth.adapter_name = adapter_name
+    auth.canonicalization_version = CANONICALIZATION_VERSION
+    auth.instruction_digest = digest
+
 def test_valid_approved_authorization_proceeds_to_simulation_adapter(
     monkeypatch,
 ):
@@ -100,8 +113,6 @@ def test_valid_approved_authorization_proceeds_to_simulation_adapter(
         target="test-container",
         operation="restart",
     )
-    auth_storage.save(auth)
-
     request = ExecutionRequest(
         execution_id="exec-valid",
         authorization_id="auth-valid",
@@ -109,6 +120,8 @@ def test_valid_approved_authorization_proceeds_to_simulation_adapter(
         target="test-container",
         operation="restart",
     )
+    _bind(auth, request)
+    auth_storage.save(auth)
 
     result = execution_engine_module.ExecutionEngine().execute(request)
 
@@ -391,8 +404,6 @@ def test_valid_authorization_wipe_execution_policy_deny(
         target="test-container",
         operation="wipe",
     )
-    auth_storage.save(auth)
-
     request = ExecutionRequest(
         execution_id="exec-wipe",
         authorization_id="auth-wipe",
@@ -400,6 +411,8 @@ def test_valid_authorization_wipe_execution_policy_deny(
         target="test-container",
         operation="wipe",
     )
+    _bind(auth, request)
+    auth_storage.save(auth)
 
     result = execution_engine_module.ExecutionEngine().execute(request)
 
@@ -443,8 +456,6 @@ def test_valid_authorization_restart_simulation_audit_trace_produced(
         target="test-container",
         operation="restart",
     )
-    auth_storage.save(auth)
-
     request = ExecutionRequest(
         execution_id="exec-restart",
         authorization_id="auth-restart",
@@ -452,6 +463,8 @@ def test_valid_authorization_restart_simulation_audit_trace_produced(
         target="test-container",
         operation="restart",
     )
+    _bind(auth, request)
+    auth_storage.save(auth)
 
     result = execution_engine_module.ExecutionEngine().execute(request)
 
@@ -479,3 +492,59 @@ def test_valid_authorization_restart_simulation_audit_trace_produced(
     assert audit.authorization_id == request.authorization_id
     assert audit.adapter == "simulation"
     assert audit.status == "completed"
+
+
+def test_changed_parameters_after_authorization_block_before_adapter(monkeypatch):
+    auth_storage, trace_storage, _, adapter_registry = _setup_isolation(monkeypatch)
+    auth = _make_auth(
+        authorization_id="auth-bound-parameters",
+        status=AuthorizationStatus.APPROVED,
+        action_id="action-bound-parameters",
+        target="test-container",
+        operation="restart",
+    )
+    request = ExecutionRequest(
+        authorization_id=auth.authorization_id,
+        action_id=auth.action_id,
+        target=auth.target,
+        operation=auth.operation,
+        parameters={"amount": "1500.00"},
+    )
+    _bind(auth, request)
+    auth_storage.save(auth)
+
+    request.parameters["amount"] = "9000.00"
+    result = execution_engine_module.ExecutionEngine().execute(request)
+
+    assert result.success is False
+    assert result.message == "Execution instruction binding mismatch"
+    adapter_registry.get.assert_not_called()
+    assert trace_storage.get_all()[0].outcome == "blocked"
+
+
+def test_changed_adapter_after_authorization_block_before_lookup(monkeypatch):
+    auth_storage, _, _, adapter_registry = _setup_isolation(monkeypatch)
+    auth = _make_auth(
+        authorization_id="auth-bound-adapter",
+        status=AuthorizationStatus.APPROVED,
+        action_id="action-bound-adapter",
+        target="test-container",
+        operation="restart",
+    )
+    request = ExecutionRequest(
+        authorization_id=auth.authorization_id,
+        action_id=auth.action_id,
+        target=auth.target,
+        operation=auth.operation,
+    )
+    _bind(auth, request, adapter_name="simulation")
+    auth_storage.save(auth)
+
+    result = execution_engine_module.ExecutionEngine().execute(
+        request,
+        adapter_name="docker",
+    )
+
+    assert result.success is False
+    assert result.message == "Authorization instruction or adapter binding mismatch"
+    adapter_registry.get.assert_not_called()

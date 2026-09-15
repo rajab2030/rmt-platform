@@ -44,6 +44,10 @@ from app.core.intelligence.verification.models import (
 )
 from app.core.intelligence.verification.verifier import verifier
 from app.core.intelligence.verification.storage import VerificationStorage
+from app.core.intelligence.actions.binding import (
+    CANONICALIZATION_VERSION,
+    bind_execution_request,
+)
 
 
 def _make_action(
@@ -334,7 +338,6 @@ def test_missing_expectation_is_verification_limitation_not_auth_failure(monkeyp
         operation="restart",
         expected_outcome=None,
     )
-    auth_storage.save(auth)
 
     request = ExecutionRequest(
         authorization_id="auth-1",
@@ -342,7 +345,15 @@ def test_missing_expectation_is_verification_limitation_not_auth_failure(monkeyp
         target="web",
         operation="restart",
         expected_outcome=None,
+        adapter_name="simulation",
+        canonicalization_version=CANONICALIZATION_VERSION,
     )
+    digest, _ = bind_execution_request(request, "simulation")
+    request.instruction_digest = digest
+    auth.adapter_name = "simulation"
+    auth.canonicalization_version = CANONICALIZATION_VERSION
+    auth.instruction_digest = digest
+    auth_storage.save(auth)
 
     result = execution_engine_module.execution_engine.execute(request)
 

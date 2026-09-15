@@ -23,6 +23,7 @@ def _expiry():
 def create_execution_authorization(
     action,
     approval_decision,
+    assessment=None,
 ):
     """
     Convert an approved decision into an execution authorization.
@@ -50,6 +51,23 @@ def create_execution_authorization(
         reason=approval_decision.reason,
         target=action.component,
         operation=action.action_type.value,
+        governance_domain=action.governance_domain,
+        adapter_name=getattr(assessment, "adapter_name", None),
+        assessment_id=getattr(assessment, "assessment_id", None),
+        policy_evaluator_id=getattr(assessment, "policy_evaluator_id", None),
+        policy_evaluator_version=getattr(assessment, "policy_evaluator_version", None),
+        risk_evaluator_id=getattr(assessment, "risk_evaluator_id", None),
+        risk_evaluator_version=getattr(assessment, "risk_evaluator_version", None),
+        canonicalization_version=getattr(assessment, "canonicalization_version", None),
+        instruction_digest=getattr(assessment, "instruction_digest", None),
+        policy_evidence_references=list(
+            getattr(assessment, "policy_evidence_references", ())
+        ),
+        risk_evidence_references=list(
+            getattr(assessment, "risk_evidence_references", ())
+        ),
+        uncertainty=getattr(assessment, "uncertainty", ""),
+        recovery_semantics=getattr(assessment, "recovery_semantics", ""),
         expected_outcome=action.expected_outcome,
         expires_at=_expiry(),
     )
@@ -60,6 +78,7 @@ def create_manual_authorization(
     approved_by: str,
     reason: str = "",
     approval_id: str | None = None,
+    hold=None,
 ):
     """
     Create an authorization from a legitimately granted manual approval.
@@ -79,6 +98,19 @@ def create_manual_authorization(
         reason=reason,
         target=action.component,
         operation=action.action_type.value,
+        governance_domain=action.governance_domain,
+        adapter_name=getattr(hold, "adapter_name", None),
+        assessment_id=getattr(hold, "assessment_id", None),
+        policy_evaluator_id=getattr(hold, "policy_evaluator_id", None),
+        policy_evaluator_version=getattr(hold, "policy_evaluator_version", None),
+        risk_evaluator_id=getattr(hold, "risk_evaluator_id", None),
+        risk_evaluator_version=getattr(hold, "risk_evaluator_version", None),
+        canonicalization_version=getattr(hold, "canonicalization_version", None),
+        instruction_digest=getattr(hold, "instruction_digest", None),
+        policy_evidence_references=hold.policy_evidence_references if hold else [],
+        risk_evidence_references=hold.risk_evidence_references if hold else [],
+        uncertainty=getattr(hold, "uncertainty", ""),
+        recovery_semantics=getattr(hold, "recovery_semantics", ""),
         expected_outcome=action.expected_outcome,
         expires_at=_expiry(),
     )

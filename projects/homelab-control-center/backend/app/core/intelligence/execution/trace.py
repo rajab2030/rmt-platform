@@ -32,6 +32,32 @@ class ExecutionTrace(BaseModel):
 
     reason: str = ""
 
+    governance_domain: str = "rmt.default"
+
+    adapter_name: str | None = None
+
+    assessment_id: str | None = None
+
+    policy_evaluator_id: str | None = None
+
+    policy_evaluator_version: str | None = None
+
+    risk_evaluator_id: str | None = None
+
+    risk_evaluator_version: str | None = None
+
+    canonicalization_version: str | None = None
+
+    instruction_digest: str | None = None
+
+    policy_evidence_references: list[str] = Field(default_factory=list)
+
+    risk_evidence_references: list[str] = Field(default_factory=list)
+
+    uncertainty: str = ""
+
+    recovery_semantics: str = ""
+
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )

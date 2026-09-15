@@ -22,6 +22,10 @@ class ExecutionRequest(BaseModel):
 
     action_id: str
 
+    decision_id: str = ""
+
+    governance_domain: str = "rmt.default"
+
     target: str
 
     operation: str
@@ -30,6 +34,30 @@ class ExecutionRequest(BaseModel):
     risk_level: str | None = None
 
     expected_outcome: ExpectedOutcome | None = None
+
+    adapter_name: str | None = None
+
+    assessment_id: str | None = None
+
+    policy_evaluator_id: str | None = None
+
+    policy_evaluator_version: str | None = None
+
+    risk_evaluator_id: str | None = None
+
+    risk_evaluator_version: str | None = None
+
+    canonicalization_version: str | None = None
+
+    instruction_digest: str | None = None
+
+    policy_evidence_references: list[str] = Field(default_factory=list)
+
+    risk_evidence_references: list[str] = Field(default_factory=list)
+
+    uncertainty: str = ""
+
+    recovery_semantics: str = ""
 
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)

@@ -16,33 +16,61 @@
 authorized preparation of the narrowly scoped implementation contract. The draft
 is saved at
 [`docs/RMT_BUDGET_CONTROL_COMPATIBILITY_IMPLEMENTATION_CONTRACT.md`](docs/RMT_BUDGET_CONTROL_COMPATIBILITY_IMPLEMENTATION_CONTRACT.md).
-A subsequent conflict audit found that its proposed `app/core/**` changes violate
-the standing no-further-freeze-deviation directive and the zero-Core-edit domain
-rule. The contract is therefore marked **BLOCKED**, not pending implementation
-approval. Production-code implementation, deployment, commit, and push remain
-unauthorized. Preserve the freeze and defer governed Budget Control unless the
-owner deliberately supersedes the existing directive; doing so would be a
-governance change, not a non-conflicting implementation.
+A subsequent conflict audit found that its proposed `app/core/**` changes violated
+the then-standing no-further-freeze-deviation directive and zero-Core-edit domain
+rule, so work stopped before implementation. The governance decision below later
+superseded that absolute rule through a controlled exception; this historical
+conflict finding remains evidence of why the explicit amendment was required.
+
+**Governance decision update, 2026-09-15:** after establishing restore point
+`9ff3406` / tag `rmt-pre-domain-assessment-core-amendment`, the owner explicitly
+approved superseding the absolute no-deviation directive with a controlled
+exceptional-change procedure. The governance documents now admit the generic
+domain-assessment and exact instruction/adapter-binding contract to implementation
+review. This is not production-code implementation authorization. No Core code,
+deployment, commit, or push is authorized by that decision.
+
+**Implementation update, 2026-09-15:** the owner subsequently approved the
+updated contract for production-code implementation. The bounded compatibility
+slice is implemented, validated, accepted, and re-frozen in the worktree at the
+approved contract boundary. The full backend collection passes: **574 passed, 3
+skipped (577 collected)**. The separately authorized harness correction is
+test-only (`conftest.py` uses `httpx2.AsyncClient` + `ASGITransport` and bypasses
+the environment-blocked AnyIO portal); no dependency, startup, authentication, or
+production behavior was changed. No deployment, restart, commit, or push was
+performed. See the contract §11 and latest HANDOFF entry.
+
+**Final Core closure, 2026-09-15:** the owner closed the temporary exception
+procedure after accepting this amendment. No future Core amendment, freeze
+deviation, Core milestone, or C08 is admissible. Every future domain—including
+Budget Control—must use the frozen contracts unchanged and remain above Core; an
+incompatible scenario is deferred or rejected rather than used to reopen Core.
+Per `docs/MCR_SUPERVISORY_CONTRACT.md` §33, a capability or domain that cannot
+comply with RMT's policies, rules, architecture, and governed lifecycle does not
+belong to RMT.
 
 The owner selected **RMT Budget Control** for product/compatibility proposal
 development. Drafts are saved in
 [`docs/RMT_BUDGET_CONTROL_PROPOSAL.md`](docs/RMT_BUDGET_CONTROL_PROPOSAL.md) and
 [`docs/RMT_BUDGET_CONTROL_CORE_COMPATIBILITY_PROPOSAL.md`](docs/RMT_BUDGET_CONTROL_CORE_COMPATIBILITY_PROPOSAL.md).
 The product proposal remains a draft. The compatibility direction was approved
-for contract preparation, but its implementation is blocked by the conflict
-recorded above. No implementation or Core freeze exception is authorized.
+for contract preparation, and the controlled governance exception is admitted for
+implementation review. The generic compatibility implementation is accepted;
+Budget Control product implementation remains unauthorized.
 
 Static review at HEAD `834ca3d` found that the governed action path uses fixed
 policy/simulation: `create` is assessed as container creation, medium risk,
 rollback available. A proposed generic registered domain policy/risk extension
-would keep budget concepts above Core; it requires an explicit owner decision
-against the recorded freeze restriction. Exact financial binding, transactional
-ledger behavior, long-lived requests, roles/alternate routes, and recovery also
-remain implementation/validation obligations.
+would keep budget concepts above Core; the required governance decision is now
+recorded above. Transactional ledger behavior, long-lived requests, domain
+roles/alternate routes, and financial recovery remain future Budget implementation
+obligations.
 
 **Resume:** read the three drafts and the latest HANDOFF.md note and recheck
-repository state. Do not start coding. Preserve the freeze and defer governed
-Budget Control unless the owner explicitly supersedes the no-deviation directive.
+repository state. The generic exception is accepted and re-frozen at its contract
+boundary, and the exception procedure is permanently closed. Do not modify Core,
+deploy, commit, push, or begin Budget-domain implementation without the applicable
+separate authority.
 User intent is a real business application built on RMT, not further Docker or
 Uptime Kuma work. No new Core milestone is assigned.
 
@@ -593,10 +621,10 @@ loop/agent status, with approve/reject for held items.
 - See `docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-09" for the full record.
 
 **Next action for a new session (updated 2026-09-15):** use the checkpoint above.
-The compatibility direction was approved for contract preparation, but the
-contract is blocked by the standing frozen-Core directive. No implementation or
-freeze exception is authorized. Earlier domain/RBAC/console candidates are not
-the current task.
+The controlled governance exception and compatibility direction are approved for
+implementation review; production-code implementation remains pending explicit
+approval of the contract. Earlier domain/RBAC/console candidates are not the
+current task.
 
 ## 13. Environment limitations vs genuine implementation gaps
 

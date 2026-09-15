@@ -41,6 +41,7 @@ from app.core.intelligence.actions.authorization import (
 from app.core.intelligence.actions.authorization_storage import (
     execution_authorization_storage,
 )
+from app.core.intelligence.actions.binding import InvalidInstruction, bind_execution_request
 
 
 def _create_blocked_trace(
@@ -58,6 +59,19 @@ def _create_blocked_trace(
         risk_level=risk_level,
         outcome=outcome,
         reason=reason,
+        governance_domain=request.governance_domain,
+        adapter_name=request.adapter_name,
+        assessment_id=request.assessment_id,
+        policy_evaluator_id=request.policy_evaluator_id,
+        policy_evaluator_version=request.policy_evaluator_version,
+        risk_evaluator_id=request.risk_evaluator_id,
+        risk_evaluator_version=request.risk_evaluator_version,
+        canonicalization_version=request.canonicalization_version,
+        instruction_digest=request.instruction_digest,
+        policy_evidence_references=request.policy_evidence_references,
+        risk_evidence_references=request.risk_evidence_references,
+        uncertainty=request.uncertainty,
+        recovery_semantics=request.recovery_semantics,
     )
 
 
@@ -194,6 +208,64 @@ class ExecutionEngine:
                 message="Authorization expected_outcome mismatch",
             )
 
+        if (
+            not authorization.instruction_digest
+            or not request.instruction_digest
+            or authorization.instruction_digest != request.instruction_digest
+            or authorization.adapter_name != adapter_name
+            or request.adapter_name != adapter_name
+            or authorization.governance_domain != request.governance_domain
+            or authorization.assessment_id != request.assessment_id
+            or authorization.policy_evaluator_id != request.policy_evaluator_id
+            or authorization.policy_evaluator_version != request.policy_evaluator_version
+            or authorization.risk_evaluator_id != request.risk_evaluator_id
+            or authorization.risk_evaluator_version != request.risk_evaluator_version
+            or authorization.canonicalization_version != request.canonicalization_version
+            or authorization.policy_evidence_references
+            != request.policy_evidence_references
+            or authorization.risk_evidence_references
+            != request.risk_evidence_references
+            or authorization.uncertainty != request.uncertainty
+            or authorization.recovery_semantics != request.recovery_semantics
+        ):
+            trace_record = _create_blocked_trace(
+                request,
+                policy_decision="not_evaluated",
+                risk_level="not_evaluated",
+                outcome="blocked",
+                reason="Authorization instruction or adapter binding mismatch",
+            )
+            execution_trace_storage.save(trace_record)
+            return ExecutionResult(
+                execution_id=request.execution_id,
+                status="failed",
+                success=False,
+                message="Authorization instruction or adapter binding mismatch",
+            )
+
+        try:
+            actual_digest, payload = bind_execution_request(request, adapter_name)
+        except InvalidInstruction:
+            actual_digest, payload = "", {}
+        if (
+            actual_digest != request.instruction_digest
+            or request.canonicalization_version != payload.get("canonicalization_version")
+        ):
+            trace_record = _create_blocked_trace(
+                request,
+                policy_decision="not_evaluated",
+                risk_level="not_evaluated",
+                outcome="blocked",
+                reason="Execution instruction binding mismatch",
+            )
+            execution_trace_storage.save(trace_record)
+            return ExecutionResult(
+                execution_id=request.execution_id,
+                status="failed",
+                success=False,
+                message="Execution instruction binding mismatch",
+            )
+
         if request.risk_level is not None:
             risk_result = request.risk_level
         else:
@@ -218,6 +290,19 @@ class ExecutionEngine:
                     f"Execution blocked by policy: "
                     f"{policy_result.value}"
                 ),
+                governance_domain=request.governance_domain,
+                adapter_name=request.adapter_name,
+                assessment_id=request.assessment_id,
+                policy_evaluator_id=request.policy_evaluator_id,
+                policy_evaluator_version=request.policy_evaluator_version,
+                risk_evaluator_id=request.risk_evaluator_id,
+                risk_evaluator_version=request.risk_evaluator_version,
+                canonicalization_version=request.canonicalization_version,
+                instruction_digest=request.instruction_digest,
+                policy_evidence_references=request.policy_evidence_references,
+                risk_evidence_references=request.risk_evidence_references,
+                uncertainty=request.uncertainty,
+                recovery_semantics=request.recovery_semantics,
             )
 
             execution_trace_storage.save(
@@ -264,6 +349,18 @@ class ExecutionEngine:
             status=result.status,
             message=result.message,
             risk_level=risk_result,
+            governance_domain=request.governance_domain,
+            assessment_id=request.assessment_id,
+            policy_evaluator_id=request.policy_evaluator_id,
+            policy_evaluator_version=request.policy_evaluator_version,
+            risk_evaluator_id=request.risk_evaluator_id,
+            risk_evaluator_version=request.risk_evaluator_version,
+            canonicalization_version=request.canonicalization_version,
+            instruction_digest=request.instruction_digest,
+            policy_evidence_references=request.policy_evidence_references,
+            risk_evidence_references=request.risk_evidence_references,
+            uncertainty=request.uncertainty,
+            recovery_semantics=request.recovery_semantics,
         )
 
         execution_audit_storage.save(
@@ -278,6 +375,19 @@ class ExecutionEngine:
             risk_level=risk_result,
             outcome=result.status,
             reason=result.message,
+            governance_domain=request.governance_domain,
+            adapter_name=request.adapter_name,
+            assessment_id=request.assessment_id,
+            policy_evaluator_id=request.policy_evaluator_id,
+            policy_evaluator_version=request.policy_evaluator_version,
+            risk_evaluator_id=request.risk_evaluator_id,
+            risk_evaluator_version=request.risk_evaluator_version,
+            canonicalization_version=request.canonicalization_version,
+            instruction_digest=request.instruction_digest,
+            policy_evidence_references=request.policy_evidence_references,
+            risk_evidence_references=request.risk_evidence_references,
+            uncertainty=request.uncertainty,
+            recovery_semantics=request.recovery_semantics,
         )
 
         execution_trace_storage.save(
