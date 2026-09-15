@@ -1,8 +1,8 @@
 # RMT Budget Control Compatibility — Implementation Contract
 
 **Version:** Draft 0.1, 2026-09-15.
-**Status:** BLOCKED — conflicts with the standing frozen-Core directive; not
-eligible for implementation under current authority.
+**Status:** IMPLEMENTED, VALIDATED AND ACCEPTED IN WORKTREE — not committed or
+deployed. The bounded Core exception is re-frozen at this contract boundary.
 **Baseline:** `834ca3d` (`master`, `origin/master` at contract inspection).
 **Classification:** bounded Core freeze exception enabling above-Core domains.
 
@@ -57,6 +57,18 @@ not financially accurate, or (b) issue an explicit owner governance decision
 that supersedes the no-deviation directive before reconsidering a bounded Core
 change. Choice (b) would deliberately change existing governance and therefore
 does not satisfy a requirement of “no conflict with existing Core.”
+
+### Governance disposition update — 2026-09-15
+
+The owner subsequently approved choice (b): supersede the absolute no-deviation
+directive with a controlled exceptional-change procedure and admit this bounded
+contract to implementation review. `RMT_FROZEN_CORE_DEBT.md` §1 now records that
+procedure, and `RMT_ABOVE_CORE_ROADMAP.md` §6 retains zero-Core-edit delivery as
+the normal rule while referencing the exception gate.
+
+This resolves the documentary authority conflict; it does not prove technical
+safety and does not authorize production-code implementation. Sections 2–9 are
+the proposed implementation contract to be reviewed against the new gate.
 
 ## 2. Demonstrated requirement and insufficiency
 
@@ -317,8 +329,54 @@ This compatibility change is complete only when:
 
 Failure of any item rejects the change; partial wiring is not completion.
 
-## 10. Approval status
+## 10. Approval requested
 
-Approval is not requested while the standing frozen-Core directive remains in
-force. No production implementation, Budget Control implementation, deployment,
-service restart, migration, commit, or push is authorized by this document.
+Approve this contract as the first narrowly bounded exception under the controlled
+post-freeze change procedure and authorize its production-code implementation.
+Approval would not authorize Budget Control implementation, deployment, service
+restart, migration beyond additive compatibility, commit, or push. Any newly
+discovered conflict or inability to preserve existing behavior requires stopping
+and reporting before implementation continues.
+
+## 11. Implementation checkpoint — 2026-09-15
+
+The owner approved this updated contract for implementation. The worktree now
+contains the bounded generic assessment registry/resolver, default compatibility
+evaluators, versioned canonical instruction and adapter binding, held-flow and
+authorization propagation, pre-adapter enforcement, preview parity, additive
+evidence fields, and focused tests. No Budget domain implementation was added.
+
+Validation completed:
+
+- Python compilation: pass;
+- focused Ruff errors-only check over affected sources/tests: pass;
+- all test files not importing FastAPI `TestClient`: **335 passed**;
+- focused assessment, authorization, approval and governed-chain cases are included
+  in that result, including a registered non-default test domain and parameter,
+  adapter and held-instruction substitution blocks;
+- HTTP-facing subset: **239 passed, 3 skipped**;
+- full backend collection: **574 passed, 3 skipped** (**577 collected**);
+- final compilation and `git diff --check`: pass.
+
+The separately authorized harness investigation retained no dependency change.
+The test-only root `conftest.py` now substitutes an `httpx2.AsyncClient` plus
+`ASGITransport` compatibility client for the environment-blocked Starlette
+blocking portal. Short synchronous FastAPI route callables execute inline in this
+test harness; context-manager use still enters/exits the real application lifespan,
+server exceptions retain their configured behavior, and non-context use does not
+start lifespan tasks. One existing verification-index test now scopes its deliberate
+module-state corruption so fixture teardown sees the restored dictionary. No
+production startup, authentication, dependency, route, or application behavior was
+weakened to make the suite pass.
+
+The contract's Implementation + Integration + Enforcement + Validation + Evidence
+gate is satisfied. The generic exception is accepted and immediately re-frozen at
+the boundary defined here; this does not authorize further Core amendments or
+Budget-domain implementation. No deployment, service restart, commit or push was
+performed.
+
+**Final freeze closure:** by subsequent owner directive, the exceptional-change
+procedure is closed permanently. This contract records the sole final admitted
+Core amendment and cannot serve as precedent or authority for another amendment.
+All Budget Control implementation must remain above Core and consume these frozen
+contracts unchanged.

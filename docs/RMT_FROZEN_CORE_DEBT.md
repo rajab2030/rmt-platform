@@ -10,11 +10,26 @@ it is **not** a plan to modify the Core and creates no work.
 ## 1. Authority and rules
 
 RMT Core is frozen at commit `46a4441` (C01–C07 closed; there is intentionally
-no C08). Per the standing owner directive (2026-09-08): a recorded frozen-Core
-gap gets an **above-Core mitigation** or an explicit **accept-and-record** —
-**never a freeze deviation**. The one exception already spent is C07
-freeze-deviation #1 (`platform_state` provider extraction, 2026-09-04); no
-further deviation is authorised.
+no C08). Above-Core mitigation or explicit **accept-and-record** remains the
+default disposition for a frozen-Core gap.
+
+**Final owner freeze directive, 2026-09-15:** the temporary exceptional-change
+procedure used for the generic domain-assessment and exact instruction/adapter-
+binding amendment is closed. That amendment was implemented, passed its full
+577-test gate, was accepted, and was immediately re-frozen at its approved
+contract boundary. It is the sole amendment admitted under that procedure.
+
+No future Core amendment, freeze deviation, new Core milestone, or C08 may be
+proposed or implemented. A new scenario that the frozen Core cannot represent
+must be preserved as evidence and handled above Core, deferred, or rejected; it
+must not reopen Core. All product/domain implementation—including Budget
+Control—must consume the frozen contracts without modifying `app/core/**`.
+This applies the MCR admission rule in `MCR_SUPERVISORY_CONTRACT.md` §33: a
+capability or domain that cannot comply with RMT's governing policies, rules,
+architecture, and lifecycle does not belong to RMT.
+The register's existing “trigger to revisit” fields now trigger reassessment of
+the above-Core compensating control or acceptance decision only; they do not
+authorize consideration of a Core change.
 
 This register is the single place a reader can see the whole frozen-Core
 liability at once: each row is a real gap, its current above-Core compensating
@@ -202,6 +217,7 @@ one place; they carry **no trigger** because there is nothing outstanding.
 | `execution/service.py::execute_action()` | Unreachable dead-code housekeeping; no C07 impact. |
 | Committed HTTP-route test evidence (existing public routes only) | Recorded. |
 | C07 freeze-deviation #1 — `platform_state` provider extraction | COMPLETED & verified 2026-09-04 (122 green). Residual **naming** carried forward as **D4**. |
+| Final generic domain-assessment and exact instruction/adapter-binding amendment | SOLE FINAL EXCEPTION — implemented, full 577-test gate passed, accepted and re-frozen 2026-09-15. The exception procedure is closed; no future Core amendment is admissible. |
 | G2 Core-boundary review record | PASS. |
 
 ---

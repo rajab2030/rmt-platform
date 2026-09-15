@@ -55,6 +55,8 @@ class ActionRequest(BaseModel):
 
     decision_id: str
 
+    governance_domain: str = "rmt.default"
+
     component: str
 
     action_type: ActionType

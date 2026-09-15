@@ -6,8 +6,9 @@ from app.core.intelligence.actions.policy import (
     evaluate_action_policy,
 )
 
-from app.core.intelligence.actions.simulation import (
-    simulate_action,
+from app.core.intelligence.actions.assessment import (
+    AssessmentError,
+    resolve_assessment,
 )
 
 from app.core.intelligence.actions.approval_service import (
@@ -92,7 +93,16 @@ def execute_governed_action(
         - "authorization_not_created"
         - "executed"
     """
-    policy_result = evaluate_action_policy(action)
+    try:
+        assessment = resolve_assessment(action, adapter_name)
+    except (AssessmentError, ValueError) as exc:
+        return {
+            "status": "assessment_failed",
+            "reason": str(exc),
+            "action_id": action.action_id,
+        }
+
+    policy_result = assessment.policy_result
     if not policy_result.allowed:
         return {
             "status": "policy_denied",
@@ -101,7 +111,7 @@ def execute_governed_action(
             "action_id": action.action_id,
         }
 
-    simulation_result = simulate_action(action)
+    simulation_result = assessment.risk_result
     approval_decision = process_approval(
         action,
         policy_result,
@@ -114,6 +124,7 @@ def execute_governed_action(
             approval_decision,
             decision="rejected",
             approved_by="approval_policy",
+            assessment=assessment,
         )
         return {
             "status": "rejected",
@@ -127,6 +138,7 @@ def execute_governed_action(
             approval_decision,
             adapter_name=adapter_name,
             risk_level=simulation_result.risk_level,
+            assessment=assessment,
         )
         record_approval_decision(
             action,
@@ -134,6 +146,7 @@ def execute_governed_action(
             decision="manual_required",
             approved_by="",
             approval_id=hold.approval_id,
+            assessment=assessment,
         )
         return {
             "status": "manual_approval_required",
@@ -147,11 +160,13 @@ def execute_governed_action(
         approval_decision,
         decision="approved",
         approved_by="approval_policy",
+        assessment=assessment,
     )
 
     authorization = create_execution_authorization(
         action,
         approval_decision,
+        assessment=assessment,
     )
     if authorization is None:
         return {
@@ -166,6 +181,8 @@ def execute_governed_action(
         action,
         authorization_id=authorization.authorization_id,
         risk_level=simulation_result.risk_level,
+        adapter_name=adapter_name,
+        assessment=assessment,
     )
 
     result = execution_engine.execute(

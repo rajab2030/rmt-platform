@@ -2961,3 +2961,91 @@ Next action: preserve the Core freeze and defer governed Budget Control, unless
 the owner explicitly chooses to supersede the no-deviation directive. Such a
 choice is an intentional governance change and cannot be represented as
 non-conflicting with the current rules.
+
+---
+
+## Governance amendment — controlled post-freeze exception
+
+**Date:** 2026-09-15. **Restore point:** commit `9ff3406`, annotated tag
+`rmt-pre-domain-assessment-core-amendment`.
+
+After the conflict was reported and a restore point created, the owner explicitly
+approved superseding the absolute no-further-deviation rule with a controlled
+exceptional-change procedure. `docs/RMT_FROZEN_CORE_DEBT.md` §1 now records the
+eligibility and approval gates; `docs/RMT_ABOVE_CORE_ROADMAP.md` §6 retains zero
+Core edits as the normal domain rule and links the exception procedure.
+
+The Budget compatibility implementation contract is admitted to review as the
+first candidate. This resolves the documentary authority conflict only. It does
+not authorize production-code implementation, Budget implementation, deployment,
+commit, or push. No application file was changed in recording this decision.
+
+Next action: present the updated implementation contract for explicit production-
+code implementation approval. On approval, recheck HEAD/status and all affected
+interfaces/callers/tests, then implement only the bounded compatibility slice with
+the contract's fail-closed and regression gates.
+
+---
+
+## Implementation checkpoint — generic domain assessment and binding
+
+**Date:** 2026-09-15. **Pre-change restore point:** `9ff3406`, tag
+`rmt-pre-domain-assessment-core-amendment`.
+
+The owner explicitly approved the updated implementation contract. The bounded
+Core compatibility slice is implemented in the working tree: trusted domain
+assessment registry/resolution; default wrappers preserving current action policy
+and simulation results; canonical SHA-256 instruction plus adapter binding;
+binding/provenance through holds, approvals, authorizations, execution, audit and
+trace; fail-closed continuation and pre-adapter enforcement; shared preview
+resolution; and focused domain/substitution tests. Budget concepts and workflows
+were not added.
+
+Validation: `compileall` passed; affected-file Ruff check passed; all test files
+not importing FastAPI `TestClient` passed (**335 passed**). The full collection is
+577 tests. Its first existing TestClient test hangs in `TestClient.__enter__()`
+before sending a request. Default startup also correctly rejects auth enabled with
+no operator tokens; setting `RMT_AUTH_ENABLED=false` makes direct lifespan entry
+succeed but does not resolve the TestClient/httpx2 harness hang.
+
+That intermediate result left the change implemented but unaccepted. The harness
+follow-up below supersedes the block and supplies the missing full-suite evidence.
+
+### Test-harness investigation follow-up
+
+The owner authorized a narrowly scoped dependency investigation/fix. Local source,
+minimal reproductions, and temporary clean environments were tested. The hang
+occurs inside AnyIO's blocking portal before the application lifespan runs; it can
+reproduce with an empty FastAPI app or a trivial portal callback. Downgrading AnyIO
+to 4.13.0 was not consistently corrective, so the tentative requirements change
+was reverted. The final narrow, test-only correction replaces the blocked
+synchronous portal with a compatibility client backed by `httpx2.AsyncClient` +
+`ASGITransport`; synchronous route callables run inline in the harness.
+Context-managed clients retain real lifespan entry/exit, while plain clients do
+not create orphan lifespan tasks. A pre-existing verification-index test now
+restores its deliberately corrupted module state before fixture teardown.
+
+Final evidence: HTTP-facing subset **239 passed, 3 skipped**; complete backend
+suite **574 passed, 3 skipped (577 collected)**; `compileall` and
+`git diff --check` passed. Requirements and production startup/auth behavior are
+unchanged. The contract is implemented, integrated, enforced, validated, and
+accepted; the bounded generic Core exception is re-frozen. No deployment, restart,
+commit, or push was performed. Budget-domain implementation remains unauthorized.
+
+### Final Core amendment closure
+
+The owner then directed that any future Core amendment be closed. The temporary
+exception procedure is therefore terminated after this sole accepted amendment.
+`RMT_FROZEN_CORE_DEBT.md` §1 is authoritative: no future freeze deviation, Core
+milestone, or C08 may be proposed or implemented. Budget Control and every later
+domain must remain above Core and consume the now-frozen contracts unchanged; an
+incompatible scenario must be preserved and deferred or rejected, not used to
+reopen Core. This closure changed governance documentation only; no production
+code, deployment, restart, commit, or push was performed.
+
+The owner confirmed the corresponding MCR admission rule: any capability or
+domain that cannot comply with RMT's policies, rules, architecture, and governed
+lifecycle does not belong to RMT. The exact consequence is now recorded in
+`docs/MCR_SUPERVISORY_CONTRACT.md` §33 and linked from the frozen-Core authority
+record. This is an exclusion rule, not authority to modify Core or create another
+supervisory subsystem.

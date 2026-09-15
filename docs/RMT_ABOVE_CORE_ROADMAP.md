@@ -347,8 +347,12 @@ over one Docker component (`uptime-kuma`), RESTART-only, approval-gated.
 The Master Definition names Banking Risk Management, Budget Control, AI Agent
 Governance, and IT/Cloud Operations as **products built on RMT, not Core work**.
 Each domain below is a `domain module + adapter(s) + policy set` consuming the
-existing governed boundary. **A domain landing with zero `app/core/**` edits is
-the proof the freeze holds.**
+existing governed boundary. **Every domain must land with zero `app/core/**`
+edits.** The one-time exceptional-change procedure is closed after the accepted
+generic domain-assessment and binding amendment. A demonstrated scenario that the
+frozen contracts cannot represent must be preserved and handled above Core,
+deferred, or rejected; it cannot reopen Core. Domain implementation remains above
+Core and may not create an alternate governance or execution boundary.
 
 ### D-1 — AI Agent Governance Gateway (extends CAP-05)
 
@@ -560,10 +564,10 @@ not touched.
     `state_mismatch` / `observation_unavailable` record.
   - Tests: `app/ops/testing/test_execution_evidence.py`, plus coverage in
     `test_e2e_docker.py`, `test_agent_governance.py`, `test_auth.py`.
-- **Path 2 (bounded Core fix) — NOT taken.** Emitting the record inside the
-  Core verification path remains available only if a future consumer
-  demonstrates path 1 is insufficient; it would still require an explicit,
-  separately-authorized freeze deviation. No such evidence exists.
+- **Path 2 (bounded Core fix) — CLOSED, NOT AVAILABLE.** Emitting the record
+  inside the Core verification path was not taken, and the final freeze directive
+  now prohibits reopening it. A future insufficiency must be handled above Core,
+  deferred, or rejected.
 - **Known residual — accept-and-record.** The wrapper is called from above-Core
   callers, not from the Core self-management / evolution service entrypoints
   (`app/core/self_management/service.py::execute_self_management_decision`,
@@ -601,7 +605,7 @@ not touched.
    worth looking at.
 7. ~~**C-1 path 1** whenever a domain needs failed-execution evidence; escalate
    to path 2 only with evidence.~~ **DONE 2026-09-08** (commit `111b108`; see
-   §8). Path 2 remains unopened — only with evidence that path 1 is insufficient.
+   §8). Path 2 is permanently closed by the final Core freeze directive.
 
 Everything else is selected on demand.
 

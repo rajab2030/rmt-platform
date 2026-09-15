@@ -1,17 +1,16 @@
 # RMT Budget Control–Core Compatibility Proposal
 
 **Version:** Draft 0.1, 2026-09-14.
-**Status:** DIRECTION APPROVED 2026-09-15; implementation subsequently blocked
-by the standing frozen-Core directive. No freeze exception or implementation
-approved.
+**Status:** DIRECTION AND BOUNDED GENERIC COMPATIBILITY IMPLEMENTATION APPROVED;
+implemented, validated, accepted, and re-frozen in the worktree 2026-09-15.
 **Evidence baseline:** static inspection at HEAD `834ca3d`.
 
 Companion: [product proposal](RMT_BUDGET_CONTROL_PROPOSAL.md).
 Authority: [Master Definition](RMT_MASTER_DEFINITION.md),
 [Core Target State](RMT_CORE_TARGET_STATE.md), [AGENTS.md](../AGENTS.md).
 The [frozen-Core directive](RMT_FROZEN_CORE_DEBT.md#1-authority-and-rules)
-records that no further freeze deviation is authorized. This proposal does not
-override that restriction or create C08.
+records the controlled exceptional-change procedure used for this amendment.
+This proposal does not create C08 or authorize another deviation.
 
 ## 1. Decision requested
 
@@ -22,6 +21,16 @@ the necessary `app/core/**` changes conflict with the standing no-further-freeze
 deviation directive. The implementation contract is therefore blocked. The
 original decision text below is retained as proposal history, not as an open or
 implemented authorization.
+
+**Later update, 2026-09-15:** the owner explicitly superseded the absolute
+no-deviation directive with a controlled exceptional-change procedure and admitted
+the implementation contract for review. This removes the documentary block but
+does not authorize production-code implementation.
+
+**Final update, 2026-09-15:** the owner approved the updated implementation
+contract and the narrowly scoped test-harness correction. The generic amendment
+passed its full 577-test gate and is accepted/re-frozen at the contract boundary.
+Budget-domain implementation remains outside this approval.
 
 Approve the direction of a bounded generic extension through which the existing
 Core governance service resolves registered domain policy and risk evaluators.

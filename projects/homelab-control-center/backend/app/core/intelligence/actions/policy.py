@@ -10,10 +10,12 @@ class ActionPolicyResult:
         allowed: bool,
         reason: str,
         requires_approval: bool,
+        evidence_references: tuple[str, ...] = (),
     ):
         self.allowed = allowed
         self.reason = reason
         self.requires_approval = requires_approval
+        self.evidence_references = evidence_references
 
 
 ALLOWED_ACTION_TYPES = {

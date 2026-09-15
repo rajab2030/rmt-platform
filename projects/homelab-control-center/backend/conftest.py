@@ -19,6 +19,7 @@ SQLite substrate isolation:
 So the suite is hermetic: it neither depends on nor writes the real ``data/``
 stores. Mirrors the ``init_storage()`` calls in ``app/main.py``'s lifespan.
 """
+import asyncio
 import os
 import tempfile
 
@@ -38,6 +39,106 @@ def pytest_configure(config):  # noqa: ARG001
     # settling-poll test sets its own small non-zero value.
     os.environ.setdefault("RMT_VERIFY_OBSERVE_TIMEOUT_S", "0")
 
+    # Starlette's synchronous TestClient depends on AnyIO's blocking portal,
+    # which deadlocks in this execution environment before the ASGI lifespan
+    # is entered. Preserve the existing synchronous test API while running the
+    # documented httpx2 ASGITransport on one local asyncio.Runner instead.
+    import fastapi.testclient
+    import anyio.to_thread
+    from httpx2 import ASGITransport, AsyncClient
+
+    async def inline_test_run_sync(func, *args, **kwargs):  # noqa: ARG001
+        """Run short synchronous route callables without the broken portal."""
+        return func(*args)
+
+    anyio.to_thread.run_sync = inline_test_run_sync
+
+    class ASGITransportTestClient:
+        __test__ = False
+
+        def __init__(
+            self,
+            app,
+            *,
+            base_url="http://testserver",
+            raise_server_exceptions=True,
+            follow_redirects=True,
+            headers=None,
+            cookies=None,
+            **kwargs,  # noqa: ARG002
+        ):
+            self.app = app
+            self.base_url = base_url
+            self.raise_server_exceptions = raise_server_exceptions
+            self.follow_redirects = follow_redirects
+            self.initial_headers = headers
+            self.initial_cookies = cookies
+            self._runner = None
+            self._lifespan = None
+            self._client = None
+
+        async def _open(self, *, lifespan=False):
+            if lifespan:
+                self._lifespan = self.app.router.lifespan_context(self.app)
+                await self._lifespan.__aenter__()
+            self._client = AsyncClient(
+                transport=ASGITransport(
+                    app=self.app,
+                    raise_app_exceptions=self.raise_server_exceptions,
+                ),
+                base_url=self.base_url,
+                follow_redirects=self.follow_redirects,
+                headers=self.initial_headers,
+                cookies=self.initial_cookies,
+            )
+            await self._client.__aenter__()
+
+        def _ensure_open(self, *, lifespan=False):
+            if self._runner is None:
+                self._runner = asyncio.Runner()
+                self._runner.run(self._open(lifespan=lifespan))
+
+        def request(self, method, url, **kwargs):
+            self._ensure_open()
+            return self._runner.run(self._client.request(method, url, **kwargs))
+
+        def get(self, url, **kwargs):
+            return self.request("GET", url, **kwargs)
+
+        def post(self, url, **kwargs):
+            return self.request("POST", url, **kwargs)
+
+        def put(self, url, **kwargs):
+            return self.request("PUT", url, **kwargs)
+
+        def patch(self, url, **kwargs):
+            return self.request("PATCH", url, **kwargs)
+
+        def delete(self, url, **kwargs):
+            return self.request("DELETE", url, **kwargs)
+
+        def options(self, url, **kwargs):
+            return self.request("OPTIONS", url, **kwargs)
+
+        def head(self, url, **kwargs):
+            return self.request("HEAD", url, **kwargs)
+
+        def __enter__(self):
+            self._ensure_open(lifespan=True)
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            if self._runner is not None:
+                self._runner.run(self._client.__aexit__(exc_type, exc, traceback))
+                if self._lifespan is not None:
+                    self._runner.run(
+                        self._lifespan.__aexit__(exc_type, exc, traceback)
+                    )
+                self._runner.close()
+                self._runner = None
+
+    fastapi.testclient.TestClient = ASGITransportTestClient
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _isolate_sqlite_stores(tmp_path_factory):
@@ -55,3 +156,14 @@ def _isolate_sqlite_stores(tmp_path_factory):
         observability_storage.init_storage()
         intelligence_memory_storage.init_storage()
         yield
+
+
+@pytest.fixture(autouse=True)
+def _isolate_background_collector(monkeypatch):
+    """HTTP tests exercise routes, not the perpetual Docker polling task."""
+    import app.main as main_app
+
+    async def idle_collector():
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(main_app, "collect_metrics", idle_collector)

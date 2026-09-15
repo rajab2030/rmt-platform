@@ -13,12 +13,11 @@ frozen functions and stops there.
 No grant consumed, no hold, no authorization, no trace/audit/verification/
 Learn record, no adapter invoked. Never calls ``execute_governed_action``.
 """
-from app.core.intelligence.actions.policy import evaluate_action_policy
-from app.core.intelligence.actions.simulation import simulate_action
+from app.core.intelligence.actions.assessment import AssessmentError, resolve_assessment
 from app.core.intelligence.actions.approval_service import process_approval
 
 from app.agent import loop_config
-from app.agent.adapter import resolve_proposal
+from app.agent.adapter import resolve_proposal, _resolve_adapter_name
 from app.agent.contract import AgentProposal
 
 
@@ -32,8 +31,15 @@ def preview_proposal(proposal: AgentProposal) -> dict:
     resolution = resolve_proposal(proposal)
     action = resolution.action
 
-    policy_result = evaluate_action_policy(action)
-    simulation_result = simulate_action(action)
+    try:
+        assessment = resolve_assessment(
+            action,
+            _resolve_adapter_name(proposal.identity.operational_context),
+        )
+    except AssessmentError as exc:
+        return {"decision": "assessment_failed", "detail": str(exc)}
+    policy_result = assessment.policy_result
+    simulation_result = assessment.risk_result
     approval_decision = process_approval(action, policy_result, simulation_result)
 
     return {

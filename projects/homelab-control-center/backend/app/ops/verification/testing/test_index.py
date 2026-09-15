@@ -194,5 +194,6 @@ def test_view_filter_limit_and_order(monkeypatch):
 
 
 def test_view_never_raises(monkeypatch):
-    monkeypatch.setattr(index, "_rows", "not-a-dict")
-    assert index.view() == []
+    with monkeypatch.context() as patch:
+        patch.setattr(index, "_rows", "not-a-dict")
+        assert index.view() == []

@@ -31,6 +31,7 @@ from app.core.intelligence.rules import create_health_evaluation
 from app.core.intelligence.decision.engine import make_decision
 from app.core.intelligence.actions.models import ActionRequest, ActionType
 from app.core.intelligence.actions.approval import ApprovalHold, ApprovalStatus
+from app.core.intelligence.actions.assessment import resolve_assessment
 from app.core.intelligence.actions.authorization_storage import AuthorizationStorage
 from app.core.intelligence.actions.approval_storage import (
     ApprovalHoldStorage,
@@ -158,21 +159,38 @@ def _place_held_action(stores, *, component, action_type=ActionType.RESTART):
             expected_state="running",
         ),
     )
-    hold = ApprovalHold(
+    hold = _bound_hold(
+        action,
+        adapter_name="docker",
+        reason="agent hold",
+    )
+    stores["hold"].save(hold)
+    return hold
+
+
+def _bound_hold(action, *, adapter_name, reason):
+    assessment = resolve_assessment(action, adapter_name)
+    return ApprovalHold(
         action_id=action.action_id,
         action=action,
         # C3 follow-up: verification now resolves the observer from the
         # hold's own adapter_name (the adapter this action was actually
         # destined for) instead of a hardcoded "docker" -- "docker" here
         # matches the mocked Docker observer this fixture's callers use.
-        adapter_name="docker",
-        reason="agent hold",
+        adapter_name=adapter_name,
+        reason=reason,
         status=ApprovalStatus.PENDING,
         expires_at=datetime.now(timezone.utc) + timedelta(seconds=300),
-        risk_level="medium",
+        risk_level=assessment.risk_result.risk_level,
+        governance_domain=assessment.governance_domain,
+        assessment_id=assessment.assessment_id,
+        policy_evaluator_id=assessment.policy_evaluator_id,
+        policy_evaluator_version=assessment.policy_evaluator_version,
+        risk_evaluator_id=assessment.risk_evaluator_id,
+        risk_evaluator_version=assessment.risk_evaluator_version,
+        canonicalization_version=assessment.canonicalization_version,
+        instruction_digest=assessment.instruction_digest,
     )
-    stores["hold"].save(hold)
-    return hold
 
 
 def _critical_uptime_kuma():
@@ -341,14 +359,10 @@ def test_non_homelab_held_action_gets_no_learn_or_docker_verification(monkeypatc
             expected_state="running",
         ),
     )
-    hold = ApprovalHold(
-        action_id=action.action_id,
-        action=action,
+    hold = _bound_hold(
+        action,
         adapter_name="simulation",
         reason="operator hold",
-        status=ApprovalStatus.PENDING,
-        expires_at=datetime.now(timezone.utc) + timedelta(seconds=300),
-        risk_level="medium",
     )
     stores["hold"].save(hold)
 
@@ -426,14 +440,10 @@ def test_agent_originated_git_hold_gets_learn_and_verification(monkeypatch, tmp_
             target="v1.0-proof", operation="create", expected_state="present"
         ),
     )
-    hold = ApprovalHold(
-        action_id=action.action_id,
-        action=action,
+    hold = _bound_hold(
+        action,
         adapter_name="git",  # what this hold was actually destined for
         reason="agent hold",
-        status=ApprovalStatus.PENDING,
-        expires_at=datetime.now(timezone.utc) + timedelta(seconds=300),
-        risk_level="medium",
     )
     stores["hold"].save(hold)
 

@@ -35,6 +35,9 @@ from app.core.intelligence.verification.service import (
     verify_execution,
 )
 
+from app.core.intelligence.actions.assessment import assessment_registry
+from app.core.intelligence.actions.binding import bind_action
+
 
 # Window during which a manual-approval hold may be legitimately resolved.
 APPROVAL_HOLD_TTL_SECONDS = 300
@@ -73,6 +76,7 @@ def record_approval_decision(
     decision: str,
     approved_by: str,
     approval_id: str | None = None,
+    assessment=None,
 ) -> ApprovalRecord:
     """
     Persist an ApprovalRecord for a governed approval decision.
@@ -86,6 +90,16 @@ def record_approval_decision(
         decision=decision,
         approved_by=approved_by,
         reason=approval_decision.reason,
+        governance_domain=action.governance_domain,
+        assessment_id=getattr(assessment, "assessment_id", None),
+        instruction_digest=getattr(assessment, "instruction_digest", None),
+        adapter_name=getattr(assessment, "adapter_name", None),
+        policy_evidence_references=list(
+            getattr(assessment, "policy_evidence_references", ())
+        ),
+        risk_evidence_references=list(
+            getattr(assessment, "risk_evidence_references", ())
+        ),
     )
 
     approval_record_storage.save(record)
@@ -98,6 +112,7 @@ def hold_for_manual_approval(
     approval_decision,
     adapter_name: str,
     risk_level: str | None = None,
+    assessment=None,
 ) -> ApprovalHold:
     """
     Place a governed action into a manual-approval hold state.
@@ -113,6 +128,22 @@ def hold_for_manual_approval(
         reason=approval_decision.reason,
         expires_at=_hold_expiry(),
         risk_level=risk_level,
+        governance_domain=action.governance_domain,
+        assessment_id=getattr(assessment, "assessment_id", None),
+        policy_evaluator_id=getattr(assessment, "policy_evaluator_id", None),
+        policy_evaluator_version=getattr(assessment, "policy_evaluator_version", None),
+        risk_evaluator_id=getattr(assessment, "risk_evaluator_id", None),
+        risk_evaluator_version=getattr(assessment, "risk_evaluator_version", None),
+        canonicalization_version=getattr(assessment, "canonicalization_version", None),
+        instruction_digest=getattr(assessment, "instruction_digest", None),
+        policy_evidence_references=list(
+            getattr(assessment, "policy_evidence_references", ())
+        ),
+        risk_evidence_references=list(
+            getattr(assessment, "risk_evidence_references", ())
+        ),
+        uncertainty=getattr(assessment, "uncertainty", ""),
+        recovery_semantics=getattr(assessment, "recovery_semantics", ""),
     )
 
     approval_hold_storage.save(hold)
@@ -182,6 +213,32 @@ def approve_held_action(
             "action_id": hold.action_id,
         }
 
+    registration = assessment_registry.get(hold.governance_domain)
+    if registration is None:
+        return {
+            "status": "assessment_invalid",
+            "reason": "Held governance domain is no longer registered",
+            "approval_id": approval_id,
+            "action_id": hold.action_id,
+        }
+    evaluator_binding = (
+        registration.policy.evaluator_id == hold.policy_evaluator_id
+        and registration.policy.version == hold.policy_evaluator_version
+        and registration.risk.evaluator_id == hold.risk_evaluator_id
+        and registration.risk.version == hold.risk_evaluator_version
+    )
+    try:
+        digest, _ = bind_action(hold.action, hold.adapter_name)
+    except ValueError:
+        digest = ""
+    if not evaluator_binding or digest != hold.instruction_digest:
+        return {
+            "status": "assessment_invalid",
+            "reason": "Held assessment or instruction binding mismatch",
+            "approval_id": approval_id,
+            "action_id": hold.action_id,
+        }
+
     hold.status = ApprovalStatus.APPROVED
     hold.approved_by = approved_by
 
@@ -196,6 +253,7 @@ def approve_held_action(
         approved_by=approved_by,
         reason=hold.reason,
         approval_id=approval_id,
+        hold=hold,
     )
 
     execution_authorization_storage.save(authorization)
@@ -204,6 +262,8 @@ def approve_held_action(
         hold.action,
         authorization_id=authorization.authorization_id,
         risk_level=hold.risk_level,
+        adapter_name=hold.adapter_name,
+        hold=hold,
     )
 
     result = execution_engine.execute(

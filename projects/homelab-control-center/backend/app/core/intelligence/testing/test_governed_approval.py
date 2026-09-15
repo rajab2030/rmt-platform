@@ -185,6 +185,28 @@ def test_manual_approval_hold_then_legitimate_continuation_executes(
     adapter_registry.get.return_value.execute.assert_called_once()
 
 
+def test_changed_held_instruction_blocks_before_authorization_and_adapter(monkeypatch):
+    auth_storage, _, _, hold_storage, adapter_registry = _setup_isolation(monkeypatch)
+    action = _make_action(ActionType.REMOVE)
+    action.parameters = {"amount": "1500.00"}
+    held = actions_service_module.execute_governed_action(
+        action,
+        adapter_name="simulation",
+    )
+    hold = hold_storage.get_by_id(held["approval_id"])
+    hold.action.parameters["amount"] = "9000.00"
+
+    result = approval_service_module.approve_held_action(
+        hold.approval_id,
+        approved_by="operator",
+        approved=True,
+    )
+
+    assert result["status"] == "assessment_invalid"
+    assert auth_storage.get_all() == []
+    adapter_registry.get.assert_not_called()
+
+
 def test_governed_risk_propagated_into_execution_evidence(monkeypatch):
     """
     C. The governed risk from simulation is carried into execution and
@@ -433,7 +455,6 @@ def test_expired_approval_hold_cannot_continue(monkeypatch):
     """
     from app.core.intelligence.actions.approval import (
         ApprovalHold,
-        ApprovalStatus,
     )
 
     (

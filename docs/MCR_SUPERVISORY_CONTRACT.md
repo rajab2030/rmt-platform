@@ -742,6 +742,15 @@ It does not authorize changes to RMT's governing architecture.
 
 RMT remains subject to its own governing policy, authorization, execution, verification, evidence, and control boundaries.
 
+Accordingly:
+
+> **Any new capability or domain that cannot comply with RMT's policies, rules,
+> architecture, and governed lifecycle does not belong to RMT.**
+
+Such a capability or domain must not weaken or reopen Core, redefine RMT's
+authority, or create an alternate governance or execution boundary. It must be
+kept outside RMT, deferred, or rejected.
+
 The contract therefore should not be interpreted as:
 
 > "MCR is a new subsystem that must be added to RMT."

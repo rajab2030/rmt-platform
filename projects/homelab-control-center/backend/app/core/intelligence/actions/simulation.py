@@ -12,6 +12,9 @@ class ActionSimulationResult:
         expected_impact: str,
         risk_level: str,
         rollback_available: bool,
+        uncertainty: str = "unspecified",
+        recovery_semantics: str = "",
+        evidence_references: tuple[str, ...] = (),
     ):
         self.action_id = action_id
         self.component = component
@@ -19,6 +22,9 @@ class ActionSimulationResult:
         self.expected_impact = expected_impact
         self.risk_level = risk_level
         self.rollback_available = rollback_available
+        self.uncertainty = uncertainty
+        self.recovery_semantics = recovery_semantics
+        self.evidence_references = evidence_references
 
 
 def simulate_action(
