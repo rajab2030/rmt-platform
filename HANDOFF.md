@@ -2814,3 +2814,150 @@ through).
 ### Next
 Same candidates as before, plus: the owner restarting `:8000` whenever
 convenient to pick up the disabled-by-default flag.
+
+---
+
+## Session close — Budget Control product and Core compatibility proposals
+
+**Date:** 2026-09-14. **Inspection baseline:** `834ca3d` (`master`,
+`origin/master` at inspection). Existing untracked `Archived` and `Keyboard`
+were present before this work and were left untouched.
+
+### Owner intent and authorization
+
+The session began with a read-only whole-project assessment. The owner clarified
+that Docker/Uptime Kuma are domains/adapters, and sought a concrete business
+application such as Budget Control or Banking Risk Management. The selected
+direction is **RMT Budget Control**: request, approve, commit, and track spending.
+The earlier homelab pilot, n8n integration, and coding-agent integration suggestions
+are not the active task.
+
+The owner authorized drafting the product plan and then the Budget Control–Core
+Compatibility Proposal in conversation. The final instruction authorized saving
+pending documents/status for the next session. **The owner has NOT approved the
+compatibility recommendation, a Core freeze exception, or implementation.**
+
+### Saved deliverables
+
+- [Product proposal](docs/RMT_BUDGET_CONTROL_PROPOSAL.md): Draft 0.1, pending
+  approval. One organization/currency; requester and budget-owner roles; budgets,
+  purchase requests, commitments, final expense settlement and cancellation.
+  Payments remain manual. Includes financial invariants, recovery requirements,
+  implementation ordering and acceptance scenarios.
+- [Core compatibility proposal](docs/RMT_BUDGET_CONTROL_CORE_COMPATIBILITY_PROPOSAL.md):
+  Draft 0.1, decision pending. Concrete example: reserve 1,500 from 2,000 available.
+  Recommends a bounded generic registered policy/risk assessment extension inside
+  the existing governed chain, keeping all budget concepts above Core.
+- `RMT_CONTEXT.md`: added a prominent current checkpoint and replaced the stale
+  "nothing above-Core is currently in-flight" next-action paragraph.
+
+### Compatibility findings (static code evidence)
+
+`ActionRequest` has parameters and CREATE can faithfully mean creating a ledger
+commitment. However, `execute_governed_action` directly invokes fixed policy and
+simulation functions. `simulate_action(create)` reports "Create new container",
+medium risk, rollback available. No registered domain assessment resolver was
+found. A budget precheck does not change the assessment used by Core approval;
+human approval does not make that financial risk evidence accurate.
+
+Proposed remedy: trusted application registration of separate policy/risk
+evaluators, resolved/enforced by Core, bound to the intended adapter/domain,
+unknown/invalid assessments blocked, provenance retained, preview parity and
+held-path consistency. This is a recommendation, NOT implemented or approved.
+
+Additional obligations remain: exact immutable instruction binding (authorization
+does not explicitly bind the parameters dictionary); five-minute Core holds vs
+long-lived business requests; budget roles on all reachable routes; atomic ledger
+transactions and duplicate protection; recovery when financial effects commit
+before remaining Core evidence; independent verification of exact financial state.
+None is established by this static review. The existing B2 roadmap proposes
+long-lived business requests with fresh governed continuation; it is not built.
+
+The Master Definition permits evidence-based consideration of Core insufficiency;
+the recorded owner freeze directive in `RMT_FROZEN_CORE_DEBT.md` authorizes no
+further deviation. Keep that pending decision explicit. No C08, silent Core
+change, alternate authorization boundary, or adapter-owned governance is allowed.
+
+### Other read-only findings preserved for follow-up, not implementation scope
+
+- CAP-10 is a fail-open command-pattern review hook, not the Core governed
+  execution lifecycle. Its approved failure behavior conflicts with treating it
+  as a total MCR supervisory boundary. Scope/guarantee decision remains unresolved.
+- A pure classifier probe (command strings only; no listed command executed)
+  returned `auto_allow` for `git -C /work/repo push --force origin master`,
+  `rm -rf /tmp-important`, and `rm -rf /tmp/../home/example`. The ordinary
+  `git push --force origin master` matched `git-force-push`. The `/tmp` examples
+  contradict the intended confined-scratch exception. No fix was made.
+- Status drift: Core roadmap/gap matrix retain old pending/partial text alongside
+  closure; guarantees retain pre-B1 verification statements although code now
+  wires operator verification; CAP-09 completion evidence still excludes a real
+  browser walkthrough and leaves restart status unresolved. No authority/status
+  claims were silently reclassified or broadly rewritten during session close.
+- CAP-10 evidence's timeout narrative says 88 seconds exceeded a 120-second
+  default. That arithmetic is inconsistent; actual cause/timing was not verified.
+- Container `running` is the observed homelab recovery condition, not proof of
+  application usability. Recorded deployment-hardening findings and runtime
+  feature status were not independently verified this session.
+
+### Validation and repository state
+
+Read-only source/document inspection plus the pure classifier probe above; no
+application imports, test suite, operational mutation, service restart, or live
+deployment validation performed. The recorded latest 568-test CAP-10 result is
+historical evidence, not a result from this session.
+
+Closing changes are documentation only: two new proposal files, this handoff,
+and `RMT_CONTEXT.md`. Checked whitespace/diff and local Markdown link targets.
+No commit or push was made; changes are left reviewable in the working tree.
+Existing `Archived` and `Keyboard` remain untouched.
+
+### Exact next-session action
+
+1. Read the current context checkpoint and both saved proposals; verify Git state.
+2. Present the pending compatibility decision. Recommended choice: authorize a
+   narrowly scoped implementation contract for generic domain policy/risk
+   assessment integration, explicitly addressing the freeze exception. This is
+   not approval already received.
+3. If that planning direction is approved, specify exact contracts/files,
+   migration compatibility, binding/provenance, alternate-route enforcement,
+   concurrency/recovery, and tests in the implementation contract.
+4. Obtain explicit implementation authorization before production-code changes.
+   If the freeze remains absolute, record governed Budget Control as deferred;
+   do not force the financial workflow through container risk assumptions.
+
+Do not ask the owner to reconstruct this session or return to unrelated domain
+selection. Continue from the documented pending decision.
+
+---
+
+## Session checkpoint — Budget compatibility implementation contract
+
+**Date:** 2026-09-15. **Baseline:** `834ca3d` (`master`, `origin/master`).
+
+The owner approved the recommended Budget Control compatibility direction and
+authorized preparation of its implementation contract. The resulting draft is
+saved at
+[`docs/RMT_BUDGET_CONTROL_COMPATIBILITY_IMPLEMENTATION_CONTRACT.md`](docs/RMT_BUDGET_CONTROL_COMPATIBILITY_IMPLEMENTATION_CONTRACT.md).
+
+The contract bounds the proposed Core freeze exception to generic trusted domain
+policy/risk registration and resolution, exact immutable instruction plus adapter
+binding, assessment provenance through held flows, preview parity, additive legacy
+evidence compatibility, and regression/negative-path tests. It keeps all financial
+concepts and business workflows above Core and does not create C08.
+
+Static source inspection additionally confirmed that current authorization does
+not bind parameters or adapter and that held continuation reuses stored risk. No
+production code or tests were changed or run. **Implementation of the contract,
+Budget Control, deployment, commit, and push remain unauthorized.**
+
+After the owner required that the work not conflict with or damage existing Core,
+a conflict audit found the candidate is not eligible to proceed: the standing
+frozen-Core directive permits above-Core mitigation or accept-and-record only,
+never another freeze deviation, while this candidate edits multiple `app/core/**`
+governance contracts. The contract is now marked BLOCKED and retained only as a
+rejected/deferred candidate design. No production files were modified.
+
+Next action: preserve the Core freeze and defer governed Budget Control, unless
+the owner explicitly chooses to supersede the no-deviation directive. Such a
+choice is an intentional governance change and cannot be represented as
+non-conflicting with the current rules.

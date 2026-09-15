@@ -10,6 +10,48 @@
 
 ---
 
+## Session checkpoint — 2026-09-14 (read before older next-action text)
+
+**Update 2026-09-15:** the owner approved the compatibility direction and
+authorized preparation of the narrowly scoped implementation contract. The draft
+is saved at
+[`docs/RMT_BUDGET_CONTROL_COMPATIBILITY_IMPLEMENTATION_CONTRACT.md`](docs/RMT_BUDGET_CONTROL_COMPATIBILITY_IMPLEMENTATION_CONTRACT.md).
+A subsequent conflict audit found that its proposed `app/core/**` changes violate
+the standing no-further-freeze-deviation directive and the zero-Core-edit domain
+rule. The contract is therefore marked **BLOCKED**, not pending implementation
+approval. Production-code implementation, deployment, commit, and push remain
+unauthorized. Preserve the freeze and defer governed Budget Control unless the
+owner deliberately supersedes the existing directive; doing so would be a
+governance change, not a non-conflicting implementation.
+
+The owner selected **RMT Budget Control** for product/compatibility proposal
+development. Drafts are saved in
+[`docs/RMT_BUDGET_CONTROL_PROPOSAL.md`](docs/RMT_BUDGET_CONTROL_PROPOSAL.md) and
+[`docs/RMT_BUDGET_CONTROL_CORE_COMPATIBILITY_PROPOSAL.md`](docs/RMT_BUDGET_CONTROL_CORE_COMPATIBILITY_PROPOSAL.md).
+The product proposal remains a draft. The compatibility direction was approved
+for contract preparation, but its implementation is blocked by the conflict
+recorded above. No implementation or Core freeze exception is authorized.
+
+Static review at HEAD `834ca3d` found that the governed action path uses fixed
+policy/simulation: `create` is assessed as container creation, medium risk,
+rollback available. A proposed generic registered domain policy/risk extension
+would keep budget concepts above Core; it requires an explicit owner decision
+against the recorded freeze restriction. Exact financial binding, transactional
+ledger behavior, long-lived requests, roles/alternate routes, and recovery also
+remain implementation/validation obligations.
+
+**Resume:** read the three drafts and the latest HANDOFF.md note and recheck
+repository state. Do not start coding. Preserve the freeze and defer governed
+Budget Control unless the owner explicitly supersedes the no-deviation directive.
+User intent is a real business application built on RMT, not further Docker or
+Uptime Kuma work. No new Core milestone is assigned.
+
+Latest recorded CAP-10 evidence reports 568 backend tests; this session did not
+rerun them or verify deployment. CAP-09 restart/browser-validation status remains
+unverified. Older status text below is historical where it conflicts with this
+checkpoint; authority documents still govern architecture. See HANDOFF.md for
+additional read-only findings and evidence limits.
+
 ## 1. RMT identity and purpose
 
 **RMT = Risk-Mitigated Transactions** (defined 2026-09-11;
@@ -550,16 +592,11 @@ loop/agent status, with approve/reject for held items.
   makes, which is what a browser session would also produce.)
 - See `docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-09" for the full record.
 
-**Next action for a new session:** nothing above-Core is currently
-in-flight. Candidates, per `docs/RMT_ABOVE_CORE_ROADMAP.md`: (a) pick a
-second Tier-2 domain (D-2..D-5) now that D-1 has proven the Core
-generalizes and the repo is public evidence of that; (b) **P-D**
-(multi-operator RBAC) if more than one real operator is now expected, given
-public visibility; (c) further console depth (e.g. surfacing the agent
-dependency map / T13 status, or the loop's quarantine state) if the console
-proves useful in practice. Nothing here is authorized until the owner
-selects it and an approved per-capability proposal exists — same working
-method as every prior capability (§17).
+**Next action for a new session (updated 2026-09-15):** use the checkpoint above.
+The compatibility direction was approved for contract preparation, but the
+contract is blocked by the standing frozen-Core directive. No implementation or
+freeze exception is authorized. Earlier domain/RBAC/console candidates are not
+the current task.
 
 ## 13. Environment limitations vs genuine implementation gaps
 
