@@ -149,6 +149,69 @@ curl -s https://192.168.223.128/homelab/loop/status | python3 -c "import sys,jso
 
 ---
 
+### 2.1 Frontend redeploy
+
+The compiled frontend is served by Caddy from the immutable release selected by
+`/var/lib/rmt-control-center/frontend/current`. The same TLS origin proxies the
+API route prefixes to the loopback backend. Never run Vite's development server
+as the production frontend.
+
+Build and validate before changing the live symlink or Caddy configuration:
+
+```bash
+cd /home/rmt-lab/homelab/projects/homelab-control-center/frontend
+npm ci
+npm run lint
+npm run build
+cd ..
+caddy validate --config deploy/Caddyfile --adapter caddyfile
+```
+
+Install an immutable release and switch it atomically. Record the prior symlink
+target first; that exact value is the static rollback target.
+
+```bash
+release_id=$(git -C /home/rmt-lab/homelab rev-parse --short=12 HEAD)
+release_dir=/var/lib/rmt-control-center/frontend/releases/$release_id
+readlink /var/lib/rmt-control-center/frontend/current || true
+sudo install -d -o root -g root -m 0755 "$release_dir"
+sudo cp -a frontend/dist/. "$release_dir/"
+sudo chmod -R a=rX "$release_dir"
+sudo ln -sfn "$release_dir" /var/lib/rmt-control-center/frontend/current.next
+sudo mv -Tf /var/lib/rmt-control-center/frontend/current.next \
+  /var/lib/rmt-control-center/frontend/current
+sudo install -m 0644 deploy/Caddyfile /etc/caddy/Caddyfile
+sudo systemctl reload caddy
+```
+
+Verify both static delivery and API proxying over the production TLS origin:
+
+```bash
+curl -fsS https://rmt.homelab.lan/ | grep -F '<div id="root"></div>'
+curl -fsS https://rmt.homelab.lan/config | python3 -m json.tool
+curl -fsS https://rmt.homelab.lan/health | python3 -m json.tool
+curl -sS -o /dev/null -w '%{http_code}\n' \
+  https://rmt.homelab.lan/budget/budgets               # 401 without a token
+```
+
+For rollback, replace `<prior-release>` with the previously recorded absolute
+release path. Restore the preceding Caddyfile from the last-good Git commit if
+the proxy configuration also changed, validate it, then reload:
+
+```bash
+sudo ln -sfn <prior-release> /var/lib/rmt-control-center/frontend/current.next
+sudo mv -Tf /var/lib/rmt-control-center/frontend/current.next \
+  /var/lib/rmt-control-center/frontend/current
+git show <last-good-commit>:projects/homelab-control-center/deploy/Caddyfile \
+  > /tmp/rmt-caddyfile.rollback
+sudo caddy validate --config /tmp/rmt-caddyfile.rollback --adapter caddyfile
+sudo install -m 0644 /tmp/rmt-caddyfile.rollback /etc/caddy/Caddyfile
+sudo systemctl reload caddy
+```
+
+The frontend uses same-origin API calls whenever loaded over HTTPS. Local HTTP
+development preserves the configured direct API-port behavior.
+
 ## 3. Rollback
 
 ```

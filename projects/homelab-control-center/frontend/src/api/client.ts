@@ -1,15 +1,7 @@
-import { getRuntimeConfig } from "../config/runtime";
-
-
-function getApiUrl(): string {
-
-  const config = getRuntimeConfig();
-
-  return `http://${window.location.hostname}:${config.api_port}`;
-}
+import { getApiBaseUrl } from "../config/runtime";
 
 export async function getContainers() {
-  const response = await fetch(`${getApiUrl()}/containers`);
+  const response = await fetch(`${getApiBaseUrl()}/containers`);
 
   if (!response.ok) {
     throw new Error("Failed to fetch containers");
@@ -21,7 +13,7 @@ export async function getContainers() {
 
 export async function startContainer(name: string) {
   const response = await fetch(
-    `${getApiUrl()}/containers/${name}/start`,
+    `${getApiBaseUrl()}/containers/${name}/start`,
     {
       method: "POST",
     }
@@ -37,7 +29,7 @@ export async function startContainer(name: string) {
 
 export async function stopContainer(name: string) {
   const response = await fetch(
-    `${getApiUrl()}/containers/${name}/stop`,
+    `${getApiBaseUrl()}/containers/${name}/stop`,
     {
       method: "POST",
     }
@@ -53,7 +45,7 @@ export async function stopContainer(name: string) {
 
 export async function restartContainer(name: string) {
   const response = await fetch(
-    `${getApiUrl()}/containers/${name}/restart`,
+    `${getApiBaseUrl()}/containers/${name}/restart`,
     {
       method: "POST",
     }
@@ -69,7 +61,7 @@ export async function restartContainer(name: string) {
 
 export async function removeContainer(name: string) {
   const response = await fetch(
-    `${getApiUrl()}/containers/${name}`,
+    `${getApiBaseUrl()}/containers/${name}`,
     {
       method: "DELETE",
     }

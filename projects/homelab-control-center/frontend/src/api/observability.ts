@@ -1,12 +1,4 @@
-import { getRuntimeConfig } from "../config/runtime";
-
-
-function getApiUrl(): string {
-
-  const config = getRuntimeConfig();
-
-  return `http://${window.location.hostname}:${config.api_port}`;
-}
+import { getApiBaseUrl } from "../config/runtime";
 
 
 export interface ObservabilityMetric {
@@ -22,7 +14,7 @@ export interface ObservabilityMetric {
 export async function getLatestMetric(): Promise<ObservabilityMetric> {
 
   const response = await fetch(
-    `${getApiUrl()}/observability/latest`
+    `${getApiBaseUrl()}/observability/latest`
   );
 
   if (!response.ok) {
@@ -36,7 +28,7 @@ export async function getLatestMetric(): Promise<ObservabilityMetric> {
 export async function getMetricHistory(): Promise<ObservabilityMetric[]> {
 
   const response = await fetch(
-    `${getApiUrl()}/observability/history`
+    `${getApiBaseUrl()}/observability/history`
   );
 
   if (!response.ok) {

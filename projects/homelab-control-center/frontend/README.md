@@ -30,3 +30,31 @@ If you are developing a production application, we recommend enabling type-aware
 ```
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+
+## Production deployment
+
+The production build is served as static files by the existing Caddy TLS site.
+HTTPS clients use the browser origin for API calls, while local HTTP development
+continues to use the API port returned by `/config`.
+
+```bash
+npm ci
+npm run build
+release_id=$(git rev-parse --short=12 HEAD)
+release_dir=/var/lib/rmt-control-center/frontend/releases/$release_id
+sudo install -d -o root -g root -m 0755 "$release_dir"
+sudo cp -a dist/. "$release_dir/"
+sudo chmod -R a=rX "$release_dir"
+sudo ln -sfn "$release_dir" /var/lib/rmt-control-center/frontend/current.next
+sudo mv -Tf /var/lib/rmt-control-center/frontend/current.next \
+  /var/lib/rmt-control-center/frontend/current
+sudo caddy validate --config ../deploy/Caddyfile --adapter caddyfile
+sudo install -m 0644 ../deploy/Caddyfile /etc/caddy/Caddyfile
+sudo systemctl reload caddy
+```
+
+Releases are immutable directories selected by the atomic `current` symlink.
+Rollback repoints that symlink to the preceding release, restores the preceding
+Caddyfile from Git when needed, validates it, and reloads Caddy.
+The full operational sequence and verification commands are in
+`../../../docs/operations/DEPLOY.md`.

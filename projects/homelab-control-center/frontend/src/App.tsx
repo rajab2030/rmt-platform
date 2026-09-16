@@ -11,6 +11,7 @@ import {
 } from "./api/client";
 
 import { getPlatformState } from "./api/platform";
+import { getApiBaseUrl } from "./config/runtime";
 
 import PlatformState from "./components/PlatformState";
 import GovernedConsole from "./components/GovernedConsole";
@@ -79,7 +80,7 @@ function App() {
   async function loadContainerStats(name: string) {
     try {
       const response = await fetch(
-        `http://192.168.142.128:8000/containers/${name}/stats`
+        `${getApiBaseUrl()}/containers/${name}/stats`
       );
 
       const data = await response.json();
