@@ -3115,9 +3115,28 @@ and all 15 Budget paths in the live OpenAPI document. The dedicated production
 database exists at schema version 1 with ten tables, zero organizations, and zero
 budgets. Deployment performed no bootstrap or financial mutation.
 
-There is no repository-defined RMT frontend systemd service, static publication
-target, or production deployment runbook. The only live port 5173 process belongs
-to the unrelated `french-tutor` workspace. The Budget frontend therefore remains
-a validated production build artifact; it was not placed behind an undocumented
-runtime. Defining and authorizing a frontend hosting contract is the remaining
-deployment decision.
+The initial inventory found no repository-defined RMT frontend systemd service,
+static publication target, or production deployment runbook. The owner confirmed
+that closing this gap was part of the already authorized deployment process.
+
+## Budget Control frontend production deployment
+
+**Date:** 2026-09-16. Commit `4bb73a2` defines the missing production path without
+adding another service: HTTPS clients select the browser origin for API calls,
+while local HTTP development retains the configured direct API port. The existing
+Caddy TLS site now proxies explicit API route prefixes and serves compiled static
+files from an immutable release selected by
+`/var/lib/rmt-control-center/frontend/current`. The deploy runbook includes build,
+atomic switch, verification, and rollback procedures.
+
+Build, Oxlint, Caddy validation, isolated Chromium acceptance (**1 passed**), and
+the 596-test pre-push CI gate passed. The commit was pushed to `origin/master`.
+The operator installed release `4bb73a2eb7c1`, backed up the previous live
+Caddyfile, installed the validated repository configuration, and reloaded Caddy.
+
+Live evidence: Caddy active; the installed Caddyfile and frontend index hashes
+match the validated artifacts; TLS HTML and hashed JavaScript asset return 200;
+proxied `/config` and `/health` return 200; unauthenticated `/budget/budgets`
+returns 401. A Chromium smoke loaded the Budget UI, made all three initial Budget
+GETs on the same `https://192.168.223.128` origin, and reported no request
+failures. No token, bootstrap, or financial mutation was used.

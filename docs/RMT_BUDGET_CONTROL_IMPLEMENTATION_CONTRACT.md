@@ -1,9 +1,8 @@
 # RMT Budget Control — Above-Core Implementation Contract
 
 **Version:** 0.2, 2026-09-16.
-**Status:** IMPLEMENTED, VALIDATED, COMMITTED, AND BACKEND-DEPLOYED — frontend
-production publication remains unassigned because no governed frontend deployment
-target or runbook exists.
+**Status:** IMPLEMENTED, VALIDATED, COMMITTED, AND DEPLOYED — backend and frontend
+production paths verified.
 **Baseline:** `b0e732c`, tag `rmt-core-domain-compatibility-final-freeze`.
 **Classification:** above-Core product/domain implementation.
 
@@ -339,8 +338,12 @@ access returns 401, and all 15 Budget paths are present in the live OpenAPI
 document. The production Budget database initialized at schema version 1 with
 zero organizations and zero budgets; no bootstrap or financial mutation occurred.
 
-The live unit sets `RMT_BUDGET_BOOTSTRAP_PRINCIPAL=alice`. The repository contains
-no production frontend service, static publication target, or deployment runbook,
-and the active port 5173 listener belongs to an unrelated application. Therefore
-the validated frontend remains a build artifact rather than being published by an
-invented operational path. Payment execution remains outside scope.
+The live unit sets `RMT_BUDGET_BOOTSTRAP_PRINCIPAL=alice`. Commit `4bb73a2` adds
+the production frontend contract: HTTPS clients use same-origin API calls, and
+Caddy serves an immutable compiled release while proxying explicit API routes to
+the loopback backend. Release `4bb73a2eb7c1` is selected by the production
+`current` symlink. Live TLS checks returned 200 for HTML, its hashed JavaScript
+asset, `/config`, and `/health`; unauthenticated Budget access remained 401.
+Chromium loaded the Budget UI and issued all Budget GETs against the same HTTPS
+origin with no request failures. The database remains unbootstrapped and payment
+execution remains outside scope.

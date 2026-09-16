@@ -65,8 +65,9 @@ focused Ruff, frontend build/Oxlint, isolated Chromium/Playwright acceptance, an
 Done evidence is complete. Release `df0e039` was pushed to `origin/master`; the
 backend was deployed through the documented systemd path and verified healthy over
 loopback and TLS. Budget schema v1 is initialized but unbootstrapped, with no
-organization, budget, or financial mutation. The validated frontend is not
-published because no production frontend target or runbook exists.
+organization, budget, or financial mutation. Frontend deployment commit `4bb73a2`
+defines the immutable static-release/Caddy path and same-origin HTTPS API routing;
+release `4bb73a2eb7c1` is live and verified with curl and Chromium.
 
 The owner selected **RMT Budget Control** for product/compatibility proposal
 development. Drafts are saved in
@@ -74,7 +75,7 @@ development. Drafts are saved in
 [`docs/RMT_BUDGET_CONTROL_CORE_COMPATIBILITY_PROPOSAL.md`](docs/RMT_BUDGET_CONTROL_CORE_COMPATIBILITY_PROPOSAL.md).
 The product direction and implementation contract are approved. The generic
 compatibility implementation is accepted; the Budget product implementation and
-Definition of Done evidence are complete, and its backend is deployed.
+Definition of Done evidence are complete, and its backend and frontend are deployed.
 
 Static review at HEAD `834ca3d` found that the governed action path uses fixed
 policy/simulation: `create` is assessed as container creation, medium risk,
@@ -87,14 +88,14 @@ Core.
 **Resume:** read the implementation contract §16, operations guide, and latest
 HANDOFF.md note and recheck repository state. The generic exception is accepted
 and re-frozen at its contract boundary, and the exception procedure is permanently
-closed. Budget's backend is deployed but its production database is intentionally
-unbootstrapped. The frontend has no defined production publication target. Do not
-modify Core or perform bootstrap/business mutations without separate authority.
+closed. Budget's backend and frontend are deployed, but its production database is
+intentionally unbootstrapped. Do not modify Core or perform bootstrap/business
+mutations without separate authority.
 User intent is a real business application built on RMT, not further Docker or
 Uptime Kuma work. No new Core milestone is assigned.
 
 The current complete backend gate is **593 passed, 3 skipped** and isolated browser
-acceptance passes. Backend deployment is verified as described above. Older status
+acceptance passes. Production deployment is verified as described above. Older status
 text below is historical where it conflicts with this checkpoint; authority
 documents still govern architecture. See HANDOFF.md for additional evidence limits.
 
