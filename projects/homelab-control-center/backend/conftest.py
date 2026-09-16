@@ -34,6 +34,10 @@ def pytest_configure(config):  # noqa: ARG001
         "RMT_EVIDENCE_DB",
         os.path.join(_TEST_DATA_DIR, "governance_evidence.db"),
     )
+    os.environ.setdefault(
+        "RMT_BUDGET_DB",
+        os.path.join(_TEST_DATA_DIR, "budget.db"),
+    )
     # B1a: single-shot observation in the suite so a deliberate state_mismatch
     # case does not spend the production 5 s settling budget. The dedicated
     # settling-poll test sets its own small non-zero value.

@@ -1,7 +1,8 @@
 # RMT Budget Control — Product Proposal
 
 **Version:** Draft 0.1, 2026-09-14.
-**Status:** DRAFT — pending owner approval. No implementation authorized.
+**Status:** ACCEPTED DIRECTION — implementation and Definition of Done evidence
+are complete in the worktree; not deployed, committed, or pushed.
 **Classification:** above-Core business application.
 
 The owner selected Budget Control for proposal development during the session,
@@ -101,7 +102,7 @@ and optional agent separation checks do not establish budget-specific roles.
 
 ## 5. Compatibility gate
 
-Read-only inspection at HEAD `834ca3d` found:
+The original read-only inspection at HEAD `834ca3d` found:
 
 1. Fixed action vocabulary and container-oriented simulation/risk assumptions.
 2. Authorization does not explicitly bind the parameters dictionary; the
@@ -110,11 +111,14 @@ Read-only inspection at HEAD `834ca3d` found:
 4. Operator authentication lacks budget-specific authorization rules.
 5. Existing persistence does not establish a cross-record financial transaction.
 
-See [Budget Control–Core Compatibility Proposal](RMT_BUDGET_CONTROL_CORE_COMPATIBILITY_PROPOSAL.md).
-The proposed generic assessment extension requires an explicit owner decision
-against the recorded freeze restriction. No Core change is authorized.
+The generic assessment/binding insufficiency was resolved by the sole final Core
+amendment at `b0e732c`, validated by the complete 577-test gate and re-frozen at
+tag `rmt-core-domain-compatibility-final-freeze`. The other items are Budget
+domain responsibilities addressed by the proposed above-Core implementation
+contract. See the [compatibility proposal](RMT_BUDGET_CONTROL_CORE_COMPATIBILITY_PROPOSAL.md).
+No further Core change is admissible.
 
-## 6. Implementation order after approval and compatibility resolution
+## 6. Implementation order after contract approval
 
 1. Domain records, exact calculations, permissions, request workflow and views.
 2. Governed commitments, approval, atomic reservation, duplicate protection,
@@ -124,6 +128,9 @@ against the recorded freeze restriction. No Core change is authorized.
 
 Exact files, contracts, migrations, bootstrap behavior, and tests must be specified
 in an approved implementation contract before code changes.
+
+The proposed contract is now recorded in
+[`RMT_BUDGET_CONTROL_IMPLEMENTATION_CONTRACT.md`](RMT_BUDGET_CONTROL_IMPLEMENTATION_CONTRACT.md).
 
 ## 7. Acceptance
 

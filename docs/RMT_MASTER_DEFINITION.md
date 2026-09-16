@@ -64,7 +64,13 @@ Only ideas required for the finite Target State belong in remaining Core develop
 
 RMT Core development continues until the finite Target State is reached and the platform passes platform validation. At that point, the Core enters **Platform Freeze**.
 
-After Platform Freeze, future growth occurs primarily through products, domain modules, integrations, adapters, and applications built on top of RMT. Changes to the frozen Core require explicit evidence that its Target State or existing contracts are insufficient.
+After Platform Freeze, future growth occurs through products, domain modules,
+integrations, adapters, and applications built on top of RMT. Following the sole
+final domain-compatibility amendment accepted on 2026-09-15, the owner closed the
+amendment procedure permanently: no future Core amendment, freeze deviation, Core
+milestone, or C08 is admissible. A capability or domain that cannot comply with
+the frozen contracts does not belong to RMT and must be kept outside RMT, deferred,
+or rejected.
 
 ## Governing Rule
 
