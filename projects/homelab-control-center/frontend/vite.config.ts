@@ -1,6 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+const apiPort = process.env.RMT_TEST_API_PORT || "8000";
+const apiTarget = `http://127.0.0.1:${apiPort}`;
+
 export default defineConfig({
   plugins: [react()],
 
@@ -9,52 +12,52 @@ export default defineConfig({
 
     proxy: {
       "/config": {
-        target: "http://127.0.0.1:8000",
+        target: apiTarget,
         changeOrigin: true,
       },
 
       "/ops": {
-        target: "http://127.0.0.1:8000",
+        target: apiTarget,
         changeOrigin: true,
       },
 
       "/approve": {
-        target: "http://127.0.0.1:8000",
+        target: apiTarget,
         changeOrigin: true,
       },
 
       "/homelab": {
-        target: "http://127.0.0.1:8000",
+        target: apiTarget,
         changeOrigin: true,
       },
 
       "/agent": {
-        target: "http://127.0.0.1:8000",
+        target: apiTarget,
         changeOrigin: true,
       },
 
       "/health": {
-        target: "http://127.0.0.1:8000",
+        target: apiTarget,
         changeOrigin: true,
       },
 
       "/metrics": {
-        target: "http://127.0.0.1:8000",
+        target: apiTarget,
         changeOrigin: true,
       },
 
       "/containers": {
-        target: "http://127.0.0.1:8000",
+        target: apiTarget,
         changeOrigin: true,
       },
 
       "/modules": {
-        target: "http://127.0.0.1:8000",
+        target: apiTarget,
         changeOrigin: true,
       },
 
       "/monitor": {
-        target: "http://127.0.0.1:8000",
+        target: apiTarget,
         changeOrigin: true,
       },
     },

@@ -45,6 +45,8 @@ from app.core.intelligence.api import router as intelligence_router
 from app.engineering.api import router as engineering_router
 from app.agent.api import router as agent_router
 from app.coding_agent.api import router as coding_agent_router
+from app.budget.api import router as budget_router
+from app.budget.bootstrap import register_budget_domain
 
 from app.homelab import loop_config
 from app.homelab.operational_loop import operational_loop
@@ -152,6 +154,11 @@ async def lifespan(app: FastAPI):
     # app/agent/git_adapter.py). No app/core/** change.
     register_git_adapter()
 
+    # Budget Control is an above-Core domain. Its trusted evaluators and
+    # executor are registered only by application startup; callers cannot
+    # select or replace them.
+    register_budget_domain()
+
     # Ensure the SQLite substrate exists before anything reads or writes it.
     # Both tables live in data/observability.db and are created by these
     # (idempotent) init_storage() calls; nothing else invokes them, so a fresh
@@ -241,6 +248,10 @@ app.include_router(agent_router, dependencies=[Depends(require_operator)])
 # RMT-CAP-10: coding-agent command governance -- entirely behind operator
 # authentication, same as every other above-Core mutation-adjacent surface.
 app.include_router(coding_agent_router, dependencies=[Depends(require_operator)])
+
+# Budget routes perform both operator authentication and domain-specific role
+# checks. The UI is only a client of these server-side boundaries.
+app.include_router(budget_router)
 
 
 @app.get("/")

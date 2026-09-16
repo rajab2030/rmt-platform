@@ -15,6 +15,7 @@ import { getPlatformState } from "./api/platform";
 import PlatformState from "./components/PlatformState";
 import GovernedConsole from "./components/GovernedConsole";
 import ObservabilityPanel from "./components/ObservabilityPanel";
+import BudgetControl from "./components/BudgetControl";
 
 import type { PlatformState as PlatformStateType } from "./types/platform";
 
@@ -42,7 +43,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [platformState, setPlatformState] =
     useState<PlatformStateType | null>(null);
-  const [activeView, setActiveView] = useState<"containers" | "governed">("containers");
+  const [activeView, setActiveView] = useState<"containers" | "governed" | "budget">("containers");
   
 
   const [selectedContainer, setSelectedContainer] =
@@ -130,9 +131,12 @@ function App() {
       <nav className="app-nav">
         <button onClick={() => setActiveView("containers")}>Containers</button>
         <button onClick={() => setActiveView("governed")}>Governed Ops</button>
+        <button onClick={() => setActiveView("budget")}>Budget Control</button>
       </nav>
 
-      {activeView === "governed" ? (
+      {activeView === "budget" ? (
+        <BudgetControl />
+      ) : activeView === "governed" ? (
         <GovernedConsole />
       ) : (
         <>

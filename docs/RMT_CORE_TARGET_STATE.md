@@ -291,6 +291,13 @@ The RMT Core may be declared frozen only when:
 - The Core’s contracts, responsibilities, and Core-versus-domain boundary are documented and accepted as finite.
 - Known failures, denied decisions, unknown states, and verification failures are represented safely and remain auditable.
 - The validated Core has no open requirement that would make the Target State incomplete.
-- Future work has been classified as above-Core/domain capability, future backlog, or unnecessary unless it is proven to require a Core contract change.
+- Future work has been classified as above-Core/domain capability, future backlog,
+  or unnecessary. A claimed need for a Core contract change is not admissible
+  after the final freeze.
 
-After Platform Freeze, future growth occurs primarily through products, domain modules, integrations, adapters, and applications built on top of the frozen Core. A Core change requires new evidence that the finite Target State or an existing Core contract is insufficient.
+After Platform Freeze, future growth occurs through products, domain modules,
+integrations, adapters, and applications built on top of the frozen Core. The sole
+final domain-compatibility amendment was accepted and re-frozen on 2026-09-15;
+the amendment procedure is now permanently closed. No future Core amendment,
+freeze deviation, Core milestone, or C08 is admissible. An incompatible capability
+or domain is kept outside RMT, deferred, or rejected rather than reopening Core.

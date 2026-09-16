@@ -49,36 +49,51 @@ Per `docs/MCR_SUPERVISORY_CONTRACT.md` §33, a capability or domain that cannot
 comply with RMT's policies, rules, architecture, and governed lifecycle does not
 belong to RMT.
 
+**Historical Budget Control planning update, 2026-09-15:** the owner approved the above-Core
+implementation contract, then directed that implementation be left to the next
+session. The approved contract defines the domain ledger, transaction/concurrency
+boundary, durable approval workflow, permissions, trusted governed integration,
+independent verification, recovery, APIs/UI, negative tests, and Definition of
+Done. This checkpoint is superseded by the 2026-09-16 implementation update below.
+
+**Budget Control implementation update, 2026-09-16:** the approved above-Core
+slice is implemented under `backend/app/budget/**` with minimal `app/main.py`
+wiring and four frontend views. The complete backend gate passes **593 passed, 3
+skipped (596 collected)**; Budget-focused tests are **19 passed**; Python compile,
+focused Ruff, frontend build/Oxlint, isolated Chromium/Playwright acceptance, and
+`git diff --check` pass. No `backend/app/core/**` file changed. The Definition of
+Done evidence is complete in the worktree. No deployment, production migration,
+service restart, payment execution, commit, or push occurred.
+
 The owner selected **RMT Budget Control** for product/compatibility proposal
 development. Drafts are saved in
 [`docs/RMT_BUDGET_CONTROL_PROPOSAL.md`](docs/RMT_BUDGET_CONTROL_PROPOSAL.md) and
 [`docs/RMT_BUDGET_CONTROL_CORE_COMPATIBILITY_PROPOSAL.md`](docs/RMT_BUDGET_CONTROL_CORE_COMPATIBILITY_PROPOSAL.md).
-The product proposal remains a draft. The compatibility direction was approved
-for contract preparation, and the controlled governance exception is admitted for
-implementation review. The generic compatibility implementation is accepted;
-Budget Control product implementation remains unauthorized.
+The product direction and implementation contract are approved. The generic
+compatibility implementation is accepted; the Budget product implementation and
+Definition of Done evidence are complete in the worktree.
 
 Static review at HEAD `834ca3d` found that the governed action path uses fixed
 policy/simulation: `create` is assessed as container creation, medium risk,
 rollback available. A proposed generic registered domain policy/risk extension
 would keep budget concepts above Core; the required governance decision is now
-recorded above. Transactional ledger behavior, long-lived requests, domain
-roles/alternate routes, and financial recovery remain future Budget implementation
-obligations.
+recorded above. The later Budget implementation supplies the transactional ledger,
+long-lived requests, domain roles, governed routes, and financial recovery above
+Core.
 
-**Resume:** read the three drafts and the latest HANDOFF.md note and recheck
-repository state. The generic exception is accepted and re-frozen at its contract
-boundary, and the exception procedure is permanently closed. Do not modify Core,
-deploy, commit, push, or begin Budget-domain implementation without the applicable
-separate authority.
+**Resume:** read the implementation contract §16, operations guide, and latest
+HANDOFF.md note and recheck repository state. The generic exception is accepted
+and re-frozen at its contract boundary, and the exception procedure is permanently
+closed. The Budget implementation is ready for owner acceptance; any commit, push,
+deployment, restart, or production migration requires separate authority. Do not
+modify Core.
 User intent is a real business application built on RMT, not further Docker or
 Uptime Kuma work. No new Core milestone is assigned.
 
-Latest recorded CAP-10 evidence reports 568 backend tests; this session did not
-rerun them or verify deployment. CAP-09 restart/browser-validation status remains
-unverified. Older status text below is historical where it conflicts with this
-checkpoint; authority documents still govern architecture. See HANDOFF.md for
-additional read-only findings and evidence limits.
+The current complete backend gate is **593 passed, 3 skipped** and isolated browser
+acceptance passes. Deployment remains unverified and unauthorized. Older status
+text below is historical where it conflicts with this checkpoint; authority
+documents still govern architecture. See HANDOFF.md for additional evidence limits.
 
 ## 1. RMT identity and purpose
 
@@ -228,8 +243,8 @@ local homelab" framing anymore; assume every commit is read by a stranger.
 - No remaining Core work. The finite Core Target State is validated and the RMT
   Core is frozen.
 - The next phase is **not Core development** and must not reopen C01–C07.
-- Any Core change requires evidence that the finite Target State or an existing
-  Core contract is insufficient.
+- No future Core amendment is admissible. An incompatible capability remains
+  outside RMT, is deferred, or is rejected.
 
 ## 12. Current immediate next action
 

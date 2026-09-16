@@ -3049,3 +3049,52 @@ lifecycle does not belong to RMT. The exact consequence is now recorded in
 `docs/MCR_SUPERVISORY_CONTRACT.md` §33 and linked from the frozen-Core authority
 record. This is an exclusion rule, not authority to modify Core or create another
 supervisory subsystem.
+
+## Budget Control above-Core implementation contract prepared
+
+**Date:** 2026-09-15. The owner authorized contract preparation after the final
+Core freeze. `docs/RMT_BUDGET_CONTROL_IMPLEMENTATION_CONTRACT.md` now defines the
+first product slice entirely above Core: integer-minor-unit money, versioned
+requests and durable domain approvals, append-only transactional SQLite ledger,
+serialized concurrency and idempotency receipts, Budget evaluators/adapter,
+independent observation and ambiguity recovery, permission matrix, APIs, four UI
+views, negative paths, and acceptance evidence. `app/core/**` changes are expressly
+forbidden; inability to comply rejects the product under MCR. No Budget code,
+deployment, migration, restart, commit, or push was performed during contract
+preparation.
+
+**Approval update:** the owner approved this implementation contract, then
+directed that implementation be left to the next session. No Budget code or
+implementation evidence is retained in the current worktree. The next session
+may implement only the approved contract; deployment, production migration,
+restart, commit, push, and payment execution remain unauthorized.
+
+## Budget Control implementation and automated validation
+
+**Date:** 2026-09-16. The approved implementation is present entirely above Core:
+`backend/app/budget/**`, minimal `backend/app/main.py` registration/router wiring,
+isolated test configuration, and frontend Budget API/types/four-view component.
+The dedicated SQLite domain owns versioned requests, decisions, roles, append-only
+ledger/receipts, serialized invariant enforcement, independent verification and
+recovery. Financial mutations enter `execute_governed_action()` and the registered
+`budget-ledger` adapter; no `backend/app/core/**` file changed.
+
+Evidence: Budget suite **19 passed**; full backend **593 passed, 3 skipped (596
+collected)**; compile, focused Ruff errors-only, frontend production build,
+frontend Oxlint, and `git diff --check` pass. Tests include the 2,000 → 1,500 →
+500 acceptance scenario, concurrency, replay/conflict, permission and stale-state
+negative paths, settlement/cancellation/correction, ambiguous recovery,
+observation mismatch/unknown, migration, restart, and isolated restore.
+
+The added test-only Playwright harness runs real Chromium against isolated services
+on dedicated ports and temporary databases. Browser acceptance is **1 passed** for
+all four views, the happy path, rejection, stale conflict, authentication, role
+denial, history, and unresolved rendering. The Definition of Done evidence is now
+complete and the worktree is ready for owner acceptance. No deployment, production
+migration, service restart, payment execution, commit, or push occurred. See
+`docs/RMT_BUDGET_CONTROL_OPERATIONS.md` and the implementation contract §16.
+
+Dependency audit: production dependencies report zero vulnerabilities. The full
+development audit reports two fixable transitive advisories already reached through
+the Vite toolchain (`postcss` moderate, `nanoid` high); Playwright does not depend
+on them. No unrelated audit fix or toolchain upgrade was applied.
