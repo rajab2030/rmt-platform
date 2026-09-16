@@ -1,11 +1,15 @@
 # RMT Budget Control — Operations
 
-**Status:** worktree implementation guidance; not a deployment record.
+**Status:** operational guidance plus backend deployment record, 2026-09-16.
 **Scope:** the above-Core Budget Control product defined by
 `RMT_BUDGET_CONTROL_IMPLEMENTATION_CONTRACT.md`.
 
-No production migration, service restart, deployment, payment execution, commit,
-or push is recorded by this document.
+Release `df0e039` is pushed to `origin/master` and deployed through the documented
+`rmt-control-center.service` backend path. The live database is initialized at
+schema version 1 but remains unbootstrapped. No organization, budget, ledger
+entry, payment execution, or other financial mutation was created by deployment.
+The frontend is validated but not published: this repository currently defines no
+production frontend service, static target, or deployment runbook.
 
 ## Configuration
 

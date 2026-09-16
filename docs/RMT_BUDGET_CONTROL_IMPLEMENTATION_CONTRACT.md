@@ -1,8 +1,9 @@
 # RMT Budget Control — Above-Core Implementation Contract
 
 **Version:** 0.2, 2026-09-16.
-**Status:** IMPLEMENTED AND VALIDATED IN WORKTREE — Definition of Done evidence
-complete; not deployed, committed, or pushed.
+**Status:** IMPLEMENTED, VALIDATED, COMMITTED, AND BACKEND-DEPLOYED — frontend
+production publication remains unassigned because no governed frontend deployment
+target or runbook exists.
 **Baseline:** `b0e732c`, tag `rmt-core-domain-compatibility-final-freeze`.
 **Classification:** above-Core product/domain implementation.
 
@@ -330,6 +331,16 @@ role denial, spending history, and unresolved-state rendering. The unresolved UI
 case uses a browser-controlled ambiguous HTTP response; backend ambiguous recovery
 is independently covered by the real adapter/repository tests.
 
-All §14 evidence gates are satisfied in the worktree. The implementation is ready
-for owner acceptance. No deployment, production migration, service restart,
-payment execution, commit, or push occurred.
+All §14 evidence gates are satisfied. The implementation was committed as
+`df0e039` and pushed to `origin/master` on 2026-09-16. The documented backend
+deployment path was then applied to `rmt-control-center.service`. The restarted
+service is active on loopback, TLS `/health` returns 200, unauthenticated Budget
+access returns 401, and all 15 Budget paths are present in the live OpenAPI
+document. The production Budget database initialized at schema version 1 with
+zero organizations and zero budgets; no bootstrap or financial mutation occurred.
+
+The live unit sets `RMT_BUDGET_BOOTSTRAP_PRINCIPAL=alice`. The repository contains
+no production frontend service, static publication target, or deployment runbook,
+and the active port 5173 listener belongs to an unrelated application. Therefore
+the validated frontend remains a build artifact rather than being published by an
+invented operational path. Payment execution remains outside scope.
