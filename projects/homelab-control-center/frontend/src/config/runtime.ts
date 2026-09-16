@@ -40,3 +40,15 @@ export function getRuntimeConfig(): RuntimeConfig {
 
     return runtimeConfig!;
 }
+
+
+export function getApiBaseUrl(): string {
+
+    if (window.location.protocol === "https:") {
+        return window.location.origin;
+    }
+
+    const config = getRuntimeConfig();
+
+    return `http://${window.location.hostname}:${config.api_port}`;
+}

@@ -1,18 +1,11 @@
-import { getRuntimeConfig } from "../config/runtime";
+import { getApiBaseUrl } from "../config/runtime";
 import type { PlatformState } from "../types/platform";
-
-
-function getApiUrl(): string {
-  const config = getRuntimeConfig();
-
-  return `http://${window.location.hostname}:${config.api_port}`;
-}
 
 
 export async function getPlatformState(): Promise<PlatformState> {
 
   const response = await fetch(
-    `${getApiUrl()}/platform/state`
+    `${getApiBaseUrl()}/platform/state`
   );
 
 

@@ -1,6 +1,6 @@
 // RMT-CAP-09 -- typed read-only API client for the Governed Operations console.
 // Authenticated calls carry the operator token; /health + /metrics are open.
-import { getRuntimeConfig } from "../config/runtime";
+import { getApiBaseUrl } from "../config/runtime";
 import { getToken } from "./auth";
 import type {
   AgentStatus,
@@ -8,11 +8,6 @@ import type {
   HoldListResponse,
   VerificationListResponse,
 } from "../types/governance";
-
-function getApiUrl(): string {
-  const config = getRuntimeConfig();
-  return `http://${window.location.hostname}:${config.api_port}`;
-}
 
 export async function authFetch(
   path: string,
@@ -23,7 +18,7 @@ export async function authFetch(
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  return fetch(`${getApiUrl()}${path}`, { ...init, headers });
+  return fetch(`${getApiBaseUrl()}${path}`, { ...init, headers });
 }
 
 async function throwOnUnauthorized(resp: Response): Promise<Response> {

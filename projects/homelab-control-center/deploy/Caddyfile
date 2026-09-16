@@ -1,8 +1,9 @@
 # RMT Control Center -- LAN reverse proxy with TLS (production-readiness S4).
 #
 # The FastAPI app binds 127.0.0.1:8000 (deploy/systemd/bind-loopback.conf).
-# This is the only LAN-facing listener. It terminates TLS and forwards to the
-# loopback app, so no plaintext RMT traffic crosses the network.
+# This is the only LAN-facing listener. It terminates TLS, serves the compiled
+# frontend, and forwards API routes to the loopback app, so no plaintext RMT
+# traffic crosses the network.
 #
 # `tls internal` uses Caddy's built-in CA. Import its root certificate on each
 # operator machine (see docs/operations/DEPLOY.md). If you run a homelab CA,
@@ -11,17 +12,25 @@
 # Trim the site address list to what your DNS / hosts files actually resolve.
 
 rmt.homelab.lan, 192.168.223.128 {
-    tls internal
+	tls internal
 
-    encode zstd gzip
+	encode zstd gzip
 
-    reverse_proxy 127.0.0.1:8000 {
-        header_up X-Forwarded-Proto {scheme}
-        header_up X-Forwarded-For {remote_host}
-    }
+	route {
+		@api path /config /ops* /approve* /homelab* /agent* /coding-agent* /budget* /health /metrics /containers* /modules* /monitor* /platform* /observability* /engineering* /intelligence* /execute /openapi.json /docs* /redoc*
 
-    log {
-        output file /var/log/caddy/rmt-access.log
-        format json
-    }
+		reverse_proxy @api 127.0.0.1:8000 {
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-For {remote_host}
+		}
+
+		root * /var/lib/rmt-control-center/frontend/current
+		try_files {path} /index.html
+		file_server
+	}
+
+	log {
+		output file /var/log/caddy/rmt-access.log
+		format json
+	}
 }
