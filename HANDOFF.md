@@ -3098,3 +3098,26 @@ Dependency audit: production dependencies report zero vulnerabilities. The full
 development audit reports two fixable transitive advisories already reached through
 the Vite toolchain (`postcss` moderate, `nanoid` high); Playwright does not depend
 on them. No unrelated audit fix or toolchain upgrade was applied.
+
+## Budget Control release and backend deployment
+
+**Date:** 2026-09-16. The owner separately authorized commit, push, and deployment.
+The implementation was committed as `df0e039` and pushed with the two preceding
+Core-governance commits to `origin/master`. The pre-push CI gate passed all 596
+backend tests. The documented routine deployment gate then passed **593 tests, 3
+skipped**, with all pinned dependencies already satisfied.
+
+The operator installed a non-secret systemd drop-in setting
+`RMT_BUDGET_BOOTSTRAP_PRINCIPAL=alice`, reloaded systemd, and restarted
+`rmt-control-center.service`. Verification found the unit active with a new PID,
+loopback `/health` 200, TLS `/health` 200, unauthenticated `/budget/budgets` 401,
+and all 15 Budget paths in the live OpenAPI document. The dedicated production
+database exists at schema version 1 with ten tables, zero organizations, and zero
+budgets. Deployment performed no bootstrap or financial mutation.
+
+There is no repository-defined RMT frontend systemd service, static publication
+target, or production deployment runbook. The only live port 5173 process belongs
+to the unrelated `french-tutor` workspace. The Budget frontend therefore remains
+a validated production build artifact; it was not placed behind an undocumented
+runtime. Defining and authorizing a frontend hosting contract is the remaining
+deployment decision.
