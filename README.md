@@ -4,25 +4,57 @@
 
 **Repository:** [github.com/rajab2030/rmt-platform](https://github.com/rajab2030/rmt-platform)
 
-**RMT = Risk-Mitigated Transactions.** RMT lets you hand real actions —
-including actions proposed by AI agents — to an automated system without
-losing a human veto or an audit trail. Every action, whoever proposes it,
-passes through one governed lifecycle before it's allowed to execute, and
-leaves an evidence record behind. RMT is a general-purpose intelligent
-control, execution, and governance platform, not a specialized application.
-The Core is domain-agnostic: it
-governs services, applications, systems, and AI agents under one common
-lifecycle — **Understand → Decide → Govern → Authorize → Execute → Verify →
-Learn** — without embedding the rules of any particular domain. See
-[`docs/RMT_MASTER_DEFINITION.md`](docs/RMT_MASTER_DEFINITION.md) for the
-authoritative identity and purpose statement.
+**Policy checks, approval holds, and execution evidence for AI-agent actions.**
 
-The frozen Core lives at `projects/homelab-control-center/` (validated at
-commit `46a4441`; C01–C07 CLOSED, no C08). Domains built on top of it so far:
-homelab operations (the platform's first, low-stakes proving ground) and a
-git-tag Agent Governance Gateway (an AI agent proposes an action, RMT governs
-it end-to-end) — proof that the frozen Core generalizes past its original
-domain.
+RMT (Risk-Mitigated Transactions) is a general-purpose intelligent control,
+execution, and governance platform. Its Agent Governance Gateway demonstrates
+how an external agent can propose an operation, inspect a policy/risk preview,
+and read the execution outcome. Actions requiring approval are held for an
+operator decision.
+
+![Local Git-tag walkthrough showing a scoped grant, preview, proposal decisions, a refused grant reuse, and approval and execution outcomes](docs/assets/agent-governance-demo.gif)
+
+*Animated excerpts from a recorded local walkthrough; approval inputs automated
+for this demo.*
+[Transcript, setup, and limitations](docs/assets/agent-governance-demo.md).
+
+[Try the local showcase](tools/rmt-showcase-agent/README.md) ·
+[Agent API](docs/operations/AGENT_API.md) ·
+[Guarantees and limits](docs/RMT_GUARANTEES.md)
+
+## What the walkthrough shows
+
+The Git-tag showcase uses a disposable repository to demonstrate:
+
+- A grant scoped to an operation and target.
+- A policy/risk preview before submitting an action.
+- A create proposal and its returned decision.
+- A refused attempt to reuse the earlier grant for removal.
+- A separately granted removal proposal, approval when required, and the
+  reported execution and verification outcomes.
+
+The client displays responses from your local RMT instance; decisions depend
+on its configuration. An unavailable verification result is not verified
+success. This is an operator walkthrough using one credential, not a
+demonstration of independent approver identities.
+
+The showcase client uses Python's standard library. It requires a configured
+local RMT backend and a disposable Git repository; no LLM is needed to try it.
+
+## Where RMT fits
+
+RMT targets discrete, observable operations at low-to-moderate volume, with
+human approval available for the risky subset. It is intended for
+trusted-operator environments. The gateway governs operations submitted
+through RMT; host access and operations outside the gateway remain outside
+that boundary. See the [threat model](docs/RMT_THREAT_MODEL.md).
+
+The domain-agnostic Core provides the common lifecycle:
+**Understand → Decide → Govern → Authorize → Execute → Verify → Learn**.
+Domains consume that lifecycle without embedding their rules into Core.
+See the [Master Definition](docs/RMT_MASTER_DEFINITION.md) for the platform's
+identity and boundaries, and [current project context](RMT_CONTEXT.md) for
+the accepted Core state and capabilities built above it.
 
 ## Start here
 
@@ -50,9 +82,10 @@ domain.
   prioritized improvements to the platform as it stands.
 - [`docs/RMT_CAP_09_PROPOSAL.md`](docs/RMT_CAP_09_PROPOSAL.md) /
   [`docs/RMT_CAP_09_IMPLEMENTATION.md`](docs/RMT_CAP_09_IMPLEMENTATION.md) —
-  **Governed Operations Console (RMT-CAP-09)**, in build: a read-only web
-  console over the evidence + approval queue (see `docs/RMT_CAPABILITIES_EVIDENCE.md`
-  §"RMT-CAP-09" for status).
+  **Governed Operations Console (RMT-CAP-09)**: an evidence viewer and approval
+  queue, with approve/reject through the existing governed endpoint. See the
+  [capability evidence](docs/RMT_CAPABILITIES_EVIDENCE.md) for recorded
+  validation and limitations.
 
 ## Homelab domain (the platform's first proving ground)
 
