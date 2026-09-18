@@ -90,7 +90,7 @@ with **no observable outcome** — the Verify stage would have nothing to check
   - general exactly-once execution. The 2026-09-18 review reproduced a race
     in direct concurrent Core approval continuation. A shared lock now
     serializes both HTTP continuation routes in the supported single-process
-    deployment; deployment remains pending. Direct concurrent Core callers
+    deployment, verified live on 2026-09-18. Direct concurrent Core callers
     and multiple workers are outside that compensating control (DEBT **D6**);
   - that the adapter **succeeds** — it can fail; a failed adapter execution is
     recorded as the distinct status `adapter_execution_failed` (readiness
