@@ -51,7 +51,10 @@ class DecideBody(BaseModel):
 
 
 @router.post("/propose")
-def propose(body: ProposeBody):
+def propose(
+    body: ProposeBody,
+    operator: OperatorIdentity = Depends(require_operator),
+):
     """The hook's call. No rule match => auto-allow, no hold created, no
     evidence computed (zero cost on the common path). A match => a hold is
     created and its evidence + verdict returned for a human to review."""
@@ -98,7 +101,10 @@ def propose(body: ProposeBody):
 
 
 @router.get("/holds")
-def list_holds(status: str | None = None):
+def list_holds(
+    status: str | None = None,
+    operator: OperatorIdentity = Depends(require_operator),
+):
     if not coding_agent_config.enabled():
         raise _disabled()
     holds = command_hold_store.all()
@@ -108,7 +114,10 @@ def list_holds(status: str | None = None):
 
 
 @router.get("/holds/{hold_id}")
-def get_hold(hold_id: str):
+def get_hold(
+    hold_id: str,
+    operator: OperatorIdentity = Depends(require_operator),
+):
     if not coding_agent_config.enabled():
         raise _disabled()
     hold = command_hold_store.get(hold_id)
