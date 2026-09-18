@@ -1,8 +1,14 @@
 # RMT Platform
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 **Repository:** [github.com/rajab2030/rmt-platform](https://github.com/rajab2030/rmt-platform)
 
-**RMT = Risk-Mitigated Transactions.** RMT is a general-purpose intelligent
+**RMT = Risk-Mitigated Transactions.** RMT lets you hand real actions —
+including actions proposed by AI agents — to an automated system without
+losing a human veto or an audit trail. Every action, whoever proposes it,
+passes through one governed lifecycle before it's allowed to execute, and
+leaves an evidence record behind. RMT is a general-purpose intelligent
 control, execution, and governance platform, not a specialized application.
 The Core is domain-agnostic: it
 governs services, applications, systems, and AI agents under one common
