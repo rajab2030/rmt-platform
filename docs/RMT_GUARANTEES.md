@@ -66,7 +66,7 @@ with **no observable outcome** — the Verify stage would have nothing to check
 - **Evidence:** approval hold + approval record, correlated by `approval_id`;
   `GET /ops/holds`; the O2 held-action alert.
 
-## 4. Authorize — minting the single-use execution authorization
+## 4. Authorize — minting the bound execution authorization
 
 - **Asserts:** the execution authorization is created at **exactly one site**
   inside the governed chain, bound to the approved action; **no direct execution
@@ -81,12 +81,17 @@ with **no observable outcome** — the Verify stage would have nothing to check
 
 ## 5. Execute — the one governed mutation path
 
-- **Asserts:** the state change happens **once**, through
+- **Asserts:** the state change passes through
   `execute_governed_action → execution_engine.execute → adapter`, and there is
   **no second unmanaged mutation path** in Core scope. Adapters are **executors
   only** — they cannot authorize, approve, override policy, redefine risk, or
   manufacture evidence. Execution policy is a **deny-only** final safety check.
 - **Does not assert:**
+  - general exactly-once execution. The 2026-09-18 review reproduced a race
+    in direct concurrent Core approval continuation. A shared lock now
+    serializes both HTTP continuation routes in the supported single-process
+    deployment; deployment remains pending. Direct concurrent Core callers
+    and multiple workers are outside that compensating control (DEBT **D6**);
   - that the adapter **succeeds** — it can fail; a failed adapter execution is
     recorded as the distinct status `adapter_execution_failed` (readiness
     **E3**), **not rolled back** (DEBT **D2**);

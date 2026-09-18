@@ -34,8 +34,9 @@ authorize consideration of a Core change.
 This register is the single place a reader can see the whole frozen-Core
 liability at once: each row is a real gap, its current above-Core compensating
 control, the risk that remains after that control, and the **written condition**
-that would make the owner revisit it. Until such a trigger fires, every row is
-**accepted as-is**.
+that would make the owner revisit it. The original D1–D5 rows retain their
+recorded acceptance. New findings must state their own disposition; adding a
+row does not imply owner acceptance.
 
 Sources consolidated here: `RMT_CONTEXT.md` §14, `docs/RMT_CORE_ADAPTER_DECOUPING.md`
 §9, `docs/RMT_B1_PROPOSAL.md` §6, `docs/RMT_IMPROVEMENT_ROADMAP.md` §7.
@@ -205,6 +206,28 @@ and were verified on 2026-09-10.
   actually knowable.
 
 ---
+
+### D6 — concurrent manual-approval continuation is not atomic in Core
+
+- **Symptom.** Two threads can both read a hold as pending before either sets
+  it approved. Both then create an authorization and invoke an adapter. The
+  2026-09-18 review reproduced two mock-adapter calls for one hold.
+- **Where.** `app/core/intelligence/actions/approval_service.py`,
+  `approve_held_action`: the pending check and status transition are separate.
+- **Compensating control.** The shared `_approval_continuation_lock` in
+  `app/main.py` serializes both `/approve` and `/homelab/approve`, including
+  approve/reject races, in the supported single-process deployment. Core's
+  governance decisions remain unchanged. Both deployment unit entrypoints
+  explicitly select one worker. See [remediation evidence](RMT_SECURITY_REMEDIATION.md).
+- **Residual risk.** Direct concurrent in-process calls to Core and multiple
+  backend processes sharing stores are outside this control. It is not a
+  general exactly-once guarantee or a remedy for D1's restart/reconcile risk.
+- **Disposition.** Above-Core mitigation implemented and tested; production
+  deployment is pending. This record does not accept unsupported deployments.
+- **Trigger to revisit (owner).** Any new approval-continuation entrypoint,
+  direct caller, multi-worker/replica deployment, or shared-store process must
+  demonstrate compatible serialization above Core before admission. Core
+  remains frozen; this is not an amendment proposal.
 
 ## 4. Recorded and closed — not debt
 

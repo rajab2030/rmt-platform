@@ -238,6 +238,33 @@ def test_startup_refuses_without_tokens(monkeypatch):
             pass
 
 
+@pytest.mark.parametrize("value", ["", " ", "treu", "enabled", "2"])
+def test_invalid_auth_setting_refuses_startup(monkeypatch, value):
+    monkeypatch.setenv("RMT_AUTH_ENABLED", value)
+    import app.main as main_app
+
+    with pytest.raises(RuntimeError, match="RMT_AUTH_ENABLED"):
+        with TestClient(main_app.app):
+            pass
+
+
+@pytest.mark.parametrize("value", ["", "treu", "enabled"])
+def test_invalid_auth_setting_blocks_running_route(client, monkeypatch, value):
+    monkeypatch.setenv("RMT_AUTH_ENABLED", value)
+    forbidden = Mock(side_effect=AssertionError("governance must not run"))
+    import app.main as main_app
+    monkeypatch.setattr(main_app, "execute_governed_action", forbidden)
+    response = client.post("/execute", params={"operation": "restart", "target": "x"})
+    assert response.status_code == 503
+    forbidden.assert_not_called()
+
+
+@pytest.mark.parametrize("value", ["false", "0", "no", "off", " FALSE "])
+def test_explicit_auth_opt_out_remains_supported(monkeypatch, value):
+    monkeypatch.setenv("RMT_AUTH_ENABLED", value)
+    assert resolve_operator().name == "local-dev"
+
+
 def test_authenticated_identity_reaches_grant(client):
     r = client.post(
         "/agent/authority/grant",

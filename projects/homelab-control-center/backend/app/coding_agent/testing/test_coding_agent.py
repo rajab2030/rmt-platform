@@ -40,6 +40,8 @@ def client():
         "git push origin main --force",
         "git push origin main -f",
         "git push --force-with-lease origin main",
+        "git -C /repo push --force",
+        "git -c advice.pushUpdateRejected=false push origin main -f",
     ],
 )
 def test_git_force_push_matches(command):
@@ -68,8 +70,16 @@ def test_recursive_delete_matches():
     assert match.rule.name == "recursive-delete"
 
 
-def test_recursive_delete_confined_to_tmp_does_not_match():
-    assert risk_rules.classify("rm -rf /tmp/scratch/foo") is None
+@pytest.mark.parametrize("command", [
+    "rm -rf /tmp/scratch/foo",
+    "rm -rf /tmp/../home/example",
+    "rm -rf /tmp-not-scratch",
+    "rm -r -f /home/example",
+    "rm --recursive --force /home/example",
+    "rm -Rf /home/example",
+])
+def test_recursive_delete_always_requires_review(command):
+    assert risk_rules.classify(command).rule.name == "recursive-delete"
 
 
 def test_plain_rm_does_not_match():
@@ -202,6 +212,19 @@ def test_propose_matching_command_creates_hold(client, enabled, tmp_path):
     holds = command_hold_store.all()
     assert len(holds) == 1
     assert holds[0].status == "pending"
+
+
+@pytest.mark.parametrize("command", [
+    "rm -rf /tmp/../home/example", "rm -r -f /home/example",
+    "git -C /repo push --force",
+])
+def test_reported_bypasses_are_held_by_api(client, enabled, tmp_path, command):
+    response = client.post(
+        "/coding-agent/propose", json={"command": command, "cwd": str(tmp_path)},
+    )
+    assert response.status_code == 200
+    assert response.json()["decision"] == "hold"
+    assert command_hold_store.all()[0].status == "pending"
 
 
 def test_decide_approve_updates_status_and_decided_by(client, enabled, tmp_path):

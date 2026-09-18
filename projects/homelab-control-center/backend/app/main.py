@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+from threading import Lock
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -77,6 +78,12 @@ import asyncio
 
 
 logger = logging.getLogger("rmt.http")
+
+# Frozen-Core D6: serialize BOTH HTTP continuation routes in the supported
+# single-process deployment. This lock makes no governance decision; Core
+# still resolves the hold and authorizes execution. Direct in-process Core
+# callers and multiple workers are outside this compensating control.
+_approval_continuation_lock = Lock()
 
 
 OPERATION_TO_ACTION_TYPE = {
@@ -523,11 +530,12 @@ def approve(
     if not ok:
         raise HTTPException(status_code=403, detail=f"separation of duties: {why}")
 
-    result = approve_held_action(
-        approval_id,
-        approved_by=operator.name,
-        approved=approved,
-    )
+    with _approval_continuation_lock:
+        result = approve_held_action(
+            approval_id,
+            approved_by=operator.name,
+            approved=approved,
+        )
     # E3: distinguishable evidence when the adapter was invoked and failed.
     record_failed_execution_evidence(result, source="http_approve")
     _log_governed(
@@ -608,11 +616,12 @@ def homelab_approve(
         raise HTTPException(status_code=403, detail=f"separation of duties: {why}")
 
     from app.homelab.continuation import continue_remediation
-    result = continue_remediation(
-        approval_id,
-        approved_by=operator.name,
-        approved=approved,
-    )
+    with _approval_continuation_lock:
+        result = continue_remediation(
+            approval_id,
+            approved_by=operator.name,
+            approved=approved,
+        )
     # E3: covers a non-REMEDIATION_POLICY component, where continue_remediation
     # early-returns before the above-Core Docker verify; a no-op otherwise.
     record_failed_execution_evidence(result, source="http_homelab_approve")

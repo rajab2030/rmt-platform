@@ -12,7 +12,7 @@ before a replacement.
 
 | File | Item | In git? | Purpose |
 |---|---|---|---|
-| `rmt-control-center.service` | R3 | ✅ | base unit — user, workdir, `ExecStart` (0.0.0.0:8000), `Restart=always` |
+| `rmt-control-center.service` | R3 | ✅ | base unit — user, workdir, `ExecStart` (127.0.0.1:8000, one worker), `Restart=always` |
 | `cap04-loop.conf` | CAP-04 | ✅ | `RMT_HOMELAB_LOOP_ENABLED=true` |
 | `cap05-agent.conf` | CAP-05 | ✅ | `RMT_AGENT_ENABLED` / `RMT_AGENT_LLM_ENABLED=true` |
 | `bind-loopback.conf` | S4 | ✅ | rebinds `ExecStart` to `127.0.0.1:8000` (Caddy is the only LAN listener) |
@@ -23,6 +23,12 @@ before a replacement.
 **Expected live drop-in inventory:** `cap04-loop.conf`, `cap05-agent.conf`,
 `auth.conf`, `bind-loopback.conf`, `hardening.conf`. `docs/operations/CONFIG.md`
 lists every `RMT_*` variable and which drop-in sets it.
+
+Keep exactly one backend process/worker. The HTTP approval serialization control
+is process-local; multiple workers or overlapping backend instances sharing the
+evidence database are unsupported. Both the base unit and loopback override pin
+`--workers 1`. See `docs/RMT_SECURITY_REMEDIATION.md` for validation and deployment
+status; editing these files does not update an installed unit.
 
 ## Reverse proxy
 

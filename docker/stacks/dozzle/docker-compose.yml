@@ -5,7 +5,8 @@ services:
     restart: unless-stopped
 
     ports:
-      - "8888:8080"
+      # Access remotely through an SSH tunnel, not an unauthenticated LAN port.
+      - "127.0.0.1:8888:8080"
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
