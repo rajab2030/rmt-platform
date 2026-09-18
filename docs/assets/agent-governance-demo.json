@@ -1,0 +1,137 @@
+{
+  "source_commit": "b914ee160940870aead96c20a8193fbdd598ec29",
+  "date": "2026-09-18",
+  "client_exit_code": 0,
+  "auth_probe_status": 401,
+  "approval_inputs": "automated newline on each interactive prompt; not independent human approval",
+  "approval_count": 2,
+  "checks": [
+    {
+      "checkpoint": "before_create_approval",
+      "tag_present": false
+    },
+    {
+      "checkpoint": "before_remove_approval",
+      "tag_present": true
+    },
+    {
+      "checkpoint": "after_remove_approval",
+      "tag_present": false
+    }
+  ],
+  "audit_records": [
+    {
+      "execution_id": "15b2bf0e-84ec-40a7-abc3-10f5e4cd9499",
+      "action_id": "7d2a9ae9-5fba-401c-acae-7230adf5ed88",
+      "authorization_id": "4fb5c1fd-a2a4-48c3-b985-8c56b5d1b07d",
+      "adapter": "git",
+      "status": "completed",
+      "message": "Execution completed: create on rmt-demo-tag",
+      "risk_level": "medium",
+      "approval_type": "unknown",
+      "decision_reason": "",
+      "governance_domain": "rmt.default",
+      "assessment_id": "abc3dd60-73b4-4481-b528-252ec61e3970",
+      "policy_evaluator_id": "rmt.default.action-policy",
+      "policy_evaluator_version": "1",
+      "risk_evaluator_id": "rmt.default.action-simulation",
+      "risk_evaluator_version": "1",
+      "canonicalization_version": "rmt-instruction-v1",
+      "instruction_digest": "39fc7463a5c8f0cbf19e22d5ffb5d1ba5f530e787b8430ae7f184364c7b6d349",
+      "policy_evidence_references": [],
+      "risk_evidence_references": [],
+      "uncertainty": "unspecified",
+      "recovery_semantics": "",
+      "created_at": "2026-09-18T10:06:09.709465Z"
+    },
+    {
+      "execution_id": "1208e5c7-5459-4c1a-bcb5-3cb851ae71ab",
+      "action_id": "d77512b9-caf4-43d4-a82f-bab7aa355ae9",
+      "authorization_id": "252a5452-3a86-4c5e-84f3-435d082e2647",
+      "adapter": "git",
+      "status": "completed",
+      "message": "Execution completed: remove on rmt-demo-tag",
+      "risk_level": "high",
+      "approval_type": "unknown",
+      "decision_reason": "",
+      "governance_domain": "rmt.default",
+      "assessment_id": "b6300b77-9e76-4a35-810e-93f6a206b3c1",
+      "policy_evaluator_id": "rmt.default.action-policy",
+      "policy_evaluator_version": "1",
+      "risk_evaluator_id": "rmt.default.action-simulation",
+      "risk_evaluator_version": "1",
+      "canonicalization_version": "rmt-instruction-v1",
+      "instruction_digest": "940c8168ed46960be5a40c4612295c79cde68e725e04a814e0d8a033827548b4",
+      "policy_evidence_references": [],
+      "risk_evidence_references": [],
+      "uncertainty": "unspecified",
+      "recovery_semantics": "",
+      "created_at": "2026-09-18T10:06:10.815214Z"
+    }
+  ],
+  "health_loop_running": false,
+  "verification_records": [
+    {
+      "verification_id": "c82e4191-1048-41fa-b9ee-81386b4543ff",
+      "execution_id": "15b2bf0e-84ec-40a7-abc3-10f5e4cd9499",
+      "status": "observation_unavailable",
+      "expected": {
+        "target": "rmt-demo-tag",
+        "operation": "create",
+        "expected_state": "present"
+      },
+      "observed": null,
+      "reason": "Observation unavailable",
+      "created_at": "2026-09-18T10:06:09.718254Z"
+    },
+    {
+      "verification_id": "95e7a8c2-e2fa-4d02-a994-f2f43be9c3bf",
+      "execution_id": "15b2bf0e-84ec-40a7-abc3-10f5e4cd9499",
+      "status": "verified_success",
+      "expected": {
+        "target": "rmt-demo-tag",
+        "operation": "create",
+        "expected_state": "present"
+      },
+      "observed": {
+        "target": "rmt-demo-tag",
+        "state": "present",
+        "source": "git",
+        "timestamp": "2026-09-18T10:06:09.729476Z"
+      },
+      "reason": "[layer=above_core adapter=git supersedes=observation_unavailable] Observed state matches expected outcome",
+      "created_at": "2026-09-18T10:06:09.729567Z"
+    },
+    {
+      "verification_id": "ed16375c-6507-41d4-b97c-3e330405559e",
+      "execution_id": "1208e5c7-5459-4c1a-bcb5-3cb851ae71ab",
+      "status": "observation_unavailable",
+      "expected": {
+        "target": "rmt-demo-tag",
+        "operation": "remove",
+        "expected_state": "absent"
+      },
+      "observed": null,
+      "reason": "Observation unavailable",
+      "created_at": "2026-09-18T10:06:10.821665Z"
+    },
+    {
+      "verification_id": "92ac463a-41c9-4a3d-817f-d41c2968b010",
+      "execution_id": "1208e5c7-5459-4c1a-bcb5-3cb851ae71ab",
+      "status": "verified_success",
+      "expected": {
+        "target": "rmt-demo-tag",
+        "operation": "remove",
+        "expected_state": "absent"
+      },
+      "observed": {
+        "target": "rmt-demo-tag",
+        "state": "absent",
+        "source": "git",
+        "timestamp": "2026-09-18T10:06:10.833522Z"
+      },
+      "reason": "[layer=above_core adapter=git supersedes=observation_unavailable] Observed state matches expected outcome",
+      "created_at": "2026-09-18T10:06:10.833600Z"
+    }
+  ]
+}
