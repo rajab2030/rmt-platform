@@ -19,15 +19,20 @@ homelab hardware, no Docker):
    *name* any operation, but may only act on the one it holds a grant for.
 2. **Preview** the action — RMT's real predicted policy/risk/approval
    outcome, with zero side effects (no grant consumed, no hold created).
-3. **Propose it for real.** A benign, low-risk action executes and is
-   verified through the same frozen-Core lifecycle a human's
-   `POST /execute` would go through.
+3. **Propose it for real.** Inspect the returned decision. Depending on policy,
+   creation can be held for approval too; execution and verification outcomes
+   are reported separately.
 4. **Attempt to over-reach the same grant** (a destructive operation it was
    never granted). Refused *before governance even runs* — no policy call,
    no risk assessment, no evidence write.
-5. **A properly granted destructive action.** RMT's frozen risk engine holds
-   it for a human — the agent cannot approve its own proposal — you approve
-   it interactively and watch the evidence receipt land.
+5. **A separately granted removal proposal.** If policy holds it, the client
+   prompts for approval and displays the resulting execution evidence.
+
+This walkthrough uses one operator credential to grant, propose, and approve.
+It does not demonstrate independent approver identities, despite the client's
+older narration about self-approval. Approval is policy-dependent; an absent
+verification result is not verified success. Closing stdin now aborts approval.
+See the [recorded outcomes and limitations](../../docs/assets/agent-governance-demo.md).
 
 Every line of output is a real response from your RMT instance. Nothing is
 scripted or mocked — if your instance's policy classifies something
@@ -92,7 +97,7 @@ local-dev escape hatch the backend itself documents.)
 The homelab domain (Docker/systemd) needs real hardware or containers a
 stranger cloning this repo won't have. The git-tag domain needs nothing but
 `git` and a scratch directory, so this script is runnable end-to-end by
-anyone, anywhere, in under a minute — while exercising the *exact* same
+someone with the backend already configured — while exercising the same
 governed lifecycle (policy → risk → approval → authorization → execution →
 verification → evidence) as every other domain RMT governs.
 

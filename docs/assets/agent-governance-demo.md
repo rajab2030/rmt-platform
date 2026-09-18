@@ -75,12 +75,15 @@ can differ with configuration.
   client uses the same operator token to grant authority, propose, and approve.
   The source transcript's narration about a human and self-approval must not be
   read as proof of separate approver identities.
-- The client currently proceeds with approval after an `EOFError` at its prompt.
-  This run sent explicit input through a pseudo-terminal and did not use EOF.
+- At the recorded commit, the client proceeded with approval after an
+  `EOFError`. Current code aborts instead. This recording sent explicit input
+  through a pseudo-terminal and did not use EOF.
 - This is a sequential walkthrough. It does not test concurrent approvals or
   establish exactly-once execution. The earlier security review reported a
-  concurrent-approval race and invalid authentication-setting behavior; this
-  documentation change does not remediate those findings.
+  concurrent-approval race and invalid authentication-setting behavior.
+  Subsequent fixes and the deployed single-process mitigation are documented
+  in the [security remediation report](../RMT_SECURITY_REMEDIATION.md). This
+  historical recording is not evidence of those later fixes.
 - This run verifies Git-tag creation and removal. It does not establish that
   every domain or route can verify every outcome. An unavailable observation is
   not verified success.
