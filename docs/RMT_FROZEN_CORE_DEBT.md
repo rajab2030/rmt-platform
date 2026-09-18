@@ -222,8 +222,9 @@ and were verified on 2026-09-10.
 - **Residual risk.** Direct concurrent in-process calls to Core and multiple
   backend processes sharing stores are outside this control. It is not a
   general exactly-once guarantee or a remedy for D1's restart/reconcile risk.
-- **Disposition.** Above-Core mitigation implemented and tested; production
-  deployment is pending. This record does not accept unsupported deployments.
+- **Disposition.** Above-Core mitigation implemented, tested, and deployed;
+  single-process production deployment verified on 2026-09-18. This record
+  does not accept unsupported deployments.
 - **Trigger to revisit (owner).** Any new approval-continuation entrypoint,
   direct caller, multi-worker/replica deployment, or shared-store process must
   demonstrate compatible serialization above Core before admission. Core
