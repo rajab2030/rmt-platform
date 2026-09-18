@@ -4,10 +4,10 @@
 `d66c9ce`. Above-Core application, operational configuration, tooling, and
 dependency changes only. **No `app/core/**` changes.**
 
-**Status:** repository fixes validated; not committed, published, or
-deployed. Live exposure and installed artifacts are not established by changing
-repository files. Promotion remains paused pending remediation review and
-deployment verification.
+**Status:** repository fixes committed and published as `5466deb`. Dozzle's
+loopback binding is deployed and verified. Backend deployment is blocked on
+host sudo authentication; the running backend has not been restarted into the
+fixes. Promotion remains paused pending backend deployment verification.
 
 The [Master Definition](RMT_MASTER_DEFINITION.md) and
 [frozen-Core rules](RMT_FROZEN_CORE_DEBT.md) prohibit reopening Core and allow
@@ -20,7 +20,7 @@ domain capability, persistence subsystem, or adapter bypass.
 | --- | --- | --- |
 | Concurrent approvals execute one hold twice | Shared lock around `/approve` and `/homelab/approve`; unit and override explicitly select one worker | **Mitigated**, not repaired inside Core. One backend process only; direct concurrent Core callers are unsupported. Deployment pending. |
 | Invalid `RMT_AUTH_ENABLED` disables auth | Strict boolean parsing: blank/unknown values refuse startup; invalid values encountered at request time return 503 | Deploy backend; explicit local-development false remains supported. |
-| Dozzle logs exposed on an unauthenticated LAN port | Bind published port to `127.0.0.1:8888` | Recreate the service with this Compose configuration. Local access is still trusted; Docker socket privilege remains. |
+| Dozzle logs exposed on an unauthenticated LAN port | Bind published port to `127.0.0.1:8888`; recreated and verified live | Local access is still trusted; Docker socket privilege remains. |
 | Destructive command spellings bypass review | Match Git force-push with global options and recursive deletion with split/long options; remove the `/tmp` prefix exemption | A pattern-based review helper is not a shell sandbox. The hook's separately accepted outage/timeout fail-open policy is unchanged. |
 | Vulnerable frontend build dependencies | Lock nanoid 3.3.19 and PostCSS 8.5.28; installed versions, audit, build, and lint verified | Use the updated lockfile in other build environments. |
 | Restore filename becomes shell code | Pass filename as a positional argument to fixed shell code; mount backup source read-only; reject path/volume misuse; list archive before deleting | Operator must trust archive contents and the restore target. No production restore was performed. |
@@ -88,7 +88,23 @@ guarantee. The gap and disposition are recorded as
 
 ## Deployment and closure checklist
 
-These steps have **not** been executed on the production services.
+Deployment evidence from the authorized rollout:
+
+- `5466deb` pushed to `origin/master`; the pre-push gate passed **642 tests**,
+  including the three Docker tests excluded from the earlier isolated run.
+- Dozzle alone was recreated with `--no-deps --pull never`. Docker inspection
+  confirms `HostIp=127.0.0.1`, `HostPort=8888`; local HTTP returns 200.
+- Backend unit installation stopped at `sudo: a password is required` before
+  installation or restart. The existing backend remains active with PID 1288
+  and its previous command. Current smoke checks pass, including health,
+  Docker adapter readiness, metrics, and unauthenticated 401 responses; these
+  do **not** prove the new backend fixes are loaded.
+- Prior unit and loopback override copies are saved on the deployment host at
+  `/tmp/rmt-security-deploy.bwMsry/`. Existing unrelated overrides were preserved.
+- The rebuilt frontend toolchain is verified locally. The served static release
+  remains unchanged; the dependency findings concern build tools.
+
+Closure checklist (backend steps still pending):
 
 1. Review the diff and retain exactly one backend process. Install the updated
    base service and `bind-loopback.conf` from
