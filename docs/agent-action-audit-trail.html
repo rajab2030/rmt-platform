@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>An audit trail for AI-agent actions: a Git-tag walkthrough | RMT</title>
+  <meta name="description" content="Follow an AI-agent action from scoped grant and policy preview through an approval hold to execution and verification evidence in RMT's recorded Git-tag walkthrough.">
+  <link rel="canonical" href="https://rajab2030.github.io/rmt-platform/agent-action-audit-trail.html">
+  <meta property="og:title" content="An audit trail for AI-agent actions: a Git-tag walkthrough">
+  <meta property="og:description" content="What was proposed, why was it held, and what actually happened? Follow one recorded RMT example.">
+  <meta property="og:type" content="article"><meta property="og:url" content="https://rajab2030.github.io/rmt-platform/agent-action-audit-trail.html">
+  <meta property="og:image" content="https://rajab2030.github.io/rmt-platform/assets/agent-governance-demo.png">
+  <meta name="twitter:card" content="summary_large_image"><link rel="stylesheet" href="site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><a href="./">RMT Platform</a><nav aria-label="Main"><a href="https://github.com/rajab2030/rmt-platform">Source</a><a href="https://github.com/rajab2030/rmt-platform/tree/master/tools/rmt-showcase-agent">Try the demo</a></nav></header>
+<main id="main"><article>
+<p class="eyebrow">Engineering walkthrough · 18 September 2026</p>
+<h1>An audit trail for AI-agent actions: a Git-tag walkthrough</h1>
+<p class="lead">A tool's success message leaves several questions unanswered: what operation was proposed, why was it permitted, and did the resulting state match the intended outcome?</p>
+<p>RMT Platform makes those questions inspectable for operations submitted through its governed gateway. Its local showcase uses a disposable Git repository: propose creating a tag, inspect the decision, resolve any approval hold, and later propose removing the tag. The client is deterministic. No model produces the proposals, so readers can examine the control flow without setting up an LLM.</p>
+<p>The example below comes from a <a href="https://github.com/rajab2030/rmt-platform/blob/master/docs/assets/agent-governance-demo.md">recorded local run</a>, with its transcript and audit records available. It is an operator walkthrough using one identity. Approval inputs were automated for the recording.</p>
+<figure><img src="assets/agent-governance-demo.png" alt="Recorded proposal, hold, approval, verification, and grant reuse refusal."><figcaption>Recorded response excerpts; IDs and decisions vary with configuration.</figcaption></figure>
+<h2>1. Establish scope before proposing an operation</h2>
+<p>The client requests a grant through <code>POST /agent/authority/grant</code>, naming the operation and target tag. That gives the following proposal a concrete scope. Being able to describe another operation does not make the earlier grant suitable for it.</p>
+<p>The grant belongs to the agent-facing admission flow. It does not replace the policy, risk, approval, and execution authorization decisions that follow. These stages answer different questions and should remain distinguishable when investigating a result.</p>
+<h2>2. Preview without confusing prediction with execution</h2>
+<p>Next, <code>POST /agent/act/preview</code> returns a prediction of policy, risk, and approval requirements. In the captured run, creation was classified as medium risk and required manual approval. Preview did not create the tag or consume the grant.</p>
+<p>A preview helps an operator understand what is likely to happen when a proposal is submitted. It is not an execution receipt, and it does not establish that the intended state exists.</p>
+<h2>3. Read a hold as a pending decision</h2>
+<p>Submitting the proposal through <code>POST /agent/act</code> returned <code>hold</code>. Both <code>execution_id</code> and <code>verification_status</code> were absent. An independent check confirmed that the tag did not yet exist.</p>
+<p>The client then used the approval endpoint. The response reported execution success and <code>verified_success</code>. A subsequent check found the tag present. That sequence connects the proposed action, the approval continuation, and an observed result instead of treating a pending hold as a completed operation.</p>
+<h2>4. Preserve the actual refusal reason</h2>
+<p>The walkthrough next attempted removal using the earlier creation grant. RMT returned <code>no_authority</code> with <code>grant_consumed</code>. There was no third execution audit record.</p>
+<p>This attempt changed the operation and reused a consumed grant, so it does not isolate every grant rule. The useful evidence is the refusal actually returned. A refusal before governance is also not evidence that a new governed execution receipt was written.</p>
+<h2>5. Separate execution from verification</h2>
+<p>A new removal grant allowed the client to submit the removal proposal. That proposal was held too, with the tag still present before approval. After approval, the response reported success and <code>verified_success</code>; an independent check found the tag absent.</p>
+<div class="table-wrap"><table><caption>Observed outcomes in the recorded run</caption><thead><tr><th>Event</th><th>Response or observation</th></tr></thead><tbody>
+<tr><td>Create proposal</td><td>Held; tag absent</td></tr><tr><td>Create approval</td><td>Executed; verified success; tag present</td></tr><tr><td>Reuse earlier grant</td><td>Refused: grant consumed</td></tr><tr><td>Removal proposal</td><td>Held; tag still present</td></tr><tr><td>Removal approval</td><td>Executed; verified success; tag absent</td></tr>
+</tbody></table></div>
+<p>Other environments can produce different decisions or unavailable observations. An adapter may fail after invocation, and an executed action may lack enough evidence for verification. Keeping these outcomes distinct helps an integrator decide whether to inspect, wait, or seek operator input.</p>
+<h2>What this example does not prove</h2>
+<p>The same operator credential grants authority, proposes work, and submits approval in this client. It does not demonstrate separation of duties. Human involvement must not be inferred from an automated recording.</p>
+<p>The supported deployment uses one backend process. A shared HTTP continuation lock mitigates the reviewed concurrent-approval race at that boundary; concurrent direct Core calls and multiple processes remain outside that control. RMT does not offer a general exactly-once or automatic rollback guarantee.</p>
+<p>The recording predates the later security fixes. Current fixes include strict authentication configuration parsing and aborting approval when the client's stdin closes. Their separate tests and deployment evidence are in the <a href="https://github.com/rajab2030/rmt-platform/blob/master/docs/RMT_SECURITY_REMEDIATION.md">remediation report</a>. This article does not reclassify the older recording as a new security test.</p>
+<h2>Try it and tell us what is missing</h2>
+<p>Follow the <a href="https://github.com/rajab2030/rmt-platform/tree/master/tools/rmt-showcase-agent">showcase prerequisites</a> using a disposable backend and scratch repository. The Python client uses the standard library, but the backend must already be installed and configured. Do not target a production repository.</p>
+<p>Useful feedback is specific: where did setup become unclear, which response field was hard to interpret, and what evidence would you need to investigate an unexpected result? Share it in <a href="https://github.com/rajab2030/rmt-platform/discussions">GitHub Discussions</a>, or take a <a href="https://github.com/rajab2030/rmt-platform/contribute">small documentation issue</a>.</p>
+<p class="small">Prepared with AI assistance from the repository's API contract, recorded demo, and security evidence. This is a technical project introduction, not an independent security certification.</p>
+</article></main>
+<footer><a href="./">RMT Platform</a> · <a href="https://github.com/rajab2030/rmt-platform/blob/master/docs/operations/AGENT_API.md">Agent API contract</a> · <a href="https://github.com/rajab2030/rmt-platform/blob/master/docs/RMT_GUARANTEES.md">Guarantees and limits</a></footer>
+</body></html>

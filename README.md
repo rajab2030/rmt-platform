@@ -6,6 +6,10 @@
 
 **Policy checks, approval holds, and execution evidence for AI-agent actions.**
 
+[Project website](https://rajab2030.github.io/rmt-platform/) ·
+[Read the Git-tag walkthrough](https://rajab2030.github.io/rmt-platform/agent-action-audit-trail.html) ·
+[Ask a question](https://github.com/rajab2030/rmt-platform/discussions)
+
 RMT (Risk-Mitigated Transactions) is a general-purpose intelligent control,
 execution, and governance platform. Its Agent Governance Gateway demonstrates
 how an external agent can propose an operation, inspect a policy/risk preview,
