@@ -9,11 +9,31 @@ work. It does not change the platform's architecture or operating guarantees.
 - Technical article: https://rajab2030.github.io/rmt-platform/agent-action-audit-trail.html
 - Source: https://github.com/rajab2030/rmt-platform
 - Feedback: https://github.com/rajab2030/rmt-platform/discussions
+- Launch announcement: https://github.com/rajab2030/rmt-platform/discussions/3
+- Profile introduction: https://github.com/rajab2030/rajab2030
 - Newcomer tasks: https://github.com/rajab2030/rmt-platform/issues/1 and
   https://github.com/rajab2030/rmt-platform/issues/2
 
 [Finished social posts](social-posts.md) are available for a connected account.
 Social publishing is not implied by these files being present in GitHub.
+
+## Publication evidence — 2026-09-18
+
+- Website and article source published in `f0df2c1`; pre-push gate passed 642
+  tests. GitHub CI and the Pages build both completed successfully.
+- Homepage, article, stylesheet, and preview image returned HTTP 200. GitHub
+  Pages reports `built` with HTTPS enforced. The repository's homepage field
+  points to the deployed site.
+- Local Chromium checks passed at 1280px and 390px widths for both pages,
+  without horizontal overflow. Local asset links and image alternatives were
+  checked; the mobile screenshot was visually inspected.
+- GitHub Discussions was enabled and announcement #3 published. The previously
+  absent profile repository was created with the completed RMT introduction.
+- The GitHub bio edit was denied because the current token lacks user-profile
+  write scope. The bio remains unchanged; the profile README is live.
+- Metricool was suggested for social publishing but no connection was confirmed.
+  LinkedIn, Reddit, and other external social posts have not been submitted.
+  Completed copy is in `social-posts.md`; no writing task remains for the owner.
 
 ## Baseline
 
