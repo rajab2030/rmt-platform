@@ -92,6 +92,90 @@ local-dev escape hatch the backend itself documents.)
 | `RMT_SHOWCASE_AGENT_ID` | `showcase-bot` | The `agent_id` this script proposes as |
 | `RMT_SHOWCASE_TAG` | `showcase-<epoch>` | Tag name to create/remove — timestamped by default so re-runs never collide |
 
+## Troubleshooting startup and approval input
+
+This client stops safely when it cannot start or cannot complete a request. The
+checks below are read-only first checks: do not disable authentication, expose
+network ports, or restart a production RMT instance as a generic fix.
+
+### `RMT_TOKEN` is missing
+
+If `RMT_TOKEN` is not set, the client exits before making any HTTP request:
+
+```text
+error: RMT_TOKEN is required -- an operator token from RMT_OPERATOR_TOKENS
+```
+
+First check that the environment variable exists without printing its value.
+For example, in PowerShell:
+
+```powershell
+if (Test-Path Env:RMT_TOKEN) {
+  Write-Output "RMT_TOKEN is set."
+} else {
+  Write-Output "RMT_TOKEN is not set."
+}
+```
+
+Use an operator token configured by the RMT instance owner. Do not paste a real
+token into issue comments, pull requests, screenshots, or logs.
+
+### RMT cannot be reached
+
+A connection failure exits with an error like:
+
+```text
+error: could not reach http://127.0.0.1:8000 (<reason>) -- is RMT running?
+```
+
+This means the client could not establish a connection to `RMT_URL`; it is not
+a policy decision from RMT. First, check that `RMT_URL` has the correct
+protocol, host, and port for the intended RMT instance, and confirm with the
+instance owner that the service is expected to be reachable from your machine.
+Do not treat disabling authentication or exposing a port as a troubleshooting
+step.
+
+### RMT returned an HTTP error
+
+If RMT responds but returns a non-2xx HTTP status, the client exits with:
+
+```text
+error: <METHOD> <PATH> -> HTTP <status>: <response body>
+```
+
+For example, the method and path identify the request that failed, while the
+status and response body come from RMT. First, record the status code and
+request path, then compare the request with the configured RMT URL and the API
+contract. If authentication is involved, ask the instance owner to verify that
+the existing operator token has the required access; do not weaken or disable
+authentication.
+
+### Approval prompt receives EOF
+
+When an action is held for approval, the script waits for Enter. If standard
+input is closed, such as when the script is run without an interactive
+terminal, it exits with:
+
+```text
+error: No interactive approval received; leaving the action held.
+```
+
+No approval request is sent in this case. The action remains held in RMT and
+the client exits. First, run the client from an interactive terminal with
+standard input connected, rather than piping input or running it in an
+environment that closes stdin.
+
+### Failures are different from policy decisions
+
+Connection failures and non-2xx HTTP responses are client errors: the script
+exits through `_call()` because it could not obtain a successful HTTP response.
+
+A successful HTTP response can still contain an RMT policy decision. For
+example, the showcase displays decisions such as `allow`, `hold`, or
+`escalated_hold`. These are returned governance outcomes, not connection or
+HTTP failures. A held action requires the normal approval flow; it is not a
+reason to bypass approval controls.
+
 ## Why this, and not something homelab-specific
 
 The homelab domain (Docker/systemd) needs real hardware or containers a
