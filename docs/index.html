@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RMT Platform — governance and execution evidence for AI-agent actions</title>
+  <meta name="description" content="Inspect proposed AI-agent actions, policy decisions, approval holds, and execution evidence. Explore RMT's local Git-tag demo and open-source implementation.">
+  <link rel="canonical" href="https://rajab2030.github.io/rmt-platform/">
+  <meta property="og:title" content="RMT Platform — inspect an agent action before and after execution">
+  <meta property="og:description" content="Policy checks, approval holds, and execution evidence. Try the local Git-tag walkthrough; no LLM is required.">
+  <meta property="og:type" content="website"><meta property="og:url" content="https://rajab2030.github.io/rmt-platform/">
+  <meta property="og:image" content="https://rajab2030.github.io/rmt-platform/assets/agent-governance-demo.png">
+  <meta name="twitter:card" content="summary_large_image"><link rel="stylesheet" href="site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><a href="./">RMT Platform</a><nav aria-label="Main"><a href="agent-action-audit-trail.html">Read the walkthrough</a><a href="https://github.com/rajab2030/rmt-platform">GitHub</a></nav></header>
+<main id="main">
+  <section class="hero">
+    <p class="eyebrow">Open source · MIT licensed</p>
+    <h1>Inspect an agent action.<br>Before and after execution.</h1>
+    <p class="lead">Policy checks, approval holds, and execution evidence for operations submitted through RMT's Agent Governance Gateway.</p>
+    <div class="actions"><a class="button primary" href="https://github.com/rajab2030/rmt-platform/tree/master/tools/rmt-showcase-agent">Try the local demo</a><a class="button" href="agent-action-audit-trail.html">See how it works</a></div>
+    <p class="small">A configured local backend, Python, and a disposable Git repository are required. No LLM is needed for the walkthrough.</p>
+  </section>
+  <section aria-labelledby="demo"><p class="eyebrow">A real, recorded example</p><h2 id="demo">A Git tag, an approval hold, and a result you can inspect.</h2>
+    <figure><img src="assets/agent-governance-demo.png" alt="Recorded Git-tag walkthrough: preview, held proposal, approval, verified result, and refused grant reuse."><figcaption>Excerpts from a local run. Approval inputs were automated; the recording does not demonstrate separate approver identities.</figcaption></figure>
+    <details><summary>Watch the 24-second animated excerpts</summary><img loading="lazy" src="assets/agent-governance-demo.gif" alt="Animated excerpts of the recorded proposal and approval workflow."></details>
+    <p><a href="https://github.com/rajab2030/rmt-platform/blob/master/docs/assets/agent-governance-demo.md">Read the transcript, setup, and limitations</a></p>
+  </section>
+  <section aria-labelledby="workflow"><h2 id="workflow">Follow the decision through to its outcome.</h2><div class="cards">
+    <div class="card"><h3>Preview the proposal</h3><p>Inspect predicted policy, risk, and approval requirements before submitting an operation.</p></div>
+    <div class="card"><h3>Resolve the hold</h3><p>When policy requires approval, the proposal waits for an operator decision through the governed continuation.</p></div>
+    <div class="card"><h3>Inspect the evidence</h3><p>Read the execution outcome and available verification result. An unavailable observation is not verified success.</p></div>
+  </div></section>
+  <section aria-labelledby="scope"><h2 id="scope">Built for a defined operating boundary.</h2><p>RMT stands for Risk-Mitigated Transactions. It is a general-purpose control, execution, and governance platform; agent governance is one capability built on its common lifecycle.</p><p>This walkthrough targets trusted operators and a single backend process. RMT governs operations submitted through its gateway; arbitrary host access remains outside that boundary. Approval requirements depend on policy, and there is no general exactly-once guarantee.</p><p><a href="https://github.com/rajab2030/rmt-platform/blob/master/docs/RMT_GUARANTEES.md">Guarantees and limits</a> · <a href="https://github.com/rajab2030/rmt-platform/blob/master/docs/RMT_SECURITY_REMEDIATION.md">Security remediation evidence</a></p></section>
+  <section aria-labelledby="contribute"><h2 id="contribute">Help make the first run easier.</h2><p>Try the disposable Git-tag example and tell us where setup becomes confusing or which execution details you need. Small documentation contributions are welcome.</p><div class="actions"><a class="button primary" href="https://github.com/rajab2030/rmt-platform/contribute">Find a starter issue</a><a class="button" href="https://github.com/rajab2030/rmt-platform/discussions">Share feedback</a></div></section>
+</main>
+<footer>RMT Platform · <a href="https://github.com/rajab2030/rmt-platform">Source and documentation</a> · Static project website; no live control interface.</footer>
+</body></html>
