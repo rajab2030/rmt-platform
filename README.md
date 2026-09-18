@@ -49,6 +49,9 @@ trusted-operator environments. The gateway governs operations submitted
 through RMT; host access and operations outside the gateway remain outside
 that boundary. See the [threat model](docs/RMT_THREAT_MODEL.md).
 
+See [security remediation status](docs/RMT_SECURITY_REMEDIATION.md) for current
+findings, validated controls, deployment status, and remaining limits.
+
 The domain-agnostic Core provides the common lifecycle:
 **Understand → Decide → Govern → Authorize → Execute → Verify → Learn**.
 Domains consume that lifecycle without embedding their rules into Core.

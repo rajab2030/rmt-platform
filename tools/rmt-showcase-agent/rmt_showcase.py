@@ -112,7 +112,7 @@ def _approve(approval_id: str, prompt_note: str) -> dict:
     try:
         input(_color("\n  Press Enter to approve it as that human operator... ", _YELLOW))
     except EOFError:
-        print()
+        _die("No interactive approval received; leaving the action held.")
     decided = _call("POST", f"/homelab/approve?approval_id={approval_id}&approved=true")
     _show("post-approval status", decided.get("status"))
     _show("execution success", decided.get("success"))

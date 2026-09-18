@@ -17,8 +17,8 @@
 #   bind-loopback.conf S4: rebinds ExecStart to 127.0.0.1 only
 #   hardening.conf     D3: sandboxing + resource ceilings + restart backoff
 #
-# The ExecStart here binds 0.0.0.0:8000; bind-loopback.conf clears and replaces
-# it with 127.0.0.1:8000 in production (Caddy is the only LAN-facing listener).
+# The base unit binds loopback; bind-loopback.conf retains the same setting for
+# older installations. Caddy is the only LAN-facing listener.
 
 [Unit]
 Description=RMT Platform Control Center Backend
@@ -27,7 +27,7 @@ After=network.target
 [Service]
 User=rmt-lab
 WorkingDirectory=/home/rmt-lab/homelab/projects/homelab-control-center/backend
-ExecStart=/home/rmt-lab/homelab/projects/homelab-control-center/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+ExecStart=/home/rmt-lab/homelab/projects/homelab-control-center/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
 Restart=always
 RestartSec=5
 

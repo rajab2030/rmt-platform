@@ -52,11 +52,16 @@ production-safe setting.
 import os
 
 
-def _env_bool(name: str, default: bool) -> bool:
+def _env_bool(name: str, default: bool, *, strict: bool = False) -> bool:
     raw = os.environ.get(name)
     if raw is None:
         return default
-    return raw.strip().lower() in ("1", "true", "yes", "on")
+    value = raw.strip().lower()
+    if value in ("1", "true", "yes", "on"):
+        return True
+    if strict and value not in ("0", "false", "no", "off"):
+        raise RuntimeError(f"{name} must be an explicit true or false value")
+    return False
 
 
 def _env_int(name: str, default: int) -> int:
@@ -71,12 +76,12 @@ def _env_int(name: str, default: int) -> int:
 
 # --- S1 / S2-lite: operator authentication -----------------------------------
 
-AUTH_ENABLED = _env_bool("RMT_AUTH_ENABLED", True)
+AUTH_ENABLED = _env_bool("RMT_AUTH_ENABLED", True, strict=True)
 
 
 def auth_enabled() -> bool:
     """Read dynamically so tests / a drop-in edit take effect without reimport."""
-    return _env_bool("RMT_AUTH_ENABLED", True)
+    return _env_bool("RMT_AUTH_ENABLED", True, strict=True)
 
 
 def _operator_tokens_raw() -> str:

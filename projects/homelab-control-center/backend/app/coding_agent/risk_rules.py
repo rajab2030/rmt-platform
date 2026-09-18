@@ -19,7 +19,7 @@ class RiskRule:
 RULES: list[RiskRule] = [
     RiskRule(
         "git-force-push",
-        re.compile(r"\bgit\s+push\b.*(--force(-with-lease)?\b|\s-f\b)"),
+        re.compile(r"\bgit\b[^\n;&|]*?\bpush\b[^\n;&|]*(--force(-with-lease)?\b|\s-[a-zA-Z]*f[a-zA-Z]*\b)"),
         "high",
         "irreversible remote history rewrite",
     ),
@@ -37,7 +37,7 @@ RULES: list[RiskRule] = [
     ),
     RiskRule(
         "recursive-delete",
-        re.compile(r"\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*|-[a-zA-Z]*f[a-zA-Z]*r[a-zA-Z]*)\b"),
+        re.compile(r"\brm\b[^\n;&|]*?(\s-[a-zA-Z]*[rR][a-zA-Z]*\b|\s--recursive\b)"),
         "high",
         "unrecoverable recursive deletion",
     ),
@@ -55,10 +55,6 @@ RULES: list[RiskRule] = [
     ),
 ]
 
-# Paths where recursive delete is treated as ordinary scratch cleanup, not risky.
-_SAFE_DELETE_PREFIXES = ("/tmp/", "/tmp",)
-
-
 @dataclass(frozen=True)
 class RiskMatch:
     rule: RiskRule
@@ -67,23 +63,12 @@ class RiskMatch:
 def classify(command: str) -> RiskMatch | None:
     """Return the first matching rule, or None if the command matches nothing.
 
-    ``recursive-delete`` is suppressed for paths clearly confined to /tmp
-    (scratch cleanup) -- a narrow, explicit carve-out, not a general escape
-    hatch: any target outside /tmp still matches.
+    Recursive deletion is reviewed even under /tmp: textual prefixes cannot
+    prove confinement in the presence of traversal, symlinks or shell syntax.
+    These patterns recognize common commands; they are not a shell sandbox.
     """
     for rule in RULES:
         if not rule.pattern.search(command):
             continue
-        if rule.name == "recursive-delete" and _targets_only_tmp(command):
-            continue
         return RiskMatch(rule=rule)
     return None
-
-
-def _targets_only_tmp(command: str) -> bool:
-    tokens = [t for t in command.split() if not t.startswith("-")]
-    # tokens[0] is the command name (e.g. "rm"); the rest are candidate paths.
-    paths = tokens[1:]
-    if not paths:
-        return False
-    return all(p.startswith(_SAFE_DELETE_PREFIXES) for p in paths)

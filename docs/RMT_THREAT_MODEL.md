@@ -6,6 +6,12 @@
 RMT with a workload. Pairs with `docs/RMT_GUARANTEES.md` (what each lifecycle
 stage does and does not assert).
 
+**2026-09-18 review:** see [security remediation](RMT_SECURITY_REMEDIATION.md)
+for reproduced findings, above-Core controls, and pending deployment checks.
+The earlier readiness claims below are not evidence that those new controls
+are installed. In particular, direct concurrent Core approval continuation is
+not atomic; the new HTTP control is limited to one backend process (DEBT D6).
+
 This document states the assets RMT protects, the trust boundary, the assumed
 adversary, the attack surface with its control, and the residual risks — each
 traced to a recorded decision or gap.

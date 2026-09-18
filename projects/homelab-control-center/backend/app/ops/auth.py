@@ -56,7 +56,16 @@ def resolve_operator(
     x_api_key: str | None = None,
 ) -> OperatorIdentity:
     """Core auth check, framework-independent (unit-testable)."""
-    if not ops_config.auth_enabled():
+    try:
+        enabled = ops_config.auth_enabled()
+    except RuntimeError as exc:
+        # Startup refuses this configuration; also fail closed if it changes
+        # in a running process or a caller does not run the ASGI lifespan.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="operator authentication is misconfigured",
+        ) from exc
+    if not enabled:
         return OperatorIdentity(name="local-dev")
 
     tokens = ops_config.operator_tokens()
