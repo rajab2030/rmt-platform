@@ -3269,9 +3269,33 @@ Prepared instead: `deploy/systemd/attestation.conf.example` (new, committed)
 — the non-secret drop-in template, following `auth.conf.example`'s exact
 documented convention (`LoadCredential=RMT_ATTESTATION_SIGNING_KEY:
 /etc/rmt-control-center/attestation_signing_key.secret`, `Environment=
-RMT_ATTESTATION_EXPORT_ENABLED=true`). The owner still needs to: generate a
-production signing key, create the root-only `0600` secret file, install the
-drop-in, `daemon-reload` + restart, and verify (`/health` 200,
-unauthenticated `/ops/evidence/export` → 401, authenticated with a real
-identifier → a signed bundle). See the conversation for the exact commands
-handed to the owner.
+RMT_ATTESTATION_EXPORT_ENABLED=true`).
+
+## RMT-CAP-11 live deployment — DONE and verified
+
+**Date:** 2026-09-20. The owner performed the privileged install (generated
+the production signing key, created the root-only `0600` secret file,
+installed `attestation.conf`, `daemon-reload` + restart) in their own
+terminal. Live evidence, gathered without this session ever seeing the
+operator token or the signing key directly (a script run by the owner did
+the token/key handling; only structural results came back):
+
+- New unit instance confirmed live (`MainPID` changed, `attestation.conf`
+  present in `DropInPaths`); `/health` 200; loop running normally throughout,
+  never interrupted.
+- Unauthenticated `GET /ops/evidence/export` → 401 (auth required, as
+  expected regardless of the flag).
+- Authenticated `GET /ops/evidence/export` with no identifier → **422** —
+  confirms both `RMT_ATTESTATION_EXPORT_ENABLED=true` and a configured
+  `RMT_ATTESTATION_SIGNING_KEY` are live (a misconfiguration would 503 here
+  instead).
+- A signed bundle was exported for a **real** already-recorded production
+  execution (`execution_id 78eac35c-f4bf-4f96-b777-ea096fd5a783`, pulled from
+  `GET /ops/verifications`) and verified **offline**, on the host, against
+  the real production signing key: `rmt-attestation-verify.py` reported
+  **VALID**.
+
+RMT-CAP-11 (P-C) is now COMPLETE: proposed, approved, implemented, tested
+(657 backend tests), isolated-live-exercised, deployed, and live-verified
+against real production evidence. See
+`docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-11" for the closed-out record.

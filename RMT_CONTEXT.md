@@ -699,9 +699,22 @@ the actual signing-key file, drop-in install, `daemon-reload`, and restart
 need the owner's own privileged action, per the same pattern
 `docs/operations/DEPLOY.md` §1.2 already documents for operator tokens.
 `deploy/systemd/attestation.conf.example` (committed) is the ready-to-install
-non-secret template. Resume: owner runs the privileged install steps (given
-in the conversation) and confirms the live route, or asks for the commands
-again.
+non-secret template.
+
+**RMT-CAP-11 CLOSED — live deployment verified, 2026-09-20.** The owner
+performed the privileged install in their own terminal (generated the
+production signing key, created the root-only secret file, installed the
+drop-in, restarted). Live verification: unauthenticated export → 401;
+authenticated with no identifier → 422 (confirms the flag + signing key are
+correctly live, not misconfigured); a signed bundle exported for a real
+production `execution_id` (`78eac35c-f4bf-4f96-b777-ea096fd5a783`) verified
+**VALID** offline against the real production signing key. RMT-CAP-11 (P-C)
+is now fully complete end-to-end: proposed → approved → implemented →
+tested → isolated-exercised → deployed → live-verified. See
+`docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-11" and `HANDOFF.md`
+§"RMT-CAP-11 live deployment" for the full record. **Next action for a new
+session:** capability selection is open again — return to the P-A/P-C
+shortlist discipline (§ above) or ask the owner what's next.
 
 ## 13. Environment limitations vs genuine implementation gaps
 
