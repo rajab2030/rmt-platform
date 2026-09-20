@@ -645,6 +645,26 @@ implementation review; production-code implementation remains pending explicit
 approval of the contract. Earlier domain/RBAC/console candidates are not the
 current task.
 
+**Next-capability shortlist review, 2026-09-20 (supersedes the "Next action"
+paragraph above for the purpose of picking the next above-Core capability):**
+the owner reviewed `docs/RMT_ABOVE_CORE_ROADMAP.md` Tier 2/3 with no
+implementation performed. Budget Control bootstrap was explicitly declined —
+seeding the deployed-but-unbootstrapped financial domain with fabricated data
+would invert RMT's own risk-mitigation philosophy, so it stays unbootstrapped
+until a genuine business use case exists. D-2 (Cloud/IaC Ops), D-3 (Kubernetes
+Ops), and D-5 (Data/ML Ops) were set aside for the same reason: each needs a
+real external system to govern against that isn't available here. That leaves
+**P-A (policy-as-configuration)** and **P-C (evidence export/attestation
+bundles)** as the only candidates needing no external infrastructure — both
+operate purely on evidence/config already in the platform's own store. See
+`docs/RMT_ABOVE_CORE_ROADMAP.md` §P-A/§P-C for full scope, and `HANDOFF.md`
+§"Next-capability shortlist review" for the session record. Neither is
+selected or authorized; this is a shortlist, not a decision. When a future
+session picks up "what's next" for RMT, lead with P-A/P-C rather than
+re-deriving the Tier 2/3 roadmap, unless the owner has since gained access to
+external infrastructure/data that would unblock D-2/D-3/D-5, or a real Budget
+Control use case has appeared.
+
 ## 13. Environment limitations vs genuine implementation gaps
 
 - **Shell-dependent tooling.** Git and Docker availability depend on which shell

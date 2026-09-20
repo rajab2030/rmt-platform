@@ -3140,3 +3140,30 @@ proxied `/config` and `/health` return 200; unauthenticated `/budget/budgets`
 returns 401. A Chromium smoke loaded the Budget UI, made all three initial Budget
 GETs on the same `https://192.168.223.128` origin, and reported no request
 failures. No token, bootstrap, or financial mutation was used.
+
+## Next-capability shortlist review
+
+**Date:** 2026-09-20. The owner reviewed `docs/RMT_ABOVE_CORE_ROADMAP.md`
+Tier 2/3 for the next above-Core capability, with no implementation performed.
+
+Budget Control bootstrap was explicitly declined: seeding the already-deployed
+but unbootstrapped financial domain with fabricated data just to have "real"
+data would invert RMT's own risk-mitigation philosophy. It remains
+unbootstrapped — no organization, budget, or transaction — until a genuine
+business use case appears. D-2 (Cloud/IaC Ops), D-3 (Kubernetes Ops), and D-5
+(Data/ML Ops) were also set aside for the same underlying reason: each needs a
+real external system (cloud sandbox, test cluster, model registry) to govern
+against, and none is available in this environment.
+
+That leaves **P-A (policy-as-configuration)** and **P-C (evidence
+export/attestation bundles)** as the only roadmap candidates needing no
+external infrastructure — both operate purely on evidence/config already in
+the platform's own store (`docs/RMT_ABOVE_CORE_ROADMAP.md` §P-A, §P-C). P-A
+moves approval/risk policy and dependency edges from code into a validated
+config schema + loader (no dependency, size M). P-C assembles a signed,
+offline-verifiable evidence bundle per action from the existing Govern→Verify
+chain (depends on T0-1, already closed; size S–M).
+
+This is a shortlist, not a selection — neither P-A nor P-C is authorized or
+scoped into a proposal. No code, deployment, commit, or push was performed
+during this review.
