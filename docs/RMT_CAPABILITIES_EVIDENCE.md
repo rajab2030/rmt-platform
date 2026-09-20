@@ -1647,12 +1647,17 @@ expiry is a separate, not-yet-requested decision.
 
 ## RMT-CAP-11 — Evidence Export / Attestation Bundles (roadmap P-C) (2026-09-20)
 
-**Status: IMPLEMENTED & VALIDATED, not yet deployed.**
-`docs/RMT_CAP_11_PROPOSAL.md` is APPROVED (2026-09-20). The full slice is
-implemented, tested, and passes the full backend gate; live deployment,
-enabling the feature flag on the running server, and a live/isolated
-walkthrough remain a separate, not-yet-authorized step (same discipline every
-prior capability's proposal-then-deploy split has followed).
+**Status: IMPLEMENTED, VALIDATED & LIVE-EXERCISED (isolated); live deployment
+handed off to the owner.** `docs/RMT_CAP_11_PROPOSAL.md` is APPROVED
+(2026-09-20); the implementation is committed (`a5a96a9`) and pushed to
+`origin/master`. An isolated-instance walkthrough against a real governed
+action has passed (below). Enabling the feature flag on the **live** server
+requires a root-owned signing-key credential this session cannot create (no
+passwordless `sudo`; `/etc/rmt-control-center/` is not writable or listable
+by this session, and the harness separately declined a read of the existing
+`auth.conf` on credential-materialization grounds) — that final step is
+handed to the owner, per the same operator-does-the-privileged-step pattern
+`docs/operations/DEPLOY.md` §1.2 already documents for operator tokens.
 
 **Objective (P-C):** a signed, portable evidence bundle per governed action
 that verifies its own integrity **offline** — for compliance, incident
@@ -1702,6 +1707,23 @@ the live service.
   `import app.main` clean; `compileall` clean; `git diff --check` clean; zero
   `app/core/**` diff (confined to `app/ops/**`, one route in `app/main.py`,
   and the new stdlib script).
+- **Isolated live walkthrough (`:8002`, separate `RMT_EVIDENCE_DB`,
+  `RMT_RUNTIME_ENGINE=simulation`, throwaway signing key; live `:8000`
+  untouched — identical `MainPID`/`ActiveEnterTimestamp` before and after):**
+  a real governed action (`POST /execute?operation=restart&target=demo-svc`)
+  produced a genuine authorization → approval → audit → trace → verification
+  chain; `GET /ops/evidence/export` returned a signed bundle for it;
+  `rmt-attestation-verify.py` reported **VALID** with the correct key,
+  **INVALID** with the wrong key, and **INVALID** after a real evidence
+  field (`authorized_by`) was tampered in a copy of the bundle — the
+  proposal's DoD claim, now demonstrated against real data, not only test
+  fixtures.
+
+**Deployment — handed off, not completed by this session:**
+`deploy/systemd/attestation.conf.example` (new, committed) is the ready
+non-secret drop-in, mirroring `auth.conf.example` exactly. The owner still
+needs to generate a production signing key, create the root-only `0600`
+secret file, install the drop-in, `daemon-reload` + restart, and verify.
 
 **Not done — explicitly deferred, per the proposal's own out-of-scope
 section:** bulk/time-range bundles (per-action only in this slice); an
@@ -1738,7 +1760,7 @@ unauthorized until the owner separately approves it.
 | T0-6 — Public-showcase live exercise: Agent Governance Gateway on the production service | COMPLETED & VERIFIED 2026-09-12; **first live run on `:8000` itself** (not an isolated port); full lifecycle + refusal + risk-differentiated approval, corroborated via independent `git tag` check + journal log cross-check | 0 new (operational exercise, no code change) | no `app/core/**` change; config-only enablement of the pre-existing conditional git adapter; scratch-repo blast radius only; open item recorded: no durable record of last-verified operator token |
 | RMT-CAP-09 — Governed Operations Console (P-B) | COMPLETED & VERIFIED 2026-09-13; **live-demonstrated** (isolated `:8001`, `:8000` untouched) through the console's own API calls (no browser in this shell); route found live-but-unflagged, **fixed to default off** — live `:8000` process still needs an owner restart to pick the flag up | 7 `test_evidence_chain.py` + 5 `test_evidence_route.py` + 540 full backend; `tsc -b && vite build` + `oxlint` clean; live fault-inject → hold → approve → `verified_success` → full evidence chain PASS | no `app/core/**` change; no new mutation path; `GET /ops/evidence` gated by `RMT_OPS_EVIDENCE_ENABLED` (default off, mirrors CAP-04/CAP-05); console is read-only + approve/reject via the existing `/homelab/approve` endpoint |
 | RMT-CAP-10 — Coding-Agent Command Governance (Claude Code as a governed child) | COMPLETED & VERIFIED 2026-09-14; **live-demonstrated** through the actual `PreToolUse` hook script (isolated instances, `:8000` untouched) against both a scripted command and a real LLM's real decision | 28 new + 568 full backend; live hook runs: auto-allow + held-approved + held-rejected + fail-open, all PASS; a live LLM exercise found a real gap, fixed same-day (see below) | no `app/core/**` change; new table via the existing `DurableStore` extension point; ships disabled (`RMT_CODING_AGENT_ENABLED=False`); hook scoped to this repo's `.claude/settings.json` only; no LLM in the review path; fixed two real gaps found this session: hold storage was in-memory-only (not durable), and the 120s poll timeout was tuned for a terminal, not a notified human — **both CLOSED below** |
-| RMT-CAP-11 — Evidence Export / Attestation Bundles (P-C) | IMPLEMENTED & VALIDATED 2026-09-20; **not yet deployed** — flag/signing-key provisioning and a live walkthrough are a separate, not-yet-authorized step | 11 `test_attestation.py` + 5 `test_attestation_route.py` + 657 full backend; CLI verifier manually exercised (VALID / INVALID / MALFORMED, tamper-detected) | no `app/core/**` change; diff confined to `app/ops/**` + one route in `app/main.py` + a new stdlib script; `GET /ops/evidence/export` gated by `RMT_ATTESTATION_EXPORT_ENABLED` (default off) + requires `RMT_ATTESTATION_SIGNING_KEY`; reuses CAP-09's `evidence_chain()` unchanged; no new mutation path |
+| RMT-CAP-11 — Evidence Export / Attestation Bundles (P-C) | IMPLEMENTED, VALIDATED & LIVE-EXERCISED (isolated) 2026-09-20; pushed (`a5a96a9`); **live deployment handed off to the owner** (no passwordless sudo / root secrets access from this session) | 11 `test_attestation.py` + 5 `test_attestation_route.py` + 657 full backend; CLI verifier manually exercised (VALID / INVALID / MALFORMED, tamper-detected) against a real generated action on an isolated `:8002` instance, `:8000` untouched | no `app/core/**` change; diff confined to `app/ops/**` + one route in `app/main.py` + a new stdlib script + a non-secret deploy template; `GET /ops/evidence/export` gated by `RMT_ATTESTATION_EXPORT_ENABLED` (default off) + requires `RMT_ATTESTATION_SIGNING_KEY`; reuses CAP-09's `evidence_chain()` unchanged; no new mutation path |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.

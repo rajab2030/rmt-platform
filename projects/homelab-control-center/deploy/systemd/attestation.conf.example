@@ -1,0 +1,29 @@
+# RMT-CAP-11 (P-C) -- evidence export / attestation bundles.
+#
+# The HMAC signing secret is a systemd credential (LoadCredential=), NOT an
+# Environment= value -- same reasoning as auth.conf.example / T0-5:
+# `systemctl show -p Environment` exposes a unit's plain environment to any
+# local user, not just root; `LoadCredential=` only exposes the source *path*
+# the same way, so the secret content itself stays root-only. See
+# docs/operations/SECRETS.md.
+#
+# Install:
+#   sudo install -d -m 0700 /etc/rmt-control-center
+#   sudo install -m 0600 /dev/null /etc/rmt-control-center/attestation_signing_key.secret
+#   echo "$(openssl rand -hex 32)" \
+#     | sudo tee /etc/rmt-control-center/attestation_signing_key.secret >/dev/null
+#   sudo install -m 0644 deploy/systemd/attestation.conf.example \
+#     /etc/systemd/system/rmt-control-center.service.d/attestation.conf
+#   sudo systemctl daemon-reload && sudo systemctl restart rmt-control-center.service
+#
+# Rotate: overwrite /etc/rmt-control-center/attestation_signing_key.secret +
+# daemon-reload + restart. Rotating invalidates verification of bundles
+# exported under the old key -- keep the old key on file if old bundles must
+# stay independently verifiable.
+#
+# With RMT_ATTESTATION_EXPORT_ENABLED=true and the key file empty/absent,
+# GET /ops/evidence/export returns 503 rather than signing with no secret.
+
+[Service]
+Environment=RMT_ATTESTATION_EXPORT_ENABLED=true
+LoadCredential=RMT_ATTESTATION_SIGNING_KEY:/etc/rmt-control-center/attestation_signing_key.secret

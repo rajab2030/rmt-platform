@@ -683,10 +683,25 @@ stdlib-only, wraps CAP-09's `evidence_chain()` unchanged), `GET
 `ruff`/`compileall`/`import app.main`/`git diff --check` all clean; zero
 `app/core/**` diff. See `docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-11" and
 `HANDOFF.md` §"RMT-CAP-11 implementation and validation" for full evidence.
-**Not yet deployed** — enabling the flag, provisioning the signing-key
-credential file on the live host, and a live/isolated walkthrough remain a
-separate, not-yet-authorized step. Resume: the owner decides whether/when to
-authorize deployment.
+**Pushed + isolated live walkthrough DONE, 2026-09-20:** commits `f8b643b`
+(proposal) and `a5a96a9` (implementation) are on `origin/master` (pre-push CI
+gate green, 657 tests). An isolated instance (`:8002`, separate
+`RMT_EVIDENCE_DB`, `RMT_RUNTIME_ENGINE=simulation`, throwaway signing key)
+exported a signed bundle for a real governed action; `rmt-attestation-verify.py`
+reported VALID with the right key, INVALID with the wrong key, and INVALID
+after tampering one real evidence field. Live `:8000` was never interrupted
+(same `MainPID`/`ActiveEnterTimestamp` before and after). **Live deployment
+itself is handed off, not completed:** this session has no passwordless
+`sudo` and cannot read/write the host's root-only
+`/etc/rmt-control-center/` secrets directory (the harness also declined a
+read of the existing `auth.conf` on credential-materialization grounds) — so
+the actual signing-key file, drop-in install, `daemon-reload`, and restart
+need the owner's own privileged action, per the same pattern
+`docs/operations/DEPLOY.md` §1.2 already documents for operator tokens.
+`deploy/systemd/attestation.conf.example` (committed) is the ready-to-install
+non-secret template. Resume: owner runs the privileged install steps (given
+in the conversation) and confirms the live route, or asks for the commands
+again.
 
 ## 13. Environment limitations vs genuine implementation gaps
 

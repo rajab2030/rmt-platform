@@ -3226,3 +3226,52 @@ signing-key credential file on the live host), and a live/isolated
 fault-inject-and-export walkthrough. No commit, push, deploy, or restart was
 performed as part of the implementation itself — those remain a separate
 authorization step, per the same discipline every prior capability followed.
+
+## RMT-CAP-11 pushed; isolated live walkthrough; deployment handed off
+
+**Date:** 2026-09-20. The owner authorized push + deployment in the same
+turn. Commits `f8b643b` (proposal, approved) and `a5a96a9` (implementation)
+were pushed to `origin/master`; the pre-push CI gate ran the full 657-test
+suite green before the push completed.
+
+**Isolated live walkthrough (isolated `:8002`, live `:8000` untouched
+throughout — confirmed by identical `MainPID`/`ActiveEnterTimestamp` before
+and after):** a second uvicorn instance was started against a **separate**
+evidence database (`RMT_EVIDENCE_DB` pointed at a scratch SQLite file, never
+the real `data/governance_evidence.db`) with `RMT_RUNTIME_ENGINE=simulation`
+(so no real Docker/git adapter could be touched) and a freshly generated
+throwaway signing key. A real governed action was issued
+(`POST /execute?operation=restart&target=demo-svc`), producing a genuine
+authorization → approval → audit → trace → verification chain. `GET
+/ops/evidence/export?action_id=...` returned a signed bundle for that real
+chain; `rmt-attestation-verify.py` reported **VALID** against the correct
+key, **INVALID** against a wrong key, and **INVALID** after a single field in
+the chain (`authorized_by`) was tampered in a copy of the bundle — the exact
+Definition-of-Done claim in the proposal, now demonstrated against a real
+action rather than only isolated unit-test fixtures. The isolated instance
+was then killed; live `:8000` `/health` returned 200 throughout and
+afterward, `loop.running: true`, `cycle_count` advancing normally — never
+interrupted.
+
+**Live deployment — handed off, not completed by this session.** This
+session has no passwordless `sudo` on the host, and `/etc/rmt-control-center/`
+(the existing root-only secrets directory used for `operator_tokens.secret`)
+is not listable or writable by this session either — the harness's own
+credential-materialization safeguard additionally refused a read of the
+existing `auth.conf` drop-in when this session tried to confirm the exact
+`LoadCredential=` path convention. Per `docs/operations/DEPLOY.md` §1.2's own
+established pattern (operator tokens were likewise installed by "the
+operator," not by an agent session), the actual credential file, drop-in
+install, `daemon-reload`, and service restart require the owner's own
+privileged action.
+
+Prepared instead: `deploy/systemd/attestation.conf.example` (new, committed)
+— the non-secret drop-in template, following `auth.conf.example`'s exact
+documented convention (`LoadCredential=RMT_ATTESTATION_SIGNING_KEY:
+/etc/rmt-control-center/attestation_signing_key.secret`, `Environment=
+RMT_ATTESTATION_EXPORT_ENABLED=true`). The owner still needs to: generate a
+production signing key, create the root-only `0600` secret file, install the
+drop-in, `daemon-reload` + restart, and verify (`/health` 200,
+unauthenticated `/ops/evidence/export` → 401, authenticated with a real
+identifier → a signed bundle). See the conversation for the exact commands
+handed to the owner.
