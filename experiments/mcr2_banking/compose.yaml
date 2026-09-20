@@ -1,0 +1,84 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: mcr_demo
+      POSTGRES_USER: mcr_owner
+      POSTGRES_PASSWORD: ${MCR_DB_OWNER_PASSWORD:?set MCR_DB_OWNER_PASSWORD in .env}
+      MCR_DB_APP_PASSWORD: ${MCR_DB_APP_PASSWORD:?set MCR_DB_APP_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
+      - ./db/schema.sql:/opt/mcr/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mcr_owner -d mcr_demo"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    networks: [database_net]
+
+  mcr-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      MCR_DB_HOST: postgres
+      MCR_DB_NAME: mcr_demo
+      MCR_DB_USER: mcr_app
+      MCR_DB_PASSWORD: ${MCR_DB_APP_PASSWORD:?set MCR_DB_APP_PASSWORD in .env}
+      MCR_AGENT_ID: demo-agent
+      MCR_AGENT_TOKEN: ${MCR_AGENT_TOKEN:?set MCR_AGENT_TOKEN in .env}
+      MCR_WINDOW_START_UTC: ${MCR_WINDOW_START_UTC:-06:00}
+      MCR_WINDOW_END_UTC: ${MCR_WINDOW_END_UTC:-22:00}
+      MCR_BASE_RISK_LIMIT: ${MCR_BASE_RISK_LIMIT:-10000.00}
+      MCR_RISK_TIER_MEDIUM_MULT: ${MCR_RISK_TIER_MEDIUM_MULT:-0.50}
+      MCR_RISK_TIER_HIGH_MULT: ${MCR_RISK_TIER_HIGH_MULT:-0.10}
+      MCR_CROSS_BORDER_LIMIT_MULT: ${MCR_CROSS_BORDER_LIMIT_MULT:-0.50}
+      MCR_COUNTERPARTY_EXPOSURE_CAP: ${MCR_COUNTERPARTY_EXPOSURE_CAP:-25000.00}
+      MCR_AGENT_EXPOSURE_CAP: ${MCR_AGENT_EXPOSURE_CAP:-60000.00}
+      MCR_EXPOSURE_WINDOW_HOURS: ${MCR_EXPOSURE_WINDOW_HOURS:-24}
+      MCR_VELOCITY_WINDOW_SECONDS: ${MCR_VELOCITY_WINDOW_SECONDS:-60}
+      MCR_VELOCITY_MAX_TX: ${MCR_VELOCITY_MAX_TX:-5}
+      MCR_STRUCTURING_WINDOW_SECONDS: ${MCR_STRUCTURING_WINDOW_SECONDS:-600}
+      MCR_STRUCTURING_NEAR_LIMIT_FRACTION: ${MCR_STRUCTURING_NEAR_LIMIT_FRACTION:-0.80}
+      MCR_STRUCTURING_COUNT_THRESHOLD: ${MCR_STRUCTURING_COUNT_THRESHOLD:-3}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+    networks: [agent_net, database_net]
+
+  subordinate:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    environment:
+      MCR_URL: http://mcr-api:8000
+      MCR_AGENT_ID: demo-agent
+      MCR_AGENT_TOKEN: ${MCR_AGENT_TOKEN:?set MCR_AGENT_TOKEN in .env}
+      MCR_VELOCITY_MAX_TX: ${MCR_VELOCITY_MAX_TX:-5}
+    depends_on:
+      mcr-api:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [agent_net]
+
+networks:
+  agent_net:
+    internal: true
+  database_net:
+    internal: true
+
+volumes:
+  postgres_data:
