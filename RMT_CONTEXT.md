@@ -665,6 +665,15 @@ re-deriving the Tier 2/3 roadmap, unless the owner has since gained access to
 external infrastructure/data that would unblock D-2/D-3/D-5, or a real Budget
 Control use case has appeared.
 
+**Selection update, 2026-09-20:** the owner selected **P-C — Evidence
+export/attestation bundles** over P-A, reasoning: P-C is pure read-derivation
+off the governed mutation path (reuses CAP-09's `evidence_chain()` unchanged),
+while P-A would touch the live CAP-04 remediation-policy decision path and
+carries higher scope-creep risk across three separate policy surfaces. A
+proposal is drafted at `docs/RMT_CAP_11_PROPOSAL.md` (RMT-CAP-11) — **DRAFT,
+not yet approved; no code written.** Resume: the owner reviews and either
+approves the proposal (unlocking implementation) or requests changes.
+
 ## 13. Environment limitations vs genuine implementation gaps
 
 - **Shell-dependent tooling.** Git and Docker availability depend on which shell

@@ -3167,3 +3167,26 @@ chain (depends on T0-1, already closed; size S–M).
 This is a shortlist, not a selection — neither P-A nor P-C is authorized or
 scoped into a proposal. No code, deployment, commit, or push was performed
 during this review.
+
+## RMT-CAP-11 proposal drafted (P-C — Evidence export/attestation)
+
+**Date:** 2026-09-20. The owner selected P-C over P-A: P-C is pure read
+derivation off the governed mutation path and reuses RMT-CAP-09's
+`evidence_chain()` unchanged, while P-A would touch the live CAP-04
+remediation-policy decision path (`app/homelab/remediation.py::REMEDIATION_POLICY`)
+and spans three separate policy surfaces (homelab remediation, the already
+partly-config-driven dependency map, Budget permissions) — a wider and riskier
+first cut than P-C's single additive read-only route.
+
+`docs/RMT_CAP_11_PROPOSAL.md` is drafted: a signed, portable per-action
+evidence bundle (HMAC-SHA256, stdlib-only, no new dependency) built on the
+existing `GET /ops/evidence` correlation logic, plus a stdlib-only offline
+verifier script (`rmt-attestation-verify.py`) following the precedent of
+`rmt_evidence_verify.py`. Signing-key custody is scoped to reuse the hardened
+`RMT_OPERATOR_TOKENS` `LoadCredential=` pattern from the T0-5/operator-token
+custody findings, fail-closed if the secret is absent. Explicitly out of
+scope for this first slice: bulk/time-range bundles and asymmetric/PKI
+signing (recorded as a known boundary, not silently dropped).
+
+**Status: DRAFT, not approved.** No code was written; no implementation is
+authorized until the owner reviews and approves the proposal.
