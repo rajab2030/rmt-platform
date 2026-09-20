@@ -365,6 +365,40 @@ def ops_evidence(
     )
 
 
+@app.get("/ops/evidence/export")
+def ops_evidence_export(
+    action_id: str | None = None,
+    approval_id: str | None = None,
+    execution_id: str | None = None,
+    operator: OperatorIdentity = Depends(require_operator),
+):
+    """RMT-CAP-11 (P-C): a signed, portable evidence-export bundle for one
+    governed action, wrapping the same read-only ``evidence_chain()`` used by
+    ``GET /ops/evidence``. Never writes; fail-open (an unknown identifier
+    still returns a signed empty-chain bundle, 200). Gated by
+    ``RMT_ATTESTATION_EXPORT_ENABLED`` (default off) and requires
+    ``RMT_ATTESTATION_SIGNING_KEY`` to be configured -- 503 without either."""
+    if not ops_config.attestation_export_enabled():
+        raise HTTPException(status_code=503, detail="evidence export disabled")
+    signing_key = ops_config.attestation_signing_key()
+    if not signing_key:
+        raise HTTPException(
+            status_code=503, detail="evidence export signing key not configured"
+        )
+    if not any([action_id, approval_id, execution_id]):
+        raise HTTPException(
+            status_code=422,
+            detail="exactly one of action_id / approval_id / execution_id required",
+        )
+    from app.ops.attestation import export_bundle
+
+    return export_bundle(
+        action_id=action_id,
+        approval_id=approval_id,
+        execution_id=execution_id,
+        signing_key=signing_key,
+    )
+
 
 @app.get("/containers", response_model=list[Container])
 def containers():

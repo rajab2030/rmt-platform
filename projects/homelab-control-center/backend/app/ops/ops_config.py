@@ -48,6 +48,23 @@ production-safe setting.
                                 drop-in edit + restart is enough to turn the
                                 route on; disabled => 503, route never reaches
                                 the evidence-correlation code.
+  * ``RMT_ATTESTATION_EXPORT_ENABLED`` -- RMT-CAP-11 (P-C): master switch for
+                                ``GET /ops/evidence/export`` (default False;
+                                opt-in, ships disabled like every other new
+                                surface). Read dynamically.
+  * ``RMT_ATTESTATION_SIGNING_KEY`` -- RMT-CAP-11 (P-C): the HMAC-SHA256
+                                secret used to sign evidence-export bundles.
+                                Follows the exact ``RMT_OPERATOR_TOKENS``
+                                custody pattern: under systemd, prefer
+                                ``LoadCredential=RMT_ATTESTATION_SIGNING_KEY:<path>``
+                                (read from ``$CREDENTIALS_DIRECTORY``) over
+                                ``Environment=``, for the same reason --
+                                ``systemctl show -p Environment`` exposes a
+                                unit's plain environment to any local user.
+                                Falls back to the environment variable when no
+                                credentials directory is set (local dev,
+                                tests). Unset/empty => export route returns
+                                503 rather than signing with no secret.
 """
 import os
 
@@ -140,6 +157,37 @@ def ops_evidence_enabled() -> bool:
     ``RMT_HOMELAB_LOOP_ENABLED`` / ``RMT_AGENT_ENABLED``. Read dynamically so a
     drop-in edit + restart is enough to turn the route on."""
     return _env_bool("RMT_OPS_EVIDENCE_ENABLED", False)
+
+
+# --- RMT-CAP-11 (P-C): evidence export / attestation bundles ------------------
+
+
+def attestation_export_enabled() -> bool:
+    """Master switch for ``GET /ops/evidence/export``. Default off (opt-in).
+    Read dynamically."""
+    return _env_bool("RMT_ATTESTATION_EXPORT_ENABLED", False)
+
+
+def attestation_signing_key() -> str | None:
+    """The HMAC signing secret, preferring a systemd
+    ``LoadCredential=RMT_ATTESTATION_SIGNING_KEY:<path>`` file (via
+    ``$CREDENTIALS_DIRECTORY``) over the ``RMT_ATTESTATION_SIGNING_KEY``
+    environment variable -- same custody reasoning as
+    :func:`_operator_tokens_raw`. ``None`` when unset/empty so callers fail
+    closed (503) instead of signing with an empty secret."""
+    creds_dir = os.environ.get("CREDENTIALS_DIRECTORY", "").strip()
+    if creds_dir:
+        try:
+            with open(
+                os.path.join(creds_dir, "RMT_ATTESTATION_SIGNING_KEY")
+            ) as f:
+                value = f.read().strip()
+                if value:
+                    return value
+        except OSError:
+            pass
+    value = os.environ.get("RMT_ATTESTATION_SIGNING_KEY", "").strip()
+    return value or None
 
 
 # --- T1-2: operator-declarable homelab dependency edges --------------------

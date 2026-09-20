@@ -3190,3 +3190,39 @@ signing (recorded as a known boundary, not silently dropped).
 
 **Status: DRAFT, not approved.** No code was written; no implementation is
 authorized until the owner reviews and approves the proposal.
+
+## RMT-CAP-11 implementation and validation
+
+**Date:** 2026-09-20. The owner approved the proposal for implementation
+immediately after drafting. The full P-C slice is now implemented above Core:
+
+- `app/ops/attestation.py` — `export_bundle()` / `verify_bundle()`, wrapping
+  RMT-CAP-09's `evidence_chain()` unchanged in an HMAC-SHA256-signed envelope
+  (stdlib `hashlib`/`hmac`, no new dependency; deterministic sorted-key JSON
+  canonicalization for signing).
+- `GET /ops/evidence/export` in `app/main.py` — operator-auth, gated by
+  `RMT_ATTESTATION_EXPORT_ENABLED` (default off) and a configured
+  `RMT_ATTESTATION_SIGNING_KEY` (503 without either); 422 with no identifier;
+  reuses `evidence_chain()`'s fail-open behavior (unknown id → signed empty
+  chain, 200, never 500).
+- `app/ops/ops_config.py` — the signing-key getter follows the exact
+  `RMT_OPERATOR_TOKENS` `LoadCredential=` custody pattern hardened after the
+  T0-5 credential-exposure finding.
+- `backend/scripts/rmt-attestation-verify.py` — stdlib-only offline verifier
+  (no app-package import, no network), exit 0/1/2 for VALID/INVALID/MALFORMED.
+
+Validation: 11 new `test_attestation.py` + 5 new `test_attestation_route.py`
+(tamper detection on the chain, the timestamp, and the signature itself, each
+independently checked; wrong key rejected; malformed/non-dict input handled
+without a crash). Full backend suite **657 passed, 0 skipped**; `ruff check
+.` clean; `import app.main` clean; `compileall` clean; `git diff --check`
+clean; zero `app/core/**` diff. The CLI verifier was manually exercised
+end-to-end against a real generated bundle: correct key → `VALID`; wrong key
+→ `INVALID`; missing file → `MALFORMED`; a tampered field → `INVALID`. See
+`docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-11" for the full record.
+
+**Not done in this pass:** deployment (enabling the flag, provisioning the
+signing-key credential file on the live host), and a live/isolated
+fault-inject-and-export walkthrough. No commit, push, deploy, or restart was
+performed as part of the implementation itself — those remain a separate
+authorization step, per the same discipline every prior capability followed.

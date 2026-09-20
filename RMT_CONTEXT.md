@@ -669,10 +669,24 @@ Control use case has appeared.
 export/attestation bundles** over P-A, reasoning: P-C is pure read-derivation
 off the governed mutation path (reuses CAP-09's `evidence_chain()` unchanged),
 while P-A would touch the live CAP-04 remediation-policy decision path and
-carries higher scope-creep risk across three separate policy surfaces. A
-proposal is drafted at `docs/RMT_CAP_11_PROPOSAL.md` (RMT-CAP-11) — **DRAFT,
-not yet approved; no code written.** Resume: the owner reviews and either
-approves the proposal (unlocking implementation) or requests changes.
+carries higher scope-creep risk across three separate policy surfaces. The
+proposal at `docs/RMT_CAP_11_PROPOSAL.md` (RMT-CAP-11) was drafted and
+**APPROVED the same session.**
+
+**RMT-CAP-11 implemented, 2026-09-20:** the approved P-C slice is implemented
+above Core — `app/ops/attestation.py` (HMAC-SHA256 signed evidence bundles,
+stdlib-only, wraps CAP-09's `evidence_chain()` unchanged), `GET
+/ops/evidence/export` in `app/main.py` (operator-auth, ships disabled via
+`RMT_ATTESTATION_EXPORT_ENABLED`, 503 without a configured
+`RMT_ATTESTATION_SIGNING_KEY`), and `backend/scripts/rmt-attestation-verify.py`
+(stdlib-only offline verifier). Full backend suite **657 passed, 0 skipped**;
+`ruff`/`compileall`/`import app.main`/`git diff --check` all clean; zero
+`app/core/**` diff. See `docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-11" and
+`HANDOFF.md` §"RMT-CAP-11 implementation and validation" for full evidence.
+**Not yet deployed** — enabling the flag, provisioning the signing-key
+credential file on the live host, and a live/isolated walkthrough remain a
+separate, not-yet-authorized step. Resume: the owner decides whether/when to
+authorize deployment.
 
 ## 13. Environment limitations vs genuine implementation gaps
 

@@ -1645,6 +1645,75 @@ expiry is a separate, not-yet-requested decision.
 
 ---
 
+## RMT-CAP-11 — Evidence Export / Attestation Bundles (roadmap P-C) (2026-09-20)
+
+**Status: IMPLEMENTED & VALIDATED, not yet deployed.**
+`docs/RMT_CAP_11_PROPOSAL.md` is APPROVED (2026-09-20). The full slice is
+implemented, tested, and passes the full backend gate; live deployment,
+enabling the feature flag on the running server, and a live/isolated
+walkthrough remain a separate, not-yet-authorized step (same discipline every
+prior capability's proposal-then-deploy split has followed).
+
+**Objective (P-C):** a signed, portable evidence bundle per governed action
+that verifies its own integrity **offline** — for compliance, incident
+review, or handoff to an external auditor — without trusting or re-querying
+the live service.
+
+**Built:**
+- `app/ops/attestation.py` — wraps the existing, **unmodified**
+  RMT-CAP-09 `evidence_chain()` in a signed envelope: `format_version`,
+  `generated_at`, the correlated chain, and an `HMAC-SHA256` signature over a
+  deterministic (sorted-key) canonical JSON serialization. Stdlib only
+  (`hashlib`/`hmac`) — no new dependency. `export_bundle()` / `verify_bundle()`
+  are the two entry points; `verify_bundle()` never raises on a malformed
+  bundle, always returning `False`.
+- `GET /ops/evidence/export` in `app/main.py` — operator-auth
+  (`require_operator`), gated by `RMT_ATTESTATION_EXPORT_ENABLED` (default
+  off, mirrors every prior capability's ship-disabled convention), 503 if no
+  `RMT_ATTESTATION_SIGNING_KEY` is configured, 422 with no identifier. Reuses
+  `evidence_chain()`'s fail-open discipline unchanged: an unknown identifier
+  still returns a signed 200 bundle with an empty chain, never a 500.
+- `app/ops/ops_config.py` — `attestation_export_enabled()` and
+  `attestation_signing_key()`, the latter following the **exact**
+  `RMT_OPERATOR_TOKENS` custody pattern hardened after the T0-5 credential-exposure
+  finding: prefers a systemd `LoadCredential=RMT_ATTESTATION_SIGNING_KEY:<path>`
+  file over a plain environment variable.
+- `backend/scripts/rmt-attestation-verify.py` — stdlib-only offline verifier
+  (no app-package import, no network, no running service — same
+  zero-dependency precedent as `rmt_evidence_verify.py`): exit 0 `VALID`,
+  exit 1 `INVALID` (tampered or wrong key), exit 2 `MALFORMED` (unparseable
+  or unrecognizable input), never a traceback.
+
+**Validation:**
+- `app/ops/testing/test_attestation.py` — 11 tests: signs and self-verifies a
+  real chain; unknown identifier still produces a verifiable bundle; wrong
+  key, tampered chain field, tampered timestamp, and tampered signature each
+  independently fail verification; malformed/non-dict input is invalid, not a
+  crash; canonicalization is key-order independent; no store write.
+- `app/ops/testing/test_attestation_route.py` — 5 tests: disabled by default
+  → 503; enabled but no signing key → 503; enabled requires operator auth
+  (401) and one identifier (422); a real request returns a signed bundle that
+  the standalone `verify_bundle()` accepts with the right key and rejects
+  with the wrong one.
+- CLI verifier manually exercised end-to-end against a real generated bundle:
+  correct key → `VALID` (exit 0); wrong key → `INVALID` (exit 1); missing file
+  → `MALFORMED` (exit 2); a tampered field → `INVALID` (exit 1).
+- Full backend suite: **657 passed, 0 skipped**; `ruff check .` clean;
+  `import app.main` clean; `compileall` clean; `git diff --check` clean; zero
+  `app/core/**` diff (confined to `app/ops/**`, one route in `app/main.py`,
+  and the new stdlib script).
+
+**Not done — explicitly deferred, per the proposal's own out-of-scope
+section:** bulk/time-range bundles (per-action only in this slice); an
+asymmetric/PKI signing scheme (HMAC with an operator-custodied secret is the
+entire trust model here — a real limitation for an auditor who shouldn't
+need the platform's own secret, recorded as a known boundary, not silently
+dropped). Deployment (enabling the flag, provisioning the signing-key
+credential file, a live/isolated fault-inject-and-export walkthrough) is
+unauthorized until the owner separately approves it.
+
+---
+
 ## Index
 
 | Capability | Status | Validation | Core integrity |
@@ -1669,6 +1738,7 @@ expiry is a separate, not-yet-requested decision.
 | T0-6 — Public-showcase live exercise: Agent Governance Gateway on the production service | COMPLETED & VERIFIED 2026-09-12; **first live run on `:8000` itself** (not an isolated port); full lifecycle + refusal + risk-differentiated approval, corroborated via independent `git tag` check + journal log cross-check | 0 new (operational exercise, no code change) | no `app/core/**` change; config-only enablement of the pre-existing conditional git adapter; scratch-repo blast radius only; open item recorded: no durable record of last-verified operator token |
 | RMT-CAP-09 — Governed Operations Console (P-B) | COMPLETED & VERIFIED 2026-09-13; **live-demonstrated** (isolated `:8001`, `:8000` untouched) through the console's own API calls (no browser in this shell); route found live-but-unflagged, **fixed to default off** — live `:8000` process still needs an owner restart to pick the flag up | 7 `test_evidence_chain.py` + 5 `test_evidence_route.py` + 540 full backend; `tsc -b && vite build` + `oxlint` clean; live fault-inject → hold → approve → `verified_success` → full evidence chain PASS | no `app/core/**` change; no new mutation path; `GET /ops/evidence` gated by `RMT_OPS_EVIDENCE_ENABLED` (default off, mirrors CAP-04/CAP-05); console is read-only + approve/reject via the existing `/homelab/approve` endpoint |
 | RMT-CAP-10 — Coding-Agent Command Governance (Claude Code as a governed child) | COMPLETED & VERIFIED 2026-09-14; **live-demonstrated** through the actual `PreToolUse` hook script (isolated instances, `:8000` untouched) against both a scripted command and a real LLM's real decision | 28 new + 568 full backend; live hook runs: auto-allow + held-approved + held-rejected + fail-open, all PASS; a live LLM exercise found a real gap, fixed same-day (see below) | no `app/core/**` change; new table via the existing `DurableStore` extension point; ships disabled (`RMT_CODING_AGENT_ENABLED=False`); hook scoped to this repo's `.claude/settings.json` only; no LLM in the review path; fixed two real gaps found this session: hold storage was in-memory-only (not durable), and the 120s poll timeout was tuned for a terminal, not a notified human — **both CLOSED below** |
+| RMT-CAP-11 — Evidence Export / Attestation Bundles (P-C) | IMPLEMENTED & VALIDATED 2026-09-20; **not yet deployed** — flag/signing-key provisioning and a live walkthrough are a separate, not-yet-authorized step | 11 `test_attestation.py` + 5 `test_attestation_route.py` + 657 full backend; CLI verifier manually exercised (VALID / INVALID / MALFORMED, tamper-detected) | no `app/core/**` change; diff confined to `app/ops/**` + one route in `app/main.py` + a new stdlib script; `GET /ops/evidence/export` gated by `RMT_ATTESTATION_EXPORT_ENABLED` (default off) + requires `RMT_ATTESTATION_SIGNING_KEY`; reuses CAP-09's `evidence_chain()` unchanged; no new mutation path |
 
 **Boundaries:** No C08. No Core changes. No reopening of C01–C07. Above-Core
 capabilities remain subordinate to RMT's governance architecture.
