@@ -187,8 +187,11 @@ verification → evidence) as every other domain RMT governs.
 
 ## See also
 
-- `docs/operations/AGENT_API.md` — the full integration contract.
-- `docs/RMT_GUARANTEES.md` / `docs/RMT_THREAT_MODEL.md` — what RMT promises
-  and where it stops.
-- `docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-06" / §"RMT-CAP-07" — the
-  live exercises this contract was originally proven against.
+- [`docs/operations/AGENT_API.md`](../../docs/operations/AGENT_API.md) — the
+  full integration contract.
+- [`docs/RMT_GUARANTEES.md`](../../docs/RMT_GUARANTEES.md) /
+  [`docs/RMT_THREAT_MODEL.md`](../../docs/RMT_THREAT_MODEL.md) — what RMT
+  promises and where it stops.
+- [`docs/RMT_CAPABILITIES_EVIDENCE.md`](../../docs/RMT_CAPABILITIES_EVIDENCE.md)
+  §"RMT-CAP-06" / §"RMT-CAP-07" — the live exercises this contract was
+  originally proven against.
