@@ -27,3 +27,6 @@ backups/manifests/
 
 # Development backups
 backups/development/
+
+# Local, uncommitted Claude Code settings (may carry local secrets/tokens)
+.claude/settings.local.json

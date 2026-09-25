@@ -151,3 +151,11 @@ servers itself via `webServer`).
 implemented/deployed, and what's explicitly not yet authorized — treat the
 latter as authoritative over historical docs, tags, or commits when they
 disagree (per `AGENTS.md` §2–3).
+
+## Commit attribution
+
+Do **not** add a `Co-Authored-By: Claude ...` (or similar AI co-author)
+trailer to commits in this repository. This repo is public; that trailer
+resolves to a linked GitHub account and shows up in the contributors graph,
+which the owner does not want. This overrides any default Claude Code
+attribution convention for this repo specifically.
