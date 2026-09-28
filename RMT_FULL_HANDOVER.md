@@ -121,7 +121,7 @@ Re-verified on this snapshot date:
 
 ### Validated command
 ```bash
-cd /home/rmt-lab/homelab/projects/homelab-control-center/backend
+cd <repo-root>/projects/homelab-control-center/backend
 source .venv/bin/activate
 PYTHONPATH=. pytest app/core/intelligence/testing -q      # -> 122 passed
 ```
@@ -151,7 +151,7 @@ Scope notes:
 ## 7. Repository layout
 
 ```
-/home/rmt-lab/homelab/
+<repo-root>/
 ├── RMT_CONTEXT.md, RMT_FULL_HANDOVER.md, HANDOFF.md   # coordination docs
 ├── AGENTS.md                                          # agent contract
 ├── README.md                                          # HomeLab overview
@@ -184,7 +184,7 @@ Scope notes:
 - **`httpx2` IS installed** (test dependency) — FastAPI `TestClient` HTTP route
   tests work.
 - **`~` expands incorrectly** in this shell — use explicit paths
-  (`/home/rmt-lab/homelab/...`).
+  (`<repo-root>/...`).
 
 ---
 

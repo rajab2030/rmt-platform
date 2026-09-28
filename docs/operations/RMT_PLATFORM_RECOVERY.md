@@ -28,9 +28,9 @@ duplicating them.
 ## 1. What you need
 
 1. **The repository** at the canonical path:
-   `/home/rmt-lab/homelab` → `projects/homelab-control-center/`.
+   `<repo-root>` → `projects/homelab-control-center/`.
    The systemd unit and every drop-in hard-code
-   `/home/rmt-lab/homelab/projects/homelab-control-center/backend`; rebuild there.
+   `<repo-root>/projects/homelab-control-center/backend`; rebuild there.
 2. **An evidence backup** made by `backend/scripts/rmt-evidence-backup.sh`
    (`~/homelab/backups/rmt-evidence/<UTC timestamp>/`, or wherever it is
    archived). The newest one that passes `rmt_evidence_verify.py`.
@@ -52,12 +52,12 @@ duplicating them.
 `backend/scripts/rmt-rebuild.sh` orchestrates the whole sequence.
 
 ```bash
-# 0. restore the repo to /home/rmt-lab/homelab (git clone / backup extract)
+# 0. restore the repo to <repo-root> (git clone / backup extract)
 
 # 1. put an evidence backup on the box, e.g.
 #    ~/homelab/backups/rmt-evidence/2026-09-08T21-54-28Z/
 
-cd /home/rmt-lab/homelab/projects/homelab-control-center/backend
+cd <repo-root>/projects/homelab-control-center/backend
 ./scripts/rmt-rebuild.sh --evidence ~/homelab/backups/rmt-evidence/<timestamp>
 ```
 
@@ -87,7 +87,7 @@ Printed by the script at step 6; do them before you let it start the service:
 ### Options
 
 ```
---repo DIR         repo root (default /home/rmt-lab/homelab)
+--repo DIR         repo root (default <repo-root>)
 --drill DIR        DRILL MODE (see §4) — no live changes
 --port N           drill instance port (default 8001)
 --skip-systemd     stop after step 5 (venv + evidence + suite only)
@@ -122,7 +122,7 @@ spare port with auth disabled — no systemd, no change to the real service or i
 evidence.
 
 ```bash
-cd /home/rmt-lab/homelab/projects/homelab-control-center/backend
+cd <repo-root>/projects/homelab-control-center/backend
 ./scripts/rmt-evidence-backup.sh                       # fresh backup
 ./scripts/rmt-rebuild.sh \
   --evidence ~/homelab/backups/rmt-evidence/<timestamp> \

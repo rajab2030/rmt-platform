@@ -6,6 +6,10 @@ production-readiness **P0** posture: operator authentication (S1/S2-lite),
 loopback bind + TLS reverse proxy (S4), atomic evidence writes (E1),
 held-action alerting (O2).
 
+Placeholders: `<repo-root>` is the host's checkout of this repository and
+`<lan-ip>` is the host's LAN address. `deploy/` and `backend/scripts/`
+still carry the reference host's concrete values.
+
 Above-Core / operational. Does not change C01–C07.
 
 ---
@@ -16,7 +20,7 @@ Above-Core / operational. Does not change C01–C07.
 |---|---|
 | Service unit | `/etc/systemd/system/rmt-control-center.service` — canonical copy in git: `deploy/systemd/rmt-control-center.service` |
 | Drop-ins | `/etc/systemd/system/rmt-control-center.service.d/*.conf` — canonical copies in `deploy/systemd/`, `auth.conf` included (it holds no secret itself — see below) |
-| Code | `/home/rmt-lab/homelab/projects/homelab-control-center/backend` |
+| Code | `<repo-root>/projects/homelab-control-center/backend` |
 | venv | `…/backend/.venv` |
 | Governance evidence | `…/backend/app/core/intelligence/**/*.json` |
 | Intelligence memory | `…/backend/data/observability.db` |
@@ -38,7 +42,7 @@ drives venv → evidence restore → integrity check → suite → unit install 
 ### 1.1 Dependencies (D1)
 
 ```
-cd /home/rmt-lab/homelab/projects/homelab-control-center/backend
+cd <repo-root>/projects/homelab-control-center/backend
 .venv/bin/pip install -r requirements.txt        # pinned set
 .venv/bin/python -m pytest -q                     # expect: all pass
 ```
@@ -52,7 +56,7 @@ to *any local user*, not just root; a credential file's path is exposed the
 same way, but its content is not. See `docs/operations/SECRETS.md`.
 
 ```
-cd /home/rmt-lab/homelab/projects/homelab-control-center
+cd <repo-root>/projects/homelab-control-center
 sudo install -d -m 0700 /etc/rmt-control-center
 sudo install -m 0600 /dev/null /etc/rmt-control-center/operator_tokens.secret
 echo "alice:$(openssl rand -hex 24),bob:$(openssl rand -hex 24)" \
@@ -102,17 +106,17 @@ systemctl is-active rmt-control-center.service      # active
 ```
 TOKEN=<an operator token>
 # app is loopback only
-curl -sS -m5 http://192.168.223.128:8000/ ; echo         # connection refused
+curl -sS -m5 http://<lan-ip>:8000/ ; echo         # connection refused
 # proxy serves TLS
-curl -sS -m5 https://192.168.223.128/  ; echo            # 200 (CA trusted) 
+curl -sS -m5 https://<lan-ip>/  ; echo            # 200 (CA trusted) 
 # auth enforced
 curl -sS -m5 -o /dev/null -w '%{http_code}\n' \
-  -X POST https://192.168.223.128/homelab/loop/stop            # 401
+  -X POST https://<lan-ip>/homelab/loop/stop            # 401
 curl -sS -m5 -o /dev/null -w '%{http_code}\n' \
   -H "Authorization: Bearer $TOKEN" \
-  -X POST https://192.168.223.128/homelab/loop/stop            # 200
+  -X POST https://<lan-ip>/homelab/loop/stop            # 200
 curl -sS -m5 -H "Authorization: Bearer $TOKEN" \
-  https://192.168.223.128/agent/status | head -c 200 ; echo    # enabled:false…
+  https://<lan-ip>/agent/status | head -c 200 ; echo    # enabled:false…
 ```
 
 If you stopped the loop to test, start it again:
@@ -134,7 +138,7 @@ python3 -c "import json,glob; [json.load(open(f)) for f in glob.glob('backend/ap
 ## 2. Routine redeploy (code change)
 
 ```
-cd /home/rmt-lab/homelab
+cd <repo-root>
 git pull                              # or check out the target commit
 cd projects/homelab-control-center/backend
 .venv/bin/pip install -r requirements.txt
@@ -143,8 +147,8 @@ sudo systemctl restart rmt-control-center.service
 sleep 3 && systemctl is-active rmt-control-center.service
 # smoke
 TOKEN=<token>
-curl -s -H "Authorization: Bearer $TOKEN" https://192.168.223.128/agent/status | head -c 200; echo
-curl -s https://192.168.223.128/homelab/loop/status | python3 -c "import sys,json;d=json.load(sys.stdin);print('loop',d['enabled'],d['running'],d['components'])"
+curl -s -H "Authorization: Bearer $TOKEN" https://<lan-ip>/agent/status | head -c 200; echo
+curl -s https://<lan-ip>/homelab/loop/status | python3 -c "import sys,json;d=json.load(sys.stdin);print('loop',d['enabled'],d['running'],d['components'])"
 ```
 
 ---
@@ -159,7 +163,7 @@ as the production frontend.
 Build and validate before changing the live symlink or Caddy configuration:
 
 ```bash
-cd /home/rmt-lab/homelab/projects/homelab-control-center/frontend
+cd <repo-root>/projects/homelab-control-center/frontend
 npm ci
 npm run lint
 npm run build
@@ -171,7 +175,7 @@ Install an immutable release and switch it atomically. Record the prior symlink
 target first; that exact value is the static rollback target.
 
 ```bash
-release_id=$(git -C /home/rmt-lab/homelab rev-parse --short=12 HEAD)
+release_id=$(git -C <repo-root> rev-parse --short=12 HEAD)
 release_dir=/var/lib/rmt-control-center/frontend/releases/$release_id
 readlink /var/lib/rmt-control-center/frontend/current || true
 sudo install -d -o root -g root -m 0755 "$release_dir"
@@ -215,7 +219,7 @@ development preserves the configured direct API-port behavior.
 ## 3. Rollback
 
 ```
-cd /home/rmt-lab/homelab
+cd <repo-root>
 git log --oneline -5
 git checkout <last-good-commit>       # e.g. the previous deploy tag/sha
 cd projects/homelab-control-center/backend
@@ -263,7 +267,7 @@ you rotate:
 TOKEN=<the new token you just set>
 curl -sS -o /dev/null -w '%{http_code}\n' \
   -H "Authorization: Bearer $TOKEN" \
-  https://192.168.223.128/agent/status        # must print 200, not 401
+  https://<lan-ip>/agent/status        # must print 200, not 401
 sudo install -m 0600 /dev/null /etc/rmt-control-center/operator_tokens.rotated_on
 date -Iseconds | sudo tee /etc/rmt-control-center/operator_tokens.rotated_on >/dev/null
 ```
@@ -295,7 +299,7 @@ sudo systemctl daemon-reload && sudo systemctl restart rmt-control-center.servic
 
 # watch the FIRST restart
 systemctl is-active rmt-control-center.service
-curl -sk https://192.168.223.128/health | python3 -c "import sys,json;print(json.load(sys.stdin)['status'])"
+curl -sk https://<lan-ip>/health | python3 -c "import sys,json;print(json.load(sys.stdin)['status'])"
 journalctl -u rmt-control-center.service -n 50 --no-pager   # no EPERM / traceback
 systemd-analyze security rmt-control-center.service         # ~4.1
 ```
