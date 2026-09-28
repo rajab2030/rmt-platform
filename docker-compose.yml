@@ -1,0 +1,68 @@
+# RMT Platform -- local TEST / EVALUATION harness only.
+#
+# This is not a deployment path and RMT does not depend on Docker. Production
+# runs under systemd + Caddy (docs/operations/DEPLOY.md). This file only lets
+# someone try the platform locally. Full notes and limits: demo/README.md.
+#
+#   docker compose up --build -d              # backend + control center
+#   docker compose run --rm showcase          # interactive git-tag walkthrough
+#   docker compose down                       # stop; all demo evidence is discarded
+#
+# Safety posture of the harness:
+#   - runtime engine is `simulation`; no Docker socket is mounted, so governed
+#     actions never touch the host's containers;
+#   - the homelab operational loop is off;
+#   - operator authentication stays ON, with a clearly-labelled demo token
+#     (override with RMT_DEMO_TOKEN); never reuse a real token here;
+#   - ports are published on the host loopback (127.0.0.1) only.
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: demo/backend.Dockerfile
+    environment:
+      RMT_ENV: demo
+      RMT_RUNTIME_ENGINE: simulation
+      RMT_HOMELAB_LOOP_ENABLED: "false"
+      RMT_AUTH_ENABLED: "true"
+      RMT_OPERATOR_TOKENS: "demo:${RMT_DEMO_TOKEN:-rmt-demo-token}"
+      RMT_AGENT_ENABLED: "true"
+      RMT_AGENT_GIT_REPO_PATH: /srv/rmt-showcase-repo
+      RMT_CORS_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+    # The control center calls the API on <hostname>:8000 (the api.port the
+    # backend reports on /config), so the host port must stay 8000.
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  frontend:
+    build:
+      context: .
+      dockerfile: demo/frontend.Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:5173:80"
+
+  # Interactive: the walkthrough waits for Enter at the approval step, so it is
+  # started with `docker compose run --rm showcase`, not by `up`.
+  showcase:
+    image: python:3.12-slim
+    profiles: ["showcase"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      RMT_URL: http://backend:8000
+      RMT_TOKEN: "${RMT_DEMO_TOKEN:-rmt-demo-token}"
+    volumes:
+      - ./tools/rmt-showcase-agent:/showcase:ro
+    command: ["python", "/showcase/rmt_showcase.py"]
+    stdin_open: true
+    tty: true

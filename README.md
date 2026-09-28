@@ -23,6 +23,7 @@ for this demo.*
 [Transcript, setup, and limitations](docs/assets/agent-governance-demo.md).
 
 [Try the local showcase](tools/rmt-showcase-agent/README.md) ·
+[One-command local trial (test only)](demo/README.md) ·
 [Agent API](docs/operations/AGENT_API.md) ·
 [Guarantees and limits](docs/RMT_GUARANTEES.md)
 

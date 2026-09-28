@@ -92,7 +92,12 @@ closed. Budget's backend and frontend are deployed, but its production database 
 intentionally unbootstrapped. Do not modify Core or perform bootstrap/business
 mutations without separate authority.
 User intent is a real business application built on RMT, not further Docker or
-Uptime Kuma work. No new Core milestone is assigned.
+Uptime Kuma work.
+(2026-09-28 owner decision: a test-only local evaluation harness —
+`docker-compose.yml` + `demo/` — is permitted. It packages RMT for trial only;
+RMT runs the `simulation` engine inside it with no Docker socket, Docker stays a
+replaceable adapter, and systemd + Caddy remain the only deployment path. See
+`demo/README.md` and HANDOFF.md.) No new Core milestone is assigned.
 
 The current complete backend gate is **593 passed, 3 skipped** and isolated browser
 acceptance passes. Production deployment is verified as described above. Older status
