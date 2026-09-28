@@ -26,7 +26,7 @@ function ObservabilityPanel() {
         {metric && <span className="pill">{metric.status}</span>}
       </div>
 
-      {error && <p className="msg msg-error">{error}</p>}
+      {error && <p className="msg msg-error" role="alert">{error}</p>}
 
       {!error && !metric && <p className="muted">No metrics recorded yet.</p>}
 

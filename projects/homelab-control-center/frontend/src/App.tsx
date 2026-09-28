@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 
 import {
   getContainers,
+  getContainerStats,
   startContainer,
   stopContainer,
   restartContainer,
   removeContainer,
 } from "./api/client";
 import { getPlatformState } from "./api/platform";
-import { getApiBaseUrl } from "./config/runtime";
 
 import BudgetControl from "./components/BudgetControl";
 import ContainerDetails from "./components/ContainerDetails";
@@ -50,6 +50,9 @@ function App() {
   const [activeView, setActiveView] = useState<ActiveView>("containers");
   const [selectedContainer, setSelectedContainer] = useState<Container | null>(null);
   const [containerStats, setContainerStats] = useState<ContainerStats | null>(null);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const runningCount = containers.filter((container) => container.status === "running").length;
   const stoppedCount = containers.length - runningCount;
@@ -71,8 +74,7 @@ function App() {
 
   async function loadContainerStats(name: string) {
     try {
-      const response = await fetch(`${getApiBaseUrl()}/containers/${name}/stats`);
-      setContainerStats(await response.json());
+      setContainerStats(await getContainerStats(name));
     } catch (err) {
       console.error(err);
       setContainerStats(null);
@@ -92,6 +94,20 @@ function App() {
       setPlatformState(await getPlatformState());
     } catch (err) {
       console.error("Platform state error:", err);
+    }
+  }
+
+  async function runAction(action: string, done: string, work: () => Promise<unknown>) {
+    setBusyAction(action);
+    setActionMessage(null);
+    setActionError(null);
+    try {
+      await work();
+      setActionMessage(done);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusyAction(null);
     }
   }
 
@@ -159,7 +175,11 @@ function App() {
               </div>
             </div>
 
-            {error && <p className="msg msg-error">{error}</p>}
+            {error && (
+              <p className="msg msg-error" role="alert">
+                {error}
+              </p>
+            )}
 
             {!error && (
               <ContainerTable
@@ -167,32 +187,56 @@ function App() {
                 loading={loading}
                 selected={selectedContainer?.name ?? null}
                 onSelect={(container) => {
+                  setActionMessage(null);
+                  setActionError(null);
                   setSelectedContainer(container);
                   loadContainerStats(container.name);
                 }}
               />
             )}
 
+            {actionMessage && (
+              <p className="msg msg-ok" role="status">
+                {actionMessage}
+              </p>
+            )}
+            {actionError && (
+              <p className="msg msg-error" role="alert">
+                {actionError}
+              </p>
+            )}
+
             {selectedContainer && (
               <ContainerDetails
                 container={selectedContainer}
                 stats={containerStats}
-                onStart={async () => {
-                  await startContainer(selectedContainer.name);
-                  await refreshAfterAction();
-                }}
-                onStop={async () => {
-                  await stopContainer(selectedContainer.name);
-                  await refreshAfterAction();
-                }}
-                onRestart={async () => {
-                  await restartContainer(selectedContainer.name);
-                  await refreshAfterAction();
-                }}
-                onRemove={async () => {
-                  await removeContainer(selectedContainer.name);
-                  closeDetails();
-                  await loadContainers();
+                busy={busyAction}
+                onStart={() =>
+                  runAction("start", `Started ${selectedContainer.name}.`, async () => {
+                    await startContainer(selectedContainer.name);
+                    await refreshAfterAction();
+                  })
+                }
+                onStop={() =>
+                  runAction("stop", `Stopped ${selectedContainer.name}.`, async () => {
+                    await stopContainer(selectedContainer.name);
+                    await refreshAfterAction();
+                  })
+                }
+                onRestart={() =>
+                  runAction("restart", `Restarted ${selectedContainer.name}.`, async () => {
+                    await restartContainer(selectedContainer.name);
+                    await refreshAfterAction();
+                  })
+                }
+                onRemove={() => {
+                  const name = selectedContainer.name;
+                  if (!window.confirm(`Remove container ${name}? This cannot be undone.`)) return;
+                  void runAction("remove", `Removed ${name}.`, async () => {
+                    await removeContainer(name);
+                    closeDetails();
+                    await loadContainers();
+                  });
                 }}
                 onClose={closeDetails}
               />

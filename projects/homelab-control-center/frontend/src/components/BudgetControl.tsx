@@ -53,6 +53,7 @@ export default function BudgetControl() {
   const [amountMinor, setAmountMinor] = useState("");
   const [purpose, setPurpose] = useState("");
   const [reference, setReference] = useState("");
+  const [busy, setBusy] = useState("");
 
   const selectedBudget = useMemo(
     () => budgets.find((budget) => budget.id === budgetId) || budgets[0],
@@ -116,6 +117,9 @@ export default function BudgetControl() {
 
   async function createRequest() {
     if (!selectedBudget) return;
+    setBusy("create");
+    setError("");
+    setMessage("");
     try {
       const amount = Number(amountMinor);
       const created = await createPurchaseRequest({
@@ -132,6 +136,8 @@ export default function BudgetControl() {
       await refresh();
     } catch (reason) {
       fail(reason);
+    } finally {
+      setBusy("");
     }
   }
 
@@ -141,12 +147,17 @@ export default function BudgetControl() {
     if (!window.confirm(
       `Submit ${money(version.amount_minor, version.currency)} from budget ${request.budget_id}, version ${version.version}?`
     )) return;
+    setBusy(`submit:${request.id}`);
+    setError("");
+    setMessage("");
     try {
       await submitPurchaseRequest(request.id);
       setMessage(`Request ${request.id} submitted.`);
       await refresh();
     } catch (reason) {
       fail(reason);
+    } finally {
+      setBusy("");
     }
   }
 
@@ -156,12 +167,17 @@ export default function BudgetControl() {
     if (!window.confirm(
       `${decision === "approved" ? "Approve" : "Reject"} ${money(version.amount_minor, version.currency)} for budget ${request.budget_id}, request version ${version.version}?`
     )) return;
+    setBusy(`${decision}:${request.id}`);
+    setError("");
+    setMessage("");
     try {
       await decidePurchaseRequest(request.id, decision, "Decided in Budget Control");
       setMessage(`Request ${request.id} ${decision}.`);
       await refresh();
     } catch (reason) {
       fail(reason);
+    } finally {
+      setBusy("");
     }
   }
 
@@ -171,12 +187,17 @@ export default function BudgetControl() {
     if (!window.confirm(
       `Create the governed commitment of ${money(version.amount_minor, version.currency)} against budget ${request.budget_id}, version ${version.version}?`
     )) return;
+    setBusy(`commit:${request.id}`);
+    setError("");
+    setMessage("");
     try {
       const result = await commitPurchaseRequest(request.id);
       setMessage(mutationMessage(result));
       await refresh();
     } catch (reason) {
       fail(reason);
+    } finally {
+      setBusy("");
     }
   }
 
@@ -189,6 +210,9 @@ export default function BudgetControl() {
     if (!window.confirm(
       `Settle ${money(amount, version.currency)} for budget ${request.budget_id}, version ${version.version}? This is final.`
     )) return;
+    setBusy(`settle:${request.id}`);
+    setError("");
+    setMessage("");
     try {
       const result = await settlePurchaseRequest(
         request.id,
@@ -199,6 +223,8 @@ export default function BudgetControl() {
       await refresh();
     } catch (reason) {
       fail(reason);
+    } finally {
+      setBusy("");
     }
   }
 
@@ -208,6 +234,9 @@ export default function BudgetControl() {
     if (!window.confirm(
       `Cancel the open ${money(version.amount_minor, version.currency)} commitment for budget ${request.budget_id}, version ${version.version}?`
     )) return;
+    setBusy(`cancel:${request.id}`);
+    setError("");
+    setMessage("");
     try {
       const result = await cancelPurchaseRequest(
         request.id,
@@ -217,9 +246,12 @@ export default function BudgetControl() {
       await refresh();
     } catch (reason) {
       fail(reason);
+    } finally {
+      setBusy("");
     }
   }
 
+  const working = (key: string, text: string) => (busy === key ? "Working…" : text);
   const tab = (id: View) => (view === id ? "page" : undefined);
 
   if (!authenticated) {
@@ -228,14 +260,17 @@ export default function BudgetControl() {
         <header><p className="eyebrow">RMT · governed finance</p><h1>Budget Control</h1></header>
         <div className="card">
           <p>Enter your operator token. Budget roles are enforced by the server.</p>
-          <input
-            type="password"
-            value={tokenInput}
-            onChange={(event) => setTokenInput(event.target.value)}
-            placeholder="operator token"
-          />
+          <label className="field">
+            Operator token
+            <input
+              type="password"
+              value={tokenInput}
+              onChange={(event) => setTokenInput(event.target.value)}
+              placeholder="operator token"
+            />
+          </label>
           <div className="actions"><button className="primary" onClick={signIn}>Sign in</button></div>
-          {error && <p className="msg msg-error">{error}</p>}
+          {error && <p className="msg msg-error" role="alert">{error}</p>}
         </div>
       </section>
     );
@@ -253,8 +288,8 @@ export default function BudgetControl() {
         <button aria-current={tab("approvals")} onClick={() => setView("approvals")}>Approvals</button>
         <button aria-current={tab("history")} onClick={() => { setView("history"); void loadHistory(historyBudget || budgets[0]?.id || ""); }}>Spending History</button>
       </nav>
-      {message && <p className="msg msg-ok">{message}</p>}
-      {error && <p className="msg msg-error">{error}</p>}
+      {message && <p className="msg msg-ok" role="status">{message}</p>}
+      {error && <p className="msg msg-error" role="alert">{error}</p>}
 
       {view === "budgets" && <div className="card-grid fill">
         {budgets.map((budget) => <article className="card" key={budget.id}>
@@ -271,24 +306,24 @@ export default function BudgetControl() {
       {view === "requests" && <>
         <div className="card form-grid">
           <h2>New purchase request</h2>
-          <select value={selectedBudget?.id || ""} onChange={(event) => setBudgetId(event.target.value)}>
+          <label className="field">Budget<select value={selectedBudget?.id || ""} onChange={(event) => setBudgetId(event.target.value)}>
             {budgets.map((budget) => <option key={budget.id} value={budget.id}>{budget.name} · {budget.currency}</option>)}
-          </select>
-          <input type="number" value={amountMinor} onChange={(event) => setAmountMinor(event.target.value)} placeholder="amount in minor units" />
-          <input value={purpose} onChange={(event) => setPurpose(event.target.value)} placeholder="purpose" />
-          <input value={reference} onChange={(event) => setReference(event.target.value)} placeholder="supporting reference" />
-          <button className="primary" disabled={!selectedBudget || !amountMinor || !purpose} onClick={() => void createRequest()}>Create draft</button>
+          </select></label>
+          <label className="field">Amount (minor units)<input type="number" value={amountMinor} onChange={(event) => setAmountMinor(event.target.value)} placeholder="amount in minor units" /></label>
+          <label className="field">Purpose<input value={purpose} onChange={(event) => setPurpose(event.target.value)} placeholder="purpose" /></label>
+          <label className="field">Supporting reference<input value={reference} onChange={(event) => setReference(event.target.value)} placeholder="supporting reference" /></label>
+          <button className="primary" disabled={!!busy || !selectedBudget || !amountMinor || !purpose} onClick={() => void createRequest()}>{working("create", "Create draft")}</button>
         </div>
         <RequestTable requests={requests} actions={(request) => <>
-          {request.status === "draft" && <button onClick={() => void submit(request)}>Submit</button>}
-          {request.status === "approved" && <button onClick={() => void commit(request)}>Apply commitment</button>}
-          {request.status === "committed" && <div className="actions"><button onClick={() => void settle(request)}>Settle</button><button className="danger" onClick={() => void cancel(request)}>Cancel</button></div>}
+          {request.status === "draft" && <button disabled={!!busy} onClick={() => void submit(request)}>{working(`submit:${request.id}`, "Submit")}</button>}
+          {request.status === "approved" && <button disabled={!!busy} onClick={() => void commit(request)}>{working(`commit:${request.id}`, "Apply commitment")}</button>}
+          {request.status === "committed" && <div className="actions"><button disabled={!!busy} onClick={() => void settle(request)}>{working(`settle:${request.id}`, "Settle")}</button><button className="danger" disabled={!!busy} onClick={() => void cancel(request)}>{working(`cancel:${request.id}`, "Cancel")}</button></div>}
         </>} />
       </>}
 
       {view === "approvals" && <RequestTable requests={approvals} actions={(request) => <>
-        <div className="actions"><button className="primary" onClick={() => void decide(request, "approved")}>Approve</button>
-        <button className="danger" onClick={() => void decide(request, "rejected")}>Reject</button></div>
+        <div className="actions"><button className="primary" disabled={!!busy} onClick={() => void decide(request, "approved")}>{working(`approved:${request.id}`, "Approve")}</button>
+        <button className="danger" disabled={!!busy} onClick={() => void decide(request, "rejected")}>{working(`rejected:${request.id}`, "Reject")}</button></div>
       </>} />}
 
       {view === "history" && <>
@@ -308,6 +343,7 @@ function RequestTable({ requests, actions }: {
   requests: PurchaseRequest[];
   actions: (request: PurchaseRequest) => React.ReactNode;
 }) {
+  if (requests.length === 0) return <p className="empty">No purchase requests.</p>;
   return <div className="table-wrap"><table className="data-table"><thead><tr><th>Request</th><th>Purpose</th><th>Amount</th><th>Version</th><th>Status</th><th>Action</th></tr></thead>
     <tbody>{requests.map((request) => {
       const version = currentVersion(request);

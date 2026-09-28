@@ -39,6 +39,7 @@ export default function GovernedConsole() {
 
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState("");
 
   async function loadHolds() {
     try {
@@ -97,6 +98,7 @@ export default function GovernedConsole() {
   async function onApprove(hold: HeldItem, approved: boolean) {
     setMessage(null);
     setError(null);
+    setBusy(`${approved ? "yes" : "no"}:${hold.approval_id}`);
     try {
       const id = hold.approval_id;
       // /homelab/approve is the documented superset of /approve: it continues
@@ -114,6 +116,8 @@ export default function GovernedConsole() {
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy("");
     }
   }
 
@@ -149,16 +153,19 @@ export default function GovernedConsole() {
             <code>RMT_OPERATOR_TOKENS</code>) to view held actions, verification
             evidence, and approve or reject holds. The token stays in your browser.
           </p>
-          <input
-            type="password"
-            value={token}
-            onChange={(e) => setTokenInput(e.target.value)}
-            placeholder="operator token"
-          />
+          <label className="field">
+            Operator token
+            <input
+              type="password"
+              value={token}
+              onChange={(e) => setTokenInput(e.target.value)}
+              placeholder="operator token"
+            />
+          </label>
           <div className="actions">
             <button className="primary" onClick={onLogin}>Sign in</button>
           </div>
-          {error && <p className="msg msg-error">{error}</p>}
+          {error && <p className="msg msg-error" role="alert">{error}</p>}
         </div>
       </section>
     );
@@ -194,8 +201,8 @@ export default function GovernedConsole() {
         <button aria-current={tab("evidence")} onClick={() => setView("evidence")}>Evidence by action</button>
       </nav>
 
-      {message && <p className="msg msg-ok">{message}</p>}
-      {error && <p className="msg msg-error">{error}</p>}
+      {message && <p className="msg msg-ok" role="status">{message}</p>}
+      {error && <p className="msg msg-error" role="alert">{error}</p>}
 
       {view === "holds" && (
         <>
@@ -230,8 +237,8 @@ export default function GovernedConsole() {
                       <td>{h.granted_by ?? ""}{h.agent_id ? ` (${h.agent_id})` : ""}</td>
                       <td>
                         <div className="actions">
-                          <button className="primary" onClick={() => void onApprove(h, true)}>Approve</button>
-                          <button className="danger" onClick={() => void onApprove(h, false)}>Reject</button>
+                          <button className="primary" disabled={!!busy} onClick={() => void onApprove(h, true)}>{busy === `yes:${h.approval_id}` ? "Working…" : "Approve"}</button>
+                          <button className="danger" disabled={!!busy} onClick={() => void onApprove(h, false)}>{busy === `no:${h.approval_id}` ? "Working…" : "Reject"}</button>
                         </div>
                       </td>
                     </tr>

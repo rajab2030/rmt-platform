@@ -23,6 +23,7 @@ interface Props {
   onRestart: () => void;
   onRemove: () => void;
   onClose: () => void;
+  busy: string | null;
 }
 
 export default function ContainerDetails({
@@ -33,7 +34,11 @@ export default function ContainerDetails({
   onRestart,
   onRemove,
   onClose,
+  busy,
 }: Props) {
+  const label = (action: string, text: string) => (busy === action ? "Working…" : text);
+  const disabled = busy !== null;
+
   return (
     <article className="card">
       <div className="card-head">
@@ -58,21 +63,27 @@ export default function ContainerDetails({
         )}
       </dl>
 
-      <div className="actions">
-        {container.status === "running" ? (
-          <>
-            <button onClick={onStop}>Stop</button>
-            <button onClick={onRestart}>Restart</button>
-          </>
-        ) : (
-          <button className="primary" onClick={onStart}>
-            Start
-          </button>
-        )}
-        <button className="danger" onClick={onRemove}>
-          Remove
+      <div className="actions split">
+        <div className="actions">
+          {container.status === "running" ? (
+            <>
+              <button disabled={disabled} onClick={onStop}>
+                {label("stop", "Stop")}
+              </button>
+              <button disabled={disabled} onClick={onRestart}>
+                {label("restart", "Restart")}
+              </button>
+            </>
+          ) : (
+            <button className="primary" disabled={disabled} onClick={onStart}>
+              {label("start", "Start")}
+            </button>
+          )}
+          <button onClick={onClose}>Close</button>
+        </div>
+        <button className="destructive" disabled={disabled} onClick={onRemove}>
+          {label("remove", "Remove")}
         </button>
-        <button onClick={onClose}>Close</button>
       </div>
     </article>
   );
