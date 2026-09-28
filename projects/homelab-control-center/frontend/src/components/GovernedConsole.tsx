@@ -17,6 +17,13 @@ import type {
 
 type View = "holds" | "verifications" | "evidence";
 
+function verificationTone(status: string | undefined): string {
+  if (!status) return "";
+  if (status.includes("success")) return "pill-ok";
+  if (status.includes("fail") || status.includes("mismatch")) return "pill-bad";
+  return "pill-warn";
+}
+
 export default function GovernedConsole() {
   const [authenticated, setAuthenticated] = useState(hasToken());
   const [token, setTokenInput] = useState("");
@@ -131,96 +138,116 @@ export default function GovernedConsole() {
 
   if (!authenticated) {
     return (
-      <div className="governed-token">
-        <h2>Governed Operations Console</h2>
-        <p>
-          Enter an operator token (from <code>auth.conf</code> /{" "}
-          <code>RMT_OPERATOR_TOKENS</code>) to view held actions, verification
-          evidence, and approve or reject holds. The token stays in your browser.
-        </p>
-        <input
-          type="password"
-          value={token}
-          onChange={(e) => setTokenInput(e.target.value)}
-          placeholder="operator token"
-        />
-        <button onClick={onLogin}>Sign in</button>
-        {error && <p className="governed-error">{error}</p>}
-      </div>
+      <section className="page page-narrow">
+        <header>
+          <p className="eyebrow">RMT · approvals &amp; evidence</p>
+          <h1>Governed Operations</h1>
+        </header>
+        <div className="card">
+          <p>
+            Enter an operator token (from <code>auth.conf</code> /{" "}
+            <code>RMT_OPERATOR_TOKENS</code>) to view held actions, verification
+            evidence, and approve or reject holds. The token stays in your browser.
+          </p>
+          <input
+            type="password"
+            value={token}
+            onChange={(e) => setTokenInput(e.target.value)}
+            placeholder="operator token"
+          />
+          <div className="actions">
+            <button className="primary" onClick={onLogin}>Sign in</button>
+          </div>
+          {error && <p className="msg msg-error">{error}</p>}
+        </div>
+      </section>
     );
   }
 
+  const tab = (id: View) => (view === id ? "page" : undefined);
+
   return (
-    <div className="governed">
-      <div className="governed-head">
-        <h2>Governed Operations Console</h2>
+    <section className="page">
+      <header className="page-head">
+        <div>
+          <p className="eyebrow">RMT · approvals &amp; evidence</p>
+          <h1>Governed Operations</h1>
+        </div>
         <button onClick={onLogout}>Sign out</button>
-      </div>
+      </header>
 
       {agentStatus && (
-        <p className="governed-status">
-          Agent surface: {String(agentStatus.enabled ?? "?")} · grants{" "}
-          {String(agentStatus.active_grants ?? "?")} · SoD{" "}
-          {String(agentStatus.separation_of_duties ?? "?")}
-        </p>
+        <div className="actions">
+          <span className={`pill ${agentStatus.enabled ? "pill-ok" : ""}`}>
+            Agent surface: {String(agentStatus.enabled ?? "?")}
+          </span>
+          <span className="pill">Active grants: {String(agentStatus.active_grants ?? "?")}</span>
+          <span className={`pill ${agentStatus.separation_of_duties ? "pill-ok" : ""}`}>
+            Separation of duties: {String(agentStatus.separation_of_duties ?? "?")}
+          </span>
+        </div>
       )}
 
-      <nav className="governed-nav">
-        <button onClick={() => { setView("holds"); void loadHolds(); }}>Holds</button>
-        <button onClick={() => { setView("verifications"); void loadVerifications(); }}>Verifications</button>
-        <button onClick={() => setView("evidence")}>Evidence by action</button>
+      <nav className="subnav" aria-label="Governed views">
+        <button aria-current={tab("holds")} onClick={() => { setView("holds"); void loadHolds(); }}>Holds</button>
+        <button aria-current={tab("verifications")} onClick={() => { setView("verifications"); void loadVerifications(); }}>Verifications</button>
+        <button aria-current={tab("evidence")} onClick={() => setView("evidence")}>Evidence by action</button>
       </nav>
 
-      {message && <p className="governed-ok">{message}</p>}
-      {error && <p className="governed-error">{error}</p>}
+      {message && <p className="msg msg-ok">{message}</p>}
+      {error && <p className="msg msg-error">{error}</p>}
 
       {view === "holds" && (
         <>
-          <h3>Approval Holds</h3>
+          <h2>Approval Holds</h2>
           {holds.length === 0 ? (
-            <p>No open approval holds.</p>
+            <p className="empty">No open approval holds.</p>
           ) : (
-            <table className="governed-table">
-              <thead>
-                <tr>
-                  <th>approval_id</th>
-                  <th>component</th>
-                  <th>action_type</th>
-                  <th>actionable</th>
-                  <th>expired</th>
-                  <th>record</th>
-                  <th>risk</th>
-                  <th>granted_by</th>
-                  <th>approve</th>
-                </tr>
-              </thead>
-              <tbody>
-                {holds.map((h) => (
-                  <tr key={h.approval_id}>
-                    <td><code>{h.approval_id}</code></td>
-                    <td>{h.component ?? ""}</td>
-                    <td>{h.action_type ?? ""}</td>
-                    <td>{h.actionable ? "yes" : "no"}</td>
-                    <td>{h.expired ? "yes" : "no"}</td>
-                    <td>{h.record_decision ?? ""}</td>
-                    <td>{h.granted_by ?? ""}{h.agent_id ? ` (${h.agent_id})` : ""}</td>
-                    <td>
-                      <button onClick={() => void onApprove(h, true)}>Approve</button>{" "}
-                      <button onClick={() => void onApprove(h, false)}>Reject</button>
-                    </td>
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>approval_id</th>
+                    <th>component</th>
+                    <th>action_type</th>
+                    <th>actionable</th>
+                    <th>expired</th>
+                    <th>record</th>
+                    <th>risk</th>
+                    <th>granted_by</th>
+                    <th>approve</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {holds.map((h) => (
+                    <tr key={h.approval_id}>
+                      <td><code>{h.approval_id}</code></td>
+                      <td>{h.component ?? ""}</td>
+                      <td>{h.action_type ?? ""}</td>
+                      <td><span className={`pill ${h.actionable ? "pill-ok" : ""}`}>{h.actionable ? "yes" : "no"}</span></td>
+                      <td><span className={`pill ${h.expired ? "pill-bad" : ""}`}>{h.expired ? "yes" : "no"}</span></td>
+                      <td>{h.record_decision ?? ""}</td>
+                      <td>{h.granted_by ?? ""}{h.agent_id ? ` (${h.agent_id})` : ""}</td>
+                      <td>
+                        <div className="actions">
+                          <button className="primary" onClick={() => void onApprove(h, true)}>Approve</button>
+                          <button className="danger" onClick={() => void onApprove(h, false)}>Reject</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </>
       )}
 
       {view === "verifications" && (
         <>
-          <h3>Verification Ledger</h3>
+          <h2>Verification Ledger</h2>
           <label>
-            effective_status{" "}
+            effective_status
             <input
               value={verificationFilter}
               onChange={(e) => {
@@ -231,37 +258,39 @@ export default function GovernedConsole() {
             />
           </label>
           {verifications.length === 0 ? (
-            <p>No verification records.</p>
+            <p className="empty">No verification records.</p>
           ) : (
-            <table className="governed-table">
-              <thead>
-                <tr>
-                  <th>execution_id</th>
-                  <th>action_id</th>
-                  <th>effective_status</th>
-                  <th>reason</th>
-                </tr>
-              </thead>
-              <tbody>
-                {verifications.map((v) => (
-                  <tr key={v.execution_id ?? JSON.stringify(v)}>
-                    <td><code>{v.execution_id ?? ""}</code></td>
-                    <td>{v.action_id ?? ""}</td>
-                    <td>{v.effective_status ?? ""}</td>
-                    <td>{v.reason ?? ""}</td>
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>execution_id</th>
+                    <th>action_id</th>
+                    <th>effective_status</th>
+                    <th>reason</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {verifications.map((v) => (
+                    <tr key={v.execution_id ?? JSON.stringify(v)}>
+                      <td><code>{v.execution_id ?? ""}</code></td>
+                      <td>{v.action_id ?? ""}</td>
+                      <td><span className={`pill ${verificationTone(v.effective_status)}`}>{v.effective_status ?? ""}</span></td>
+                      <td>{v.reason ?? ""}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </>
       )}
 
       {view === "evidence" && (
         <>
-          <h3>Evidence chain</h3>
+          <h2>Evidence chain</h2>
           <label>
-            action_id{" "}
+            action_id
             <input
               value={actionId}
               onChange={(e) => setActionId(e.target.value)}
@@ -270,22 +299,36 @@ export default function GovernedConsole() {
             <button onClick={() => void onSearchEvidence(actionId)}>Look up</button>
           </label>
           {evidence && (
-            <div className="governed-evidence">
-              <p>
-                resolved: action <code>{evidence.resolved?.action_id ?? ""}</code>,
-                approval <code>{evidence.resolved?.approval_id ?? ""}</code>,
-                execution <code>{evidence.resolved?.execution_id ?? ""}</code>
-              </p>
-              <p>authorizations: {evidence.authorizations.length}</p>
-              <p>approvals: {evidence.approvals.length}</p>
-              <p>holds: {evidence.holds.length}</p>
-              <p>audit: {evidence.audit.length}</p>
-              <p>traces: {evidence.traces.length}</p>
-              <p>verifications: {evidence.verifications.length}</p>
-            </div>
+            <article className="card">
+              <dl className="facts">
+                <dt>action</dt>
+                <dd><code>{evidence.resolved?.action_id ?? ""}</code></dd>
+                <dt>approval</dt>
+                <dd><code>{evidence.resolved?.approval_id ?? ""}</code></dd>
+                <dt>execution</dt>
+                <dd><code>{evidence.resolved?.execution_id ?? ""}</code></dd>
+              </dl>
+              <div className="stats">
+                {(
+                  [
+                    ["authorizations", evidence.authorizations.length],
+                    ["approvals", evidence.approvals.length],
+                    ["holds", evidence.holds.length],
+                    ["audit", evidence.audit.length],
+                    ["traces", evidence.traces.length],
+                    ["verifications", evidence.verifications.length],
+                  ] as const
+                ).map(([label, count]) => (
+                  <div className="stat" key={label}>
+                    <div className="stat-label">{label}</div>
+                    <div className="stat-value">{count}</div>
+                  </div>
+                ))}
+              </div>
+            </article>
           )}
         </>
       )}
-    </div>
+    </section>
   );
 }

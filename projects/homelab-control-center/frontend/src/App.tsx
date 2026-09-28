@@ -1,5 +1,3 @@
-
-import ContainerTable from "./components/ContainerTable";
 import { useEffect, useState } from "react";
 
 import {
@@ -9,19 +7,17 @@ import {
   restartContainer,
   removeContainer,
 } from "./api/client";
-
 import { getPlatformState } from "./api/platform";
 import { getApiBaseUrl } from "./config/runtime";
 
-import PlatformState from "./components/PlatformState";
+import BudgetControl from "./components/BudgetControl";
+import ContainerDetails from "./components/ContainerDetails";
+import ContainerTable from "./components/ContainerTable";
 import GovernedConsole from "./components/GovernedConsole";
 import ObservabilityPanel from "./components/ObservabilityPanel";
-import BudgetControl from "./components/BudgetControl";
+import PlatformState from "./components/PlatformState";
 
 import type { PlatformState as PlatformStateType } from "./types/platform";
-
-import ContainerDetails from "./components/ContainerDetails";
-import "./App.css";
 
 interface Container {
   name: string;
@@ -38,28 +34,25 @@ interface ContainerStats {
   health: string;
 }
 
+type ActiveView = "containers" | "governed" | "budget";
+
+const VIEWS: { id: ActiveView; label: string }[] = [
+  { id: "containers", label: "Containers" },
+  { id: "governed", label: "Governed Ops" },
+  { id: "budget", label: "Budget Control" },
+];
+
 function App() {
   const [containers, setContainers] = useState<Container[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [platformState, setPlatformState] =
-    useState<PlatformStateType | null>(null);
-  const [activeView, setActiveView] = useState<"containers" | "governed" | "budget">("containers");
-  
+  const [platformState, setPlatformState] = useState<PlatformStateType | null>(null);
+  const [activeView, setActiveView] = useState<ActiveView>("containers");
+  const [selectedContainer, setSelectedContainer] = useState<Container | null>(null);
+  const [containerStats, setContainerStats] = useState<ContainerStats | null>(null);
 
-  const [selectedContainer, setSelectedContainer] =
-    useState<Container | null>(null);
-
-  const [containerStats, setContainerStats] =
-    useState<ContainerStats | null>(null);
-
-
-  const runningCount = containers.filter(
-    (container) => container.status === "running"
-  ).length;
-
+  const runningCount = containers.filter((container) => container.status === "running").length;
   const stoppedCount = containers.length - runningCount;
-
 
   async function loadContainers() {
     setLoading(true);
@@ -76,23 +69,15 @@ function App() {
     }
   }
 
-
   async function loadContainerStats(name: string) {
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/containers/${name}/stats`
-      );
-
-      const data = await response.json();
-
-      setContainerStats(data);
-
+      const response = await fetch(`${getApiBaseUrl()}/containers/${name}/stats`);
+      setContainerStats(await response.json());
     } catch (err) {
       console.error(err);
       setContainerStats(null);
     }
   }
-
 
   async function refreshAfterAction() {
     await loadContainers();
@@ -103,132 +88,124 @@ function App() {
   }
 
   async function loadPlatformState() {
-
-  try {
-
-    const data = await getPlatformState();
-
-    setPlatformState(data);
-
-  } catch (err) {
-
-    console.error(
-      "Platform state error:",
-      err
-    );
-
+    try {
+      setPlatformState(await getPlatformState());
+    } catch (err) {
+      console.error("Platform state error:", err);
+    }
   }
-}
+
+  function closeDetails() {
+    setSelectedContainer(null);
+    setContainerStats(null);
+  }
+
   useEffect(() => {
     loadContainers();
     loadPlatformState();
-
   }, []);
 
-
   return (
-    <div>
+    <>
+      <header className="app-bar">
+        <div className="brand">
+          <img src="/favicon.svg" alt="" />
+          <span>
+            RMT <small>Control Center</small>
+          </span>
+        </div>
+        <nav className="tabs" aria-label="Views">
+          {VIEWS.map((view) => (
+            <button
+              key={view.id}
+              aria-current={activeView === view.id ? "page" : undefined}
+              onClick={() => setActiveView(view.id)}
+            >
+              {view.label}
+            </button>
+          ))}
+        </nav>
+      </header>
 
-      <nav className="app-nav">
-        <button onClick={() => setActiveView("containers")}>Containers</button>
-        <button onClick={() => setActiveView("governed")}>Governed Ops</button>
-        <button onClick={() => setActiveView("budget")}>Budget Control</button>
-      </nav>
+      <main>
+        {activeView === "budget" ? (
+          <BudgetControl />
+        ) : activeView === "governed" ? (
+          <GovernedConsole />
+        ) : (
+          <section className="page">
+            <header className="page-head">
+              <div>
+                <p className="eyebrow">RMT · homelab domain</p>
+                <h1>Containers</h1>
+              </div>
+              <button onClick={loadContainers} disabled={loading}>
+                Refresh
+              </button>
+            </header>
 
-      {activeView === "budget" ? (
-        <BudgetControl />
-      ) : activeView === "governed" ? (
-        <GovernedConsole />
-      ) : (
-        <>
-      <h1>RMT Platform Control Center</h1>
-  {
-  platformState && (
-    <PlatformState
-      state={platformState}
-    />
-  )
-}
+            <div className="stats">
+              <div className="stat">
+                <div className="stat-label">Total</div>
+                <div className="stat-value">{loading ? "–" : containers.length}</div>
+              </div>
+              <div className="stat stat-ok">
+                <div className="stat-label">Running</div>
+                <div className="stat-value">{loading ? "–" : runningCount}</div>
+              </div>
+              <div className={stoppedCount > 0 ? "stat stat-bad" : "stat"}>
+                <div className="stat-label">Stopped</div>
+                <div className="stat-value">{loading ? "–" : stoppedCount}</div>
+              </div>
+            </div>
 
-      <ObservabilityPanel />
+            {error && <p className="msg msg-error">{error}</p>}
 
-      <h2>Containers</h2>
+            {!error && (
+              <ContainerTable
+                containers={containers}
+                loading={loading}
+                selected={selectedContainer?.name ?? null}
+                onSelect={(container) => {
+                  setSelectedContainer(container);
+                  loadContainerStats(container.name);
+                }}
+              />
+            )}
 
-      <button onClick={loadContainers}>
-        Refresh Containers
-      </button>
+            {selectedContainer && (
+              <ContainerDetails
+                container={selectedContainer}
+                stats={containerStats}
+                onStart={async () => {
+                  await startContainer(selectedContainer.name);
+                  await refreshAfterAction();
+                }}
+                onStop={async () => {
+                  await stopContainer(selectedContainer.name);
+                  await refreshAfterAction();
+                }}
+                onRestart={async () => {
+                  await restartContainer(selectedContainer.name);
+                  await refreshAfterAction();
+                }}
+                onRemove={async () => {
+                  await removeContainer(selectedContainer.name);
+                  closeDetails();
+                  await loadContainers();
+                }}
+                onClose={closeDetails}
+              />
+            )}
 
-
-      <div>
-        <p>Total Containers: {containers.length}</p>
-        <p>Running: {runningCount}</p>
-        <p>Stopped: {stoppedCount}</p>
-      </div>
-
-
-      {loading && <p>Loading...</p>}
-
-      {error && <p>{error}</p>}
-
-
-      {!loading && !error && (
-
-        <ContainerTable
-         
-         containers={containers}
-
-         onSelect={(container) => {
-           setSelectedContainer(container);
-           loadContainerStats(container.name);
-         }}
-      />
-    
-
-    )}
-
-
-
-      {selectedContainer && (
-
-        <ContainerDetails
-          container={selectedContainer}
-          stats={containerStats}
-
-          onStart={async () => {
-            await startContainer(selectedContainer.name);
-            await refreshAfterAction();
-          }}
-
-          onStop={async () => {
-            await stopContainer(selectedContainer.name);
-            await refreshAfterAction();
-          }}
-
-          onRestart={async () => {
-            await restartContainer(selectedContainer.name);
-            await refreshAfterAction();
-          }}
-
-          onRemove={async () => {
-            await removeContainer(selectedContainer.name);
-            setSelectedContainer(null);
-            setContainerStats(null);
-            await loadContainers();
-          }}
-
-          onClose={() => {
-            setSelectedContainer(null);
-            setContainerStats(null);
-          }}
-        />
-
-      )}
-
-
-        </>
-      )}
-
-    </div>
+            <div className="card-grid">
+              {platformState && <PlatformState state={platformState} />}
+              <ObservabilityPanel />
+            </div>
+          </section>
+        )}
+      </main>
+    </>
   );
 }
 

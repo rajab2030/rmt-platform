@@ -1,4 +1,3 @@
-
 interface Container {
   name: string;
   image: string;
@@ -7,102 +6,60 @@ interface Container {
 
 interface Props {
   containers: Container[];
-
-  onSelect: (
-    container: Container
-  ) => void;
+  loading: boolean;
+  selected: string | null;
+  onSelect: (container: Container) => void;
 }
 
-
-function StatusBadge({
-  status,
-}: {
-  status: string;
-}) {
-
-  const isRunning =
-    status === "running";
-
-  return (
-    <span
-      className={
-        isRunning
-          ? "status running"
-          : "status stopped"
-      }
-    >
-      {isRunning
-        ? "🟢 Running"
-        : "🔴 Exited"}
-    </span>
-  );
+export function StatusPill({ status }: { status: string }) {
+  const tone = status === "running" ? "pill-ok" : status === "exited" ? "pill-bad" : "pill-warn";
+  return <span className={`pill ${tone}`}>{status}</span>;
 }
 
-
-export default function ContainerTable({
-  containers,
-  onSelect,
-}: Props) {
-
+export default function ContainerTable({ containers, loading, selected, onSelect }: Props) {
+  if (!loading && containers.length === 0) {
+    return <p className="empty">No containers found.</p>;
+  }
 
   return (
-
-    <table>
-
-      <thead>
-
-        <tr>
-          <th>Name</th>
-          <th>Image</th>
-          <th>Status</th>
-        </tr>
-
-      </thead>
-
-
-      <tbody>
-
-        {containers.map(
-          (container) => (
-
-            <tr
-              key={container.name}
-            >
-
-              <td>
-
-                <button
-                  onClick={() =>
-                    onSelect(container)
-                  }
+    <div className="table-wrap">
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Image</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading
+            ? [0, 1, 2].map((row) => (
+                <tr key={row} aria-hidden="true">
+                  <td><span className="skeleton" style={{ width: "8rem" }} /></td>
+                  <td><span className="skeleton" style={{ width: "12rem" }} /></td>
+                  <td><span className="skeleton" style={{ width: "4rem" }} /></td>
+                </tr>
+              ))
+            : containers.map((container) => (
+                <tr
+                  key={container.name}
+                  className={container.name === selected ? "selected" : undefined}
                 >
-                  {container.name}
-                </button>
-
-              </td>
-
-
-              <td>
-                {container.image}
-              </td>
-
-
-              <td>
-                <StatusBadge
-                  status={
-                    container.status
-                  }
-                />
-              </td>
-
-            </tr>
-
-          )
-        )}
-
-      </tbody>
-
-    </table>
-
+                  <td>
+                    <button className="link" onClick={() => onSelect(container)}>
+                      {container.name}
+                    </button>
+                  </td>
+                  <td>
+                    <code>{container.image}</code>
+                  </td>
+                  <td>
+                    <StatusPill status={container.status} />
+                  </td>
+                </tr>
+              ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

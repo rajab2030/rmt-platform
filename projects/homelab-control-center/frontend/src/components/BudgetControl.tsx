@@ -220,40 +220,44 @@ export default function BudgetControl() {
     }
   }
 
+  const tab = (id: View) => (view === id ? "page" : undefined);
+
   if (!authenticated) {
     return (
-      <section className="budget-shell budget-login">
-        <h2>Budget Control</h2>
-        <p>Enter your operator token. Budget roles are enforced by the server.</p>
-        <input
-          type="password"
-          value={tokenInput}
-          onChange={(event) => setTokenInput(event.target.value)}
-          placeholder="operator token"
-        />
-        <button onClick={signIn}>Sign in</button>
-        {error && <p className="budget-error">{error}</p>}
+      <section className="page page-narrow">
+        <header><p className="eyebrow">RMT · governed finance</p><h1>Budget Control</h1></header>
+        <div className="card">
+          <p>Enter your operator token. Budget roles are enforced by the server.</p>
+          <input
+            type="password"
+            value={tokenInput}
+            onChange={(event) => setTokenInput(event.target.value)}
+            placeholder="operator token"
+          />
+          <div className="actions"><button className="primary" onClick={signIn}>Sign in</button></div>
+          {error && <p className="msg msg-error">{error}</p>}
+        </div>
       </section>
     );
   }
 
   return (
-    <section className="budget-shell">
-      <header className="budget-head">
+    <section className="page">
+      <header className="page-head">
         <div><p className="eyebrow">RMT · governed finance</p><h1>Budget Control</h1></div>
-        <div><button onClick={() => void refresh()}>Refresh</button> <button onClick={signOut}>Sign out</button></div>
+        <div className="actions"><button onClick={() => void refresh()}>Refresh</button><button onClick={signOut}>Sign out</button></div>
       </header>
-      <nav className="budget-nav" aria-label="Budget views">
-        <button onClick={() => setView("budgets")}>Budgets</button>
-        <button onClick={() => setView("requests")}>Purchase Requests</button>
-        <button onClick={() => setView("approvals")}>Approvals</button>
-        <button onClick={() => { setView("history"); void loadHistory(historyBudget || budgets[0]?.id || ""); }}>Spending History</button>
+      <nav className="subnav" aria-label="Budget views">
+        <button aria-current={tab("budgets")} onClick={() => setView("budgets")}>Budgets</button>
+        <button aria-current={tab("requests")} onClick={() => setView("requests")}>Purchase Requests</button>
+        <button aria-current={tab("approvals")} onClick={() => setView("approvals")}>Approvals</button>
+        <button aria-current={tab("history")} onClick={() => { setView("history"); void loadHistory(historyBudget || budgets[0]?.id || ""); }}>Spending History</button>
       </nav>
-      {message && <p className="budget-message">{message}</p>}
-      {error && <p className="budget-error">{error}</p>}
+      {message && <p className="msg msg-ok">{message}</p>}
+      {error && <p className="msg msg-error">{error}</p>}
 
-      {view === "budgets" && <div className="budget-grid">
-        {budgets.map((budget) => <article className="budget-card" key={budget.id}>
+      {view === "budgets" && <div className="card-grid fill">
+        {budgets.map((budget) => <article className="card" key={budget.id}>
           <p className="eyebrow">{budget.period_start} — {budget.period_end}</p>
           <h2>{budget.name}</h2>
           <p>{budget.owner_type}: {budget.owner_name}</p>
@@ -261,11 +265,11 @@ export default function BudgetControl() {
           <p>available · {budget.status}</p>
           <small>{budget.id}</small>
         </article>)}
-        {budgets.length === 0 && <p>No budgets are visible for this principal.</p>}
+        {budgets.length === 0 && <p className="empty">No budgets are visible for this principal.</p>}
       </div>}
 
       {view === "requests" && <>
-        <div className="budget-form">
+        <div className="card form-grid">
           <h2>New purchase request</h2>
           <select value={selectedBudget?.id || ""} onChange={(event) => setBudgetId(event.target.value)}>
             {budgets.map((budget) => <option key={budget.id} value={budget.id}>{budget.name} · {budget.currency}</option>)}
@@ -273,18 +277,18 @@ export default function BudgetControl() {
           <input type="number" value={amountMinor} onChange={(event) => setAmountMinor(event.target.value)} placeholder="amount in minor units" />
           <input value={purpose} onChange={(event) => setPurpose(event.target.value)} placeholder="purpose" />
           <input value={reference} onChange={(event) => setReference(event.target.value)} placeholder="supporting reference" />
-          <button disabled={!selectedBudget || !amountMinor || !purpose} onClick={() => void createRequest()}>Create draft</button>
+          <button className="primary" disabled={!selectedBudget || !amountMinor || !purpose} onClick={() => void createRequest()}>Create draft</button>
         </div>
         <RequestTable requests={requests} actions={(request) => <>
           {request.status === "draft" && <button onClick={() => void submit(request)}>Submit</button>}
           {request.status === "approved" && <button onClick={() => void commit(request)}>Apply commitment</button>}
-          {request.status === "committed" && <><button onClick={() => void settle(request)}>Settle</button> <button onClick={() => void cancel(request)}>Cancel</button></>}
+          {request.status === "committed" && <div className="actions"><button onClick={() => void settle(request)}>Settle</button><button className="danger" onClick={() => void cancel(request)}>Cancel</button></div>}
         </>} />
       </>}
 
       {view === "approvals" && <RequestTable requests={approvals} actions={(request) => <>
-        <button onClick={() => void decide(request, "approved")}>Approve</button>{" "}
-        <button onClick={() => void decide(request, "rejected")}>Reject</button>
+        <div className="actions"><button className="primary" onClick={() => void decide(request, "approved")}>Approve</button>
+        <button className="danger" onClick={() => void decide(request, "rejected")}>Reject</button></div>
       </>} />}
 
       {view === "history" && <>
@@ -292,9 +296,9 @@ export default function BudgetControl() {
           <option value="">Select a budget</option>
           {budgets.map((budget) => <option key={budget.id} value={budget.id}>{budget.name}</option>)}
         </select></label>
-        <table className="budget-table"><thead><tr><th>Time</th><th>Type</th><th>Amount</th><th>Request</th><th>Actor</th></tr></thead>
+        <div className="table-wrap"><table className="data-table"><thead><tr><th>Time</th><th>Type</th><th>Amount</th><th>Request</th><th>Actor</th></tr></thead>
           <tbody>{history.map((entry) => <tr key={entry.id}><td>{new Date(entry.created_at).toLocaleString()}</td><td>{entry.entry_type}</td><td>{money(entry.amount_minor, entry.currency)}</td><td>{entry.request_id || "—"}</td><td>{entry.actor}</td></tr>)}</tbody>
-        </table>
+        </table></div>
       </>}
     </section>
   );
@@ -304,10 +308,10 @@ function RequestTable({ requests, actions }: {
   requests: PurchaseRequest[];
   actions: (request: PurchaseRequest) => React.ReactNode;
 }) {
-  return <table className="budget-table"><thead><tr><th>Request</th><th>Purpose</th><th>Amount</th><th>Version</th><th>Status</th><th>Action</th></tr></thead>
+  return <div className="table-wrap"><table className="data-table"><thead><tr><th>Request</th><th>Purpose</th><th>Amount</th><th>Version</th><th>Status</th><th>Action</th></tr></thead>
     <tbody>{requests.map((request) => {
       const version = currentVersion(request);
-      return <tr key={request.id}><td><code>{request.id}</code></td><td>{version?.purpose}</td><td>{version ? money(version.amount_minor, version.currency) : "—"}</td><td>{request.current_version}</td><td><span className={`budget-state state-${request.status}`}>{request.status}</span></td><td>{actions(request)}</td></tr>;
+      return <tr key={request.id}><td><code>{request.id}</code></td><td>{version?.purpose}</td><td>{version ? money(version.amount_minor, version.currency) : "—"}</td><td>{request.current_version}</td><td><span className={`pill state-${request.status}`}>{request.status}</span></td><td>{actions(request)}</td></tr>;
     })}</tbody>
-  </table>;
+  </table></div>;
 }

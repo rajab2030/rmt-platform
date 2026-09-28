@@ -1,4 +1,4 @@
-
+import { StatusPill } from "./ContainerTable";
 
 interface Container {
   name: string;
@@ -17,16 +17,13 @@ interface ContainerStats {
 
 interface Props {
   container: Container;
-
   stats: ContainerStats | null;
-
   onStart: () => void;
   onStop: () => void;
   onRestart: () => void;
   onRemove: () => void;
   onClose: () => void;
 }
-
 
 export default function ContainerDetails({
   container,
@@ -37,109 +34,46 @@ export default function ContainerDetails({
   onRemove,
   onClose,
 }: Props) {
-
-
   return (
+    <article className="card">
+      <div className="card-head">
+        <h2>{container.name}</h2>
+        <StatusPill status={container.status} />
+      </div>
 
-    <div>
+      <dl className="facts">
+        <dt>Image</dt>
+        <dd><code>{container.image}</code></dd>
+        {stats && (
+          <>
+            <dt>Memory</dt>
+            <dd>{Math.round(stats.memory_usage / 1024 / 1024)} MB</dd>
+            <dt>CPU</dt>
+            <dd>{stats.cpu_usage}%</dd>
+            <dt>Health</dt>
+            <dd>{stats.health}</dd>
+            <dt>Started</dt>
+            <dd>{new Date(stats.started_at).toLocaleString()}</dd>
+          </>
+        )}
+      </dl>
 
-      <h2>Container Details</h2>
-
-
-      <p>
-        Name: {container.name}
-      </p>
-
-
-      <p>
-        Image: {container.image}
-      </p>
-
-
-      <p>
-        Status: {container.status}
-      </p>
-
-
-      {stats && (
-
-        <div>
-
-          <p>
-            Memory:
-            {" "}
-            {Math.round(
-              stats.memory_usage / 1024 / 1024
-            )}
-            MB
-          </p>
-
-
-          <p>
-            CPU:
-            {" "}
-            {stats.cpu_usage}%
-          </p>
-
-
-          <p>
-            Health:
-            {" "}
-            {stats.health === "healthy"
-              ? "🟢 Healthy"
-              : stats.health}
-          </p>
-
-
-          <p>
-            Started:
-            {" "}
-            {new Date(
-              stats.started_at
-            ).toLocaleString()}
-          </p>
-
-        </div>
-
-      )}
-
-
-      <h3>Actions</h3>
-
-
-      {container.status === "running" ? (
-
-        <>
-          <button onClick={onStop}>
-            Stop
+      <div className="actions">
+        {container.status === "running" ? (
+          <>
+            <button onClick={onStop}>Stop</button>
+            <button onClick={onRestart}>Restart</button>
+          </>
+        ) : (
+          <button className="primary" onClick={onStart}>
+            Start
           </button>
-
-
-          <button onClick={onRestart}>
-            Restart
-          </button>
-        </>
-
-      ) : (
-
-        <button onClick={onStart}>
-          Start
+        )}
+        <button className="danger" onClick={onRemove}>
+          Remove
         </button>
-
-      )}
-
-
-      <button onClick={onRemove}>
-        Remove
-      </button>
-
-
-      <button onClick={onClose}>
-        Close
-      </button>
-
-
-    </div>
-
+        <button onClick={onClose}>Close</button>
+      </div>
+    </article>
   );
 }
