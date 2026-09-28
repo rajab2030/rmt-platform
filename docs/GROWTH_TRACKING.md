@@ -45,3 +45,51 @@ tracked going forward.
    newsletter/directory with good fit for the `policy-engine` /
    `control-plane` / `ai-governance` angle, and submission needs no
    credentials beyond a public form.
+
+## 2026-09-28
+
+**Repo:** rajab2030/rmt-platform
+**Description:** Policy checks, approval holds, and execution evidence for AI-agent actions. Includes a local Git-tag walkthrough.
+**Last push:** 2026-09-26T00:53:25Z
+
+| Metric | Value |
+|---|---|
+| Stars | 0 |
+| Forks | 2 |
+| Topics | agent-governance, ai-agents, ai-governance, audit-trail, control-plane, devops-automation, homelab, llm-agents, policy-engine, risk-management (all 10 expected topics present) |
+
+Traffic stats (views/clones/referrers/popular paths) were again **not
+available this run** — same gap as last week: no `gh` CLI and no
+traffic-API tool on the connected GitHub MCP server. Only repo metadata
+reachable through `search_repositories` is logged.
+
+**Deltas vs. prior entry (2026-09-21):**
+
+- Stars: 0 → 0 (no change)
+- Forks: 2 → 2 (no change)
+- Unique cloners / unique visitors: not computable — traffic data still
+  unavailable both weeks.
+
+Notably, both of last week's suggested actions were already acted on since
+the last entry: `docs/promotion/technical-post-evidence-attestation.md`
+(added 2026-09-26) and `docs/promotion/console-dev-submission.md` (added
+2026-09-26) are finished drafts now sitting in the repo. Neither has
+produced a visible star/fork bump yet, consistent with drafts that haven't
+been published externally yet.
+
+**Suggested next actions (outside GitHub):**
+
+1. **Actually publish the two drafts already written** — post
+   `docs/promotion/technical-post-evidence-attestation.md` to dev.to (or
+   Hashnode), and send `docs/promotion/console-dev-submission.md` to
+   Console.dev's submission form (https://console.dev/submit). Both pieces
+   are finished; the writing is done, only the posting/sending is left, and
+   that's the single highest-leverage action available right now.
+2. **Submit a "Show HN" post** on Hacker News (https://news.ycombinator.com/submit)
+   pointing at the repo, framed around the `experiments/` MCR 2.0 banking
+   risk-control experiment shipped 2026-09-20 (tiered per-counterparty
+   exposure/concentration caps, velocity limiting, sanctions screening, and
+   an `attack_agent.py` proving 16 boundary/policy checks against a live
+   stack with real accumulated ledger state) as the concrete, unusual
+   technical hook — link the README's Git-tag walkthrough GIF as the "here's
+   it actually running" proof rather than just prose.
