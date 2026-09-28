@@ -73,3 +73,14 @@ export async function removeContainer(name: string) {
 
   return response.json();
 }
+
+
+export async function getContainerStats(name: string) {
+  const response = await fetch(`${getApiBaseUrl()}/containers/${name}/stats`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch container stats");
+  }
+
+  return response.json();
+}
