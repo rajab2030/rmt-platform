@@ -1,5 +1,9 @@
 # RMT — Full Project Status Reference
 
+> **Moved (2026-09-30)** from the repository root to `docs/internal/`. This is a
+> dated snapshot; paths below are relative to the repository root. For current
+> status read `RMT_CONTEXT.md` and `HANDOFF.md` (both still at the root).
+
 > Snapshot date: 2026-09-04.
 > This is a consolidated **status reference** for the current agent and the
 > project owner. It is a **coordination** document only — architecture
