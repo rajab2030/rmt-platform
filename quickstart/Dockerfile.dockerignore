@@ -1,0 +1,8 @@
+# Build context is the repository root; only two directories are copied.
+**
+!projects/homelab-control-center/backend/
+!tools/rmt-showcase-agent/
+**/.venv
+**/__pycache__
+**/*.pyc
+projects/homelab-control-center/backend/data/

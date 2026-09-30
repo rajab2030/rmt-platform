@@ -1,0 +1,45 @@
+# RMT quickstart: a local, disposable demo. See quickstart/README.md.
+#
+#   docker compose run --rm showcase    # start RMT and run the walkthrough
+#   docker compose down                 # stop it and discard all evidence
+#
+# Demo settings only: authentication is off, and the API is published on
+# 127.0.0.1 only. Do not expose this port or reuse these settings.
+services:
+  rmt:
+    build:
+      context: .
+      dockerfile: quickstart/Dockerfile
+    image: rmt-quickstart:local
+    environment:
+      RMT_AUTH_ENABLED: "false"
+      RMT_AGENT_ENABLED: "true"
+      RMT_AGENT_GIT_REPO_PATH: /home/rmt/demo-repo
+      # Off by default; see tools/claude-code-guard/README.md to try it.
+      RMT_CODING_AGENT_ENABLED: ${RMT_CODING_AGENT_ENABLED:-false}
+    ports:
+      - "127.0.0.1:${RMT_QUICKSTART_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  showcase:
+    build:
+      context: .
+      dockerfile: quickstart/Dockerfile
+    image: rmt-quickstart:local
+    profiles: ["demo"]
+    depends_on:
+      rmt:
+        condition: service_healthy
+    working_dir: /app/showcase
+    command: ["python", "rmt_showcase.py"]
+    environment:
+      RMT_URL: http://rmt:8000
+      # Any non-empty value works while auth is off; actions are recorded
+      # as the local-dev operator.
+      RMT_TOKEN: local-dev
+    stdin_open: true
+    tty: true
