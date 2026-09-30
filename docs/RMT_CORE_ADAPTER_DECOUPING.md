@@ -90,7 +90,7 @@ No implementation is authorized by this classification alone.
 ## 7. Verification gate (unchanged, must remain green)
 
 ```bash
-cd /home/rmt-lab/homelab/projects/homelab-control-center/backend
+cd <repo-root>/projects/homelab-control-center/backend
 source .venv/bin/activate
 PYTHONPATH=. pytest app/core/intelligence/testing -q   # >= 122 passed
 ```

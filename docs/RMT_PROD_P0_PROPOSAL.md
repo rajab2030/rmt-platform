@@ -307,7 +307,7 @@ boundary; held proposals still never auto-continued.
 - **Verified on live:** `POST /homelab/loop/stop` no token → 401; with token →
   200; `GET /` (open) → 200; `POST /agent/authority/grant` with body
   `granted_by:"IGNORED"` → recorded `granted_by:"ragb"`; app listens
-  `127.0.0.1:8000` only, `192.168.223.128:8000` refused; 6 evidence files parse,
+  `127.0.0.1:8000` only, `<lan-ip>:8000` refused; 6 evidence files parse,
   no `.tmp` residue; CAP-04 loop + agent still enabled and healthy.
 - **Not yet:** Caddy TLS proxy (RMT has no LAN entry point — loopback + auth
   only); restart-safety hard-kill test (E1 is unit-tested); CAP-05 LLM exercise

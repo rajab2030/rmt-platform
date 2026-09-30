@@ -367,7 +367,7 @@ startup reconcile ran and corrected the two stale holds (`316257fc` →
 `54f685f6` (`manual_required` record) untouched; re-run now is a no-op.
 **S4 CLOSED 2026-09-08** — Caddy `2.6.2` TLS reverse proxy installed + enabled;
 `/etc/caddy/Caddyfile` from `deploy/Caddyfile`, `tls internal` CA trusted on the
-host. Verified on `192.168.223.128`: `https://` → 200 CA-validated, `http://` →
+host. Verified on `<lan-ip>`: `https://` → 200 CA-validated, `http://` →
 308 redirect, no-token `POST` → 401, open GET → 200, app refuses `:8000`
 off-loopback, CAP-04 loop healthy through the proxy. Remaining: import the Caddy
 root CA on other operator machines.

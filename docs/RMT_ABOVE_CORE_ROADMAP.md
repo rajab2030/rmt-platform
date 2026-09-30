@@ -244,7 +244,7 @@ should not go live until Tier 0 is done.**
 - **In scope:** run the `DEPLOY.md` §1.4 Caddy install (root operator step);
   enforce that the operator who *authored* a held action cannot be the one who
   *approves* it (S3); move the hardcoded CORS origin list out of `app/main.py`
-  into config (S5, also fixes the stale `192.168.235.128`).
+  into config (S5, also fixes the stale `<lan-ip>`).
 - **Boundary:** `app/ops/**` + config + deploy artifacts; no Core change.
 - **DoD:** LAN TLS entry point live; a same-operator approve is refused with a
   clear error; CORS origins are configurable; suite green.
