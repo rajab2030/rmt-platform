@@ -991,7 +991,7 @@ diff except the one script fix below.
   run a real init/systemd, which the unit-install step requires). Provisioned
   from a bare `ubuntu:24.04` image; a `rmt-lab` user created to match the
   systemd unit's hard-coded `User=rmt-lab` /
-  `/home/rmt-lab/homelab/projects/homelab-control-center` path.
+  `<repo-root>/projects/homelab-control-center` path.
 - **Environment constraint found and worked around:** this session's network
   is sandboxed — the container had no outbound internet (confirmed: reaches
   its own gateway, not the public internet), so `apt-get`/`pip` against real
@@ -1238,7 +1238,7 @@ drop-in:
 ```
 # /etc/systemd/system/rmt-control-center.service.d/git-domain.conf
 [Service]
-Environment=RMT_AGENT_GIT_REPO_PATH=/home/rmt-lab/homelab/projects/homelab-control-center/backend/data/agent_git_target
+Environment=RMT_AGENT_GIT_REPO_PATH=<repo-root>/projects/homelab-control-center/backend/data/agent_git_target
 ```
 
 — pointing at the dedicated scratch repository approved in
@@ -1568,7 +1568,7 @@ scratch git repo, `:8000` untouched throughout (2026-09-14):**
    verdict `reject`. Approved via `POST /coding-agent/decide` → the hook,
    still polling, saw `status: approved` and exited `0` — the human
    decision correctly overrode the reviewer's own `reject` verdict.
-5. **Held → rejected:** `rm -rf /home/rmt-lab/homelab/projects` → held
+5. **Held → rejected:** `rm -rf <repo-root>/projects` → held
    (`recursive-delete`, high); rejected via the same route → the hook
    exited `2` with `BLOCKED: rejected by local-dev` on stderr.
 6. **Fail-open:** dev instance killed (`pkill` scoped to the `:8099`

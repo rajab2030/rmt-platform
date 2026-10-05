@@ -128,7 +128,7 @@ it. Do not reopen C01–C07; do not invent a new Core milestone (no C08).
 ## Validation command
 
 ```bash
-cd /home/rmt-lab/homelab/projects/homelab-control-center/backend
+cd <repo-root>/projects/homelab-control-center/backend
 source .venv/bin/activate
 PYTHONPATH=. pytest app/core/intelligence/testing -q
 ```
@@ -179,7 +179,7 @@ PYTHONPATH=. pytest app/core/intelligence/testing -q
 - **`httpx2` IS installed** (test dependency) — FastAPI `TestClient` HTTP route
   tests work.
 - **`~` expands incorrectly** in this shell — use explicit paths
-  (`/home/rmt-lab/homelab/...`).
+  (`<repo-root>/...`).
 
 ## Working pattern that worked well
 
@@ -971,7 +971,7 @@ operator tokens `ragb` / `ops2`) and `bind-loopback.conf`. `daemon-reload` +
   <token>` → **200**; `GET /` → 200 (open routes unaffected).
 - `POST /agent/authority/grant` with body `granted_by:"IGNORED"` → recorded
   **`granted_by:"ragb"`** (authenticated operator; body value ignored) — S2-lite.
-- App listens **`127.0.0.1:8000` only**; `192.168.223.128:8000` refused — S4
+- App listens **`127.0.0.1:8000` only**; `<lan-ip>:8000` refused — S4
   loopback bind live.
 - 6 governance-evidence files parse, **no `.tmp` residue** — E1.
 - CAP-04 loop + agent 5A/5B still enabled and healthy on the new code.
@@ -984,7 +984,7 @@ exercise calls now need a token header.
 - **S4 Caddy proxy — NOT installed.** RMT currently has **no LAN-facing entry
   point** (loopback + auth only). **Owner decision (2026-09-07): install Caddy.**
   Artifacts are cutover-ready (`deploy/Caddyfile` already targets the verified
-  host IP `192.168.223.128`; `bind-loopback.conf` already live). Remaining:
+  host IP `<lan-ip>`; `bind-loopback.conf` already live). Remaining:
   `sudo apt install caddy` (candidate `2.6.2`), copy the Caddyfile, `systemctl
   restart caddy`, `caddy trust` + import the CA on operator machines
   (`DEPLOY.md` §1.4). This is a root operator step — not yet run.
@@ -1055,7 +1055,7 @@ no C08. **No `app/core/**` file touched.**
   clean store, so the restart is safe; it will log a `WARNING` + corrected count
   only if a stale hold is actually found.
 - **S4 Caddy install** — root/LAN-facing operator step (`DEPLOY.md` §1.4). Host
-  LAN IP verified as `192.168.223.128` (already in `deploy/Caddyfile`); apt
+  LAN IP verified as `<lan-ip>` (already in `deploy/Caddyfile`); apt
   candidate `caddy 2.6.2-6ubuntu0.24.04.3`.
 
 ### Files changed
@@ -1098,11 +1098,11 @@ needs sudo; this shell has no passwordless sudo).
 ### S4 — Caddy TLS reverse proxy installed (owner ran the sudo steps)
 - `caddy 2.6.2` installed + `systemctl enable --now caddy`; `/etc/caddy/Caddyfile`
   copied from `projects/homelab-control-center/deploy/Caddyfile` (unchanged —
-  site line `rmt.homelab.lan, 192.168.223.128`, `tls internal`,
+  site line `rmt.homelab.lan, <lan-ip>`, `tls internal`,
   `reverse_proxy 127.0.0.1:8000`, JSON access log to `/var/log/caddy/`).
 - `caddy trust` succeeded on the host — the internal root CA is in the host
   trust store.
-- **Verified on `192.168.223.128`:**
+- **Verified on `<lan-ip>`:**
   - app `:8000` off-loopback → connection refused (bind-loopback holds).
   - `https://` → **200, CA-validated** (no `-k` needed on the host).
   - `http://` → **308** auto-redirect to `https://`.
@@ -1143,7 +1143,7 @@ lone remaining item that would touch frozen Core; needs its own owner decision:
 Core fix vs above-Core wrapper), E4 retention/rotation, E5 RMT-store backup,
 D3 systemd sandboxing, O1/O3, V1/V2, R1 (hard-kill restart test) / R3 (platform
 recovery runbook). Also open: extend the E6 startup reconciliation to the
-authorization store; S5 CORS to config (stale `192.168.235.128` in `main.py`).
+authorization store; S5 CORS to config (stale `<lan-ip>` in `main.py`).
 
 ---
 
@@ -1173,7 +1173,7 @@ cgroup — no graceful shutdown), then `sudo systemctl restart`. Post-restart
   persistent per-component flap/quarantine state is what matters and it's
   healthy).
 - Auth intact (`/agent/status` no token → 401); Caddy proxy intact
-  (`https://192.168.223.128/homelab/loop/status` → 200).
+  (`https://<lan-ip>/homelab/loop/status` → 200).
 
 ### Not captured
 The E2 reconcile journal line for this boot — `journalctl` needs sudo and this
@@ -1392,7 +1392,7 @@ The live service (PID 9181, started 10:39) holds these stores in memory
 next `save()`. Run with the service stopped:
 
     sudo systemctl stop rmt-control-center.service
-    cd /home/rmt-lab/homelab/projects/homelab-control-center/backend
+    cd <repo-root>/projects/homelab-control-center/backend
     .venv/bin/python scripts/clean_test_pollution.py            # dry run
     .venv/bin/python scripts/clean_test_pollution.py --apply
     sudo systemctl start rmt-control-center.service
@@ -1959,7 +1959,7 @@ Landed as three commits:
 ### Per item
 - **S5** CORS: `RMT_CORS_ORIGINS` (comma-sep) → `ops_config.cors_origins()`,
   default `["http://localhost:5173"]` — the stale hardcoded
-  `192.168.235.128:5173` is gone. Methods scoped to `GET, POST`, headers to
+  `<lan-ip>:5173` is gone. Methods scoped to `GET, POST`, headers to
   `Authorization, X-API-Key, Content-Type, X-Request-ID` (were `["*"]`).
   `test_cors.py` (4).
 - **S6** secrets: `docs/operations/SECRETS.md`. No credential exists yet (local
@@ -2611,7 +2611,7 @@ proceed with a real live exercise, not a scripted/fabricated one.
   `git log --all -p` scanned for token/key/password patterns. Found only
   fixture test credentials (`alice-secret`, `bob-secret` in auth-header unit
   tests) and one committed `frontend/.env` with a private-LAN URL
-  (`VITE_API_URL=http://192.168.235.128:8000`) — not a real secret. The
+  (`VITE_API_URL=http://<lan-ip>:8000`) — not a real secret. The
   actual `RMT_OPERATOR_TOKENS` values were never in git, by design (T0-5's
   own fix). Repo history judged clean for going public.
 - **T0-6 — live agent-governance exercise on the production `:8000` service**
@@ -3138,7 +3138,7 @@ Live evidence: Caddy active; the installed Caddyfile and frontend index hashes
 match the validated artifacts; TLS HTML and hashed JavaScript asset return 200;
 proxied `/config` and `/health` return 200; unauthenticated `/budget/budgets`
 returns 401. A Chromium smoke loaded the Budget UI, made all three initial Budget
-GETs on the same `https://192.168.223.128` origin, and reported no request
+GETs on the same `https://<lan-ip>` origin, and reported no request
 failures. No token, bootstrap, or financial mutation was used.
 
 ## Next-capability shortlist review

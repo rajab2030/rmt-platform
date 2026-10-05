@@ -1,0 +1,9 @@
+# Keep LF endings for files that run inside Linux containers or as scripts,
+# so a Windows checkout (core.autocrlf=true) still builds and runs.
+*.sh text eol=lf
+*.py text eol=lf
+Dockerfile text eol=lf
+*.dockerignore text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+.githooks/* text eol=lf

@@ -36,7 +36,7 @@ Scripts (`backend/scripts/`):
 ## 1. Back up (safe while the service runs)
 
 ```bash
-cd /home/rmt-lab/homelab/projects/homelab-control-center/backend
+cd <repo-root>/projects/homelab-control-center/backend
 ./scripts/rmt-evidence-backup.sh
 ```
 
@@ -59,7 +59,7 @@ Override the destination root with `RMT_BACKUP_ROOT=/path`.
 Add to the operator's crontab (adjust the hour):
 
 ```cron
-17 3 * * *  /home/rmt-lab/homelab/projects/homelab-control-center/backend/scripts/rmt-evidence-backup.sh >> /home/rmt-lab/homelab/backups/rmt-evidence/backup.log 2>&1
+17 3 * * *  <repo-root>/projects/homelab-control-center/backend/scripts/rmt-evidence-backup.sh >> <repo-root>/backups/rmt-evidence/backup.log 2>&1
 ```
 
 Prune old backups with whatever policy the homelab backup set already uses
@@ -99,7 +99,7 @@ the old state over the restore on its next write.
 ```bash
 sudo systemctl stop rmt-control-center.service
 
-cd /home/rmt-lab/homelab/projects/homelab-control-center/backend
+cd <repo-root>/projects/homelab-control-center/backend
 ./scripts/rmt-evidence-restore.sh ~/homelab/backups/rmt-evidence/<timestamp>
 
 sudo systemctl start rmt-control-center.service

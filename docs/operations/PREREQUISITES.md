@@ -9,7 +9,7 @@ bitten test runs and rebuilds before.
 | Capability | Why | Check |
 |---|---|---|
 | **Python 3.12** | the venv and lockfile (`requirements.lock.txt`) are built on 3.12 | `python3 --version` |
-| **A writable working tree** under `/home/rmt-lab/homelab/projects/homelab-control-center/backend` | evidence JSON stores + `data/observability.db` live inside the package tree | `test -w …/backend` |
+| **A writable working tree** under `<repo-root>/projects/homelab-control-center/backend` | evidence JSON stores + `data/observability.db` live inside the package tree | `test -w …/backend` |
 | **`git`** on `PATH` | `GET /platform/state` shells out to git | `command -v git` |
 | **`sqlite3`** | E5 backup takes a `VACUUM INTO` snapshot of `observability.db` | `command -v sqlite3` |
 | **operator tokens** (`RMT_OPERATOR_TOKENS`) | with `RMT_AUTH_ENABLED=true` (the default) the app **refuses to start** without them | startup log |
