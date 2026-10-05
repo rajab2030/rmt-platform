@@ -3299,3 +3299,48 @@ RMT-CAP-11 (P-C) is now COMPLETE: proposed, approved, implemented, tested
 (657 backend tests), isolated-live-exercised, deployed, and live-verified
 against real production evidence. See
 `docs/RMT_CAPABILITIES_EVIDENCE.md` §"RMT-CAP-11" for the closed-out record.
+
+## Test-only local evaluation harness (docker-compose + demo/)
+
+**Date:** 2026-09-28. **Owner decision (this session):** add a one-command
+local trial setup, classified as a **test-only harness**. It is not roadmap
+item D3 (packaging) and not a deployment path. Owner reminder recorded
+verbatim in intent: Docker is only an adapter in RMT and can be replaced.
+Container tooling here only *packages* RMT for a trial.
+
+**Files (all new except two one-line doc notes):** `docker-compose.yml`,
+`.dockerignore`, `demo/backend.Dockerfile`, `demo/frontend.Dockerfile`,
+`demo/nginx.conf`, `demo/README.md`. Plus a README link and a note in
+`RMT_CONTEXT.md` next to the "not further Docker work" line. No application
+code, no `app/core/**`, no `deploy/**` change.
+
+**Harness posture (owner-chosen):** operator auth ON with a labelled demo
+token (`demo:rmt-demo-token`, overridable via `RMT_DEMO_TOKEN`); runtime engine
+`simulation`; no Docker socket mounted; homelab loop off; ports on host
+loopback only; Budget Control left unbootstrapped. The showcase runs via
+`docker compose run --rm showcase` because it needs stdin for approval.
+
+**Validation, and its limits:**
+- `docker compose config` valid (both default and `showcase` profile).
+- **Images were NOT built or run:** this session had no Docker daemon
+  (`/var/run/docker.sock` absent). nginx was not installed, so `demo/nginx.conf`
+  was not syntax-checked.
+- Instead, the backend ran natively with the exact container environment
+  (Python 3.12 venv from `requirements.lock.txt`, same env vars, scratch repo):
+  `/health` ok with `configured_engine == resolved_adapter == simulation`,
+  `adapter_degraded: false`, `docker_available: false`, `git_available: true`;
+  `rmt-smoke.sh` with `RMT_SMOKE_EXPECT_ADAPTER=simulation
+  RMT_SMOKE_EXPECT_LOOP=stopped` and the demo token → **SMOKE PASSED (10/10)**.
+- `rmt_showcase.py` against it, approvals fed via stdin: all five acts ran;
+  create and remove were each held → approved → executed →
+  `verified_success`; over-reach refused as `no_authority`/`grant_consumed`.
+  The scratch repo ended with no tags.
+- The frontend build (`npm ci && npm run build`) succeeds. It was served from
+  `dist` by a Python stand-in for the nginx config (static + `/config` proxy)
+  and loaded in headless Chromium: `/config` resolved and the backend
+  answered with `access-control-allow-origin: http://localhost:5173`. The
+  Containers view shows "Failed to fetch containers" and `/platform/state`
+  → 503, as expected without Docker.
+
+**Next:** someone with Docker or Podman should run `docker compose up --build`
+once to close the unbuilt-image gap.
