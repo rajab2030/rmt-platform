@@ -93,3 +93,64 @@ been published externally yet.
    stack with real accumulated ledger state) as the concrete, unusual
    technical hook — link the README's Git-tag walkthrough GIF as the "here's
    it actually running" proof rather than just prose.
+
+## 2026-10-05
+
+**Repo:** rajab2030/rmt-platform
+**Description:** Policy checks, approval holds, and execution evidence for AI-agent actions. Includes a local Git-tag walkthrough.
+**Last push:** 2026-10-05T08:43:54Z
+
+| Metric | Value |
+|---|---|
+| Stars | 0 |
+| Forks | 2 |
+| Topics | agent-governance, ai-agents, ai-governance, audit-trail, control-plane, devops-automation, homelab, llm-agents, policy-engine, risk-management (all 10 expected topics present) |
+
+Traffic stats (views/clones/referrers/popular paths) were again **not
+available this run** — same persistent gap: no `gh` CLI and no traffic-API
+tool on the connected GitHub MCP server (confirmed again this week; the MCP
+server exposes repo/PR/issue/commit/file tools but nothing under
+`traffic/*`). Only repo metadata reachable through `search_repositories` is
+logged. This gap has now held for three consecutive weeks with no change in
+environment capability.
+
+**Deltas vs. prior entry (2026-09-28):**
+
+- Stars: 0 → 0 (no change)
+- Forks: 2 → 2 (no change)
+- Unique cloners / unique visitors: not computable — traffic data still
+  unavailable all three weeks.
+
+The repo itself moved a lot this week even though stars/forks didn't: PRs #6,
+#7 and #8 merged today (2026-10-05), shipping a genuine one-command local
+trial — `docker compose run --rm showcase` now builds and runs the full
+governed-action walkthrough with zero setup (no Python, no manual venv, no
+LLM, no secrets) — plus a new plain-language `GETTING_STARTED.md` and a
+reworked frontend design system. This removes what was probably the biggest
+friction point for a casual visitor: previously trying RMT meant a Python
+venv and manual steps. None of last week's two suggestions (publishing the
+dev.to draft / Console.dev submission, or a Show HN post) show any visible
+effect yet in repo-observable signals (stars/forks still flat) — but that's
+expected if they haven't been posted externally yet, which this automation
+has no way to verify from inside GitHub.
+
+**Suggested next actions (outside GitHub):**
+
+1. **Post to r/selfhosted** (https://www.reddit.com/r/selfhosted/submit) now
+   that there's a true one-command Docker trial to point at — this is new as
+   of this week and wasn't true when earlier suggestions were written.
+   r/selfhosted's audience specifically values "clone it, run one command, no
+   cloud account" and the repo already carries the `homelab` topic and a live
+   homelab domain to back it up. Suggested framing: "I built a governance
+   gate that holds risky actions (yours or an AI agent's) for approval before
+   they run — try it with `docker compose run --rm showcase`." Link straight
+   to the Getting Started guide, not just the README.
+2. **Finish `docs/promotion/why-i-built-rmt.md` before posting it anywhere.**
+   It's a third drafted promotion piece (alongside the two from last week)
+   but unlike those it still has unfilled `[OWNER: ...]` placeholders for
+   personal facts this automation can't supply — it isn't publishable as-is.
+   Once the owner fills those in, Indie Hackers
+   (https://www.indiehackers.com/post) is a venue not yet tried: its
+   "building in public" format fits a first-person origin story better than
+   dev.to or Show HN, which are already earmarked for the more technical
+   pieces.
