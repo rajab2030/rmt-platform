@@ -1,65 +1,31 @@
 import type { PlatformState as PlatformStateType } from "../types/platform";
 
-
 interface Props {
   state: PlatformStateType;
 }
 
-
-export default function PlatformState({
-  state,
-}: Props) {
+export default function PlatformState({ state }: Props) {
+  const healthy = state.health.status === "healthy";
 
   return (
-    <div className="platform-card">
+    <article className="card">
+      <div className="card-head">
+        <h2>Platform State</h2>
+        <span className={`pill ${healthy ? "pill-ok" : "pill-bad"}`}>{state.health.status}</span>
+      </div>
 
-      <h2>
-        Platform State
-      </h2>
-
-      <p>
-        Platform:
-        {" "}
-        {state.platform}
-      </p>
-
-
-      <p>
-        Git Branch:
-        {" "}
-        {state.git.branch}
-      </p>
-
-
-      <p>
-        Commit:
-        {" "}
-        {state.git.commit}
-      </p>
-
-
-      <p>
-        Health:
-        {" "}
-        {state.health.status}
-      </p>
-
-
-      <p>
-        Containers:
-        {" "}
-        {state.containers.running}
-        {" "}
-        running
-      </p>
-
-
-      <p>
-        Backup:
-        {" "}
-        {state.backup.latest}
-      </p>
-
-    </div>
+      <dl className="facts">
+        <dt>Platform</dt>
+        <dd>{state.platform}</dd>
+        <dt>Branch</dt>
+        <dd><code>{state.git.branch}</code></dd>
+        <dt>Commit</dt>
+        <dd><code>{state.git.commit}</code></dd>
+        <dt>Containers</dt>
+        <dd>{state.containers.running} running</dd>
+        <dt>Last backup</dt>
+        <dd>{state.backup.latest}</dd>
+      </dl>
+    </article>
   );
 }
