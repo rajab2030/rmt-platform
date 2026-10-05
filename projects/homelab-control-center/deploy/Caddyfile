@@ -10,6 +10,15 @@
 # replace the `tls internal` line with `tls /path/cert.pem /path/key.pem`.
 #
 # Trim the site address list to what your DNS / hosts files actually resolve.
+#
+# Listen only on the LAN address. Without default_bind, Caddy binds :80 and
+# :443 on every interface, including the Tailscale address, where
+# `tailscale serve` needs :443 for other services on this host; whichever
+# starts first after a reboot wins and the other fails. Keep this in step with
+# the LAN address in the site list below.
+{
+	default_bind 192.168.223.128
+}
 
 rmt.homelab.lan, 192.168.223.128 {
 	tls internal

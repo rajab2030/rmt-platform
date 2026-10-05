@@ -6,6 +6,8 @@
 
 **Policy checks, approval holds, and execution evidence for AI-agent actions.**
 
+**New here? Start with [Getting started](GETTING_STARTED.md): what RMT does, in plain words, and a 5-minute trial.**
+
 [Project website](https://rajab2030.github.io/rmt-platform/) ·
 [Read the Git-tag walkthrough](https://rajab2030.github.io/rmt-platform/agent-action-audit-trail.html) ·
 [Ask a question](https://github.com/rajab2030/rmt-platform/discussions)
@@ -32,6 +34,11 @@ it and what actually happened?
 *Animated excerpts from a recorded local walkthrough; approval inputs automated
 for this demo.*
 [Transcript, setup, and limitations](docs/assets/agent-governance-demo.md).
+
+[Try the local showcase](tools/rmt-showcase-agent/README.md) ·
+[One-command local trial (test only)](demo/README.md) ·
+[Agent API](docs/operations/AGENT_API.md) ·
+[Guarantees and limits](docs/RMT_GUARANTEES.md)
 
 ## Try it in about two minutes
 
