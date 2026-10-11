@@ -1,0 +1,40 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/projects/homelab-control-center/backend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      python-minor-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "npm"
+    directory: "/projects/homelab-control-center/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      npm-minor-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 2
+
+  - package-ecosystem: "docker"
+    directory: "/quickstart"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 2
+
+  - package-ecosystem: "docker-compose"
+    directories:
+      - "/docker/stacks/dozzle"
+      - "/docker/stacks/portainer"
+      - "/docker/stacks/uptime-kuma"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 2
