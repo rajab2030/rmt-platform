@@ -154,3 +154,76 @@ has no way to verify from inside GitHub.
    "building in public" format fits a first-person origin story better than
    dev.to or Show HN, which are already earmarked for the more technical
    pieces.
+
+## 2026-10-12
+
+**Repo:** rajab2030/rmt-platform
+**Description:** Policy checks, approval holds, and execution evidence for AI-agent actions. Includes a local Git-tag walkthrough.
+**Last push:** 2026-10-11T13:21:53Z
+
+| Metric | Value |
+|---|---|
+| Stars | 0 |
+| Forks | 2 |
+| Topics | agent-governance, ai-agents, ai-governance, audit-trail, control-plane, devops-automation, homelab, llm-agents, policy-engine, risk-management (all 10 expected topics present) |
+
+Traffic data was **finally reachable this run** — `gh api` worked directly
+against `/traffic/views`, `/traffic/clones`, `/traffic/popular/referrers`,
+and `/traffic/popular/paths` (the prior three weeks' blocker, a missing
+`gh` CLI / traffic-API tool, is resolved; the GitHub MCP server's
+`get_me`/`search_repositories` tools still have no traffic endpoints, but
+`gh api` itself is now usable from this environment). GitHub's traffic API
+only reports a trailing 14-day window, so these are 2026-09-28 through
+2026-10-11 totals, not since-last-entry totals:
+
+| Metric (trailing 14 days) | Value |
+|---|---|
+| Views | 2 (1 unique visitor) |
+| Clones | 271 (117 unique cloners) |
+| Top referrers | none recorded |
+| Top popular path | `/rajab2030/rmt-platform` ("Overview"), 2 views / 1 unique |
+
+**Deltas vs. prior entry (2026-10-05):**
+
+- Stars: 0 → 0 (no change)
+- Forks: 2 → 2 (no change)
+- Unique cloners / unique visitors: not comparable to prior entries —
+  this is the first week traffic data was actually available, so there is
+  no like-for-like baseline yet. Next week's entry will be the first with a
+  real week-over-week traffic delta.
+
+Note on the clone number: 271 clones / 117 unique cloners over two weeks is
+large relative to 0 stars and no recorded referrers. That pattern (high
+clones, no stars, no referrer signal) is consistent with CI/bot/mirror
+traffic (e.g. package indexers or dependency scanners cloning the repo)
+rather than organic human interest, and shouldn't be read as a sign of
+traction on its own — worth sanity-checking against any CI or bot activity
+the owner knows about, but not something this automation can distinguish
+further from GitHub's API alone.
+
+On the repo side, `RMT-CAP-13 slice 1` shipped 2026-10-11: a read-only,
+opt-in "evidence-grounded incident explainer" (`app/reasoning/`) that
+generates an advisory explanation of a governed action where every claim
+must cite an evidence record (uncited claims are dropped), gated behind
+`RMT_REASONING_ENABLED` and operator auth, with a new "Explain this action"
+card in the governed console frontend. It never touches `app/core` or any
+execution path. Dependabot was also turned on this week (pip/npm/actions/
+docker/compose version updates).
+
+**Suggested next actions (outside GitHub):**
+
+1. **Write a short piece specifically about the incident-explainer feature**
+   (`RMT-CAP-13`, see `docs/RMT_CAP_13_PROPOSAL.md`) framed around the
+   concrete LLM-safety angle: "how do you let an LLM explain a governance
+   decision without letting it hallucinate the evidence?" — the
+   cite-or-drop validation in `app/reasoning/validate.py` is a specific,
+   demonstrable mechanism (not just a claim) that would land well on a
+   venue like Hacker News or r/LocalLLaMA, both audiences that care about
+   LLM-output grounding specifically rather than governance/DevOps framing
+   used in earlier suggestions.
+2. **Open a GitHub Discussion post explaining the clone-traffic anomaly
+   investigation** (271 clones / 0 stars this window) as a short public
+   note — even a one-paragraph "noticed higher-than-expected clone traffic,
+   still figuring out the source" is a low-effort way to signal the repo is
+   actively watched/maintained, and the repo already links
+   `/discussions` from the README front matter.
