@@ -227,3 +227,71 @@ docker/compose version updates).
    still figuring out the source" is a low-effort way to signal the repo is
    actively watched/maintained, and the repo already links
    `/discussions` from the README front matter.
+
+## 2026-10-15
+
+**Repo:** rajab2030/rmt-platform
+**Description:** Policy checks, approval holds, and execution evidence for AI-agent actions. Includes a local Git-tag walkthrough.
+**Last push:** 2026-10-12T09:10:39Z
+
+| Metric | Value |
+|---|---|
+| Stars | 0 |
+| Forks | 2 |
+| Topics | agent-governance, ai-agents, ai-governance, audit-trail, control-plane, devops-automation, homelab, llm-agents, policy-engine, risk-management (all 10 expected topics present) |
+
+Traffic data (trailing 14-day window, 2026-10-01 through 2026-10-14 — GitHub's
+API only ever reports a rolling 14 days, so this window overlaps roughly 11
+days with last entry's 2026-09-28–2026-10-11 window rather than being a clean
+non-overlapping week):
+
+| Metric (trailing 14 days) | Value |
+|---|---|
+| Views | 0 (0 unique visitors) |
+| Clones | 208 (96 unique cloners) |
+| Top referrers | none recorded |
+| Top popular paths | none recorded |
+
+**Deltas vs. prior entry (2026-10-12):**
+
+- Stars: 0 → 0 (no change)
+- Forks: 2 → 2 (no change)
+- Views (trailing 14d): 2 (1 unique) → 0 (0 unique) — down
+- Clones (trailing 14d): 271 (117 unique) → 208 (96 unique) — down, but still
+  consistent with the same non-organic pattern flagged last week (high clone
+  volume, zero referrer signal, zero stars): likely CI/bot/mirror traffic,
+  not a read on human interest either way.
+
+No new commits landed in the repo this week — `git log` shows the last
+substantive change is still `RMT-CAP-13 slice 1` (the evidence-grounded
+incident explainer) from 2026-10-11, same as last entry. Neither of last
+week's two suggestions (a CAP-13-focused technical piece for HN/r/LocalLLaMA,
+or a GitHub Discussion post about the clone anomaly) show up as commits or
+are otherwise verifiable from inside the repo, so this automation can't tell
+whether they were acted on externally.
+
+While checking the repo this run: the `docs/promotion/` directory holds
+several finished, ready-to-post pieces that predate this tracking log and
+have never been referenced in a prior week's suggestions —
+`docs/promotion/social-posts.md` has had a complete, polished LinkedIn post
+sitting finished since 2026-09-18 (confirmed in `docs/promotion/README.md` as
+"no writing task remains for the owner"), and it has sat unposted through
+every tracked week so far.
+
+**Suggested next actions (outside GitHub):**
+
+1. **Post the finished LinkedIn copy that's been sitting ready since
+   2026-09-18** — `docs/promotion/social-posts.md` → the `## LinkedIn`
+   section is a complete post (the agent-approval-hold hook, the Git-tag
+   demo description, the explicit scope boundaries, and a link to
+   https://rajab2030.github.io/rmt-platform/) with an attachment already
+   named (`docs/assets/agent-governance-demo.gif`). It's the oldest
+   fully-drafted, zero-remaining-effort asset in the repo and hasn't been
+   suggested in any prior week's entry.
+2. **Submit the repo to Lobsters** (https://lobste.rs/stories/new, tag it
+   `security` or `programming`) — a technically-literate venue not yet
+   tried in any prior suggestion. Pair it with the CAP-13 cite-or-drop
+   grounding angle from last week's suggestion (`app/reasoning/validate.py`:
+   an LLM-generated explanation where uncited claims are dropped before
+   they reach the operator) since that piece still hasn't been written or
+   posted anywhere external as far as this automation can tell.
