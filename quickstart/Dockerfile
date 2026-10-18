@@ -3,7 +3,7 @@
 #
 # Not a production image: auth is disabled in compose.yaml, evidence lives
 # inside the container, and the demo Git repository is created at build time.
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
