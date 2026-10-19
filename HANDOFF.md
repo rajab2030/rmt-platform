@@ -15,6 +15,107 @@
 Start the next session with the resume prompt below (see "Resume prompt").
 Read `RMT_CONTEXT.md` first, then this file.
 
+## Latest continuation checkpoint — CAP-12 / Project Boundary (2026-10-07)
+
+> **CAP-12 identity safeguard:** CAP-12 is **Project Boundary**, a private
+> commercial prototype built above RMT. Its repository is
+> `/home/rmt-lab/project-boundary-private`. Do not infer CAP-12 from the public
+> Homelab roadmap and do not rebuild or reinterpret it from an older milestone.
+
+### Current product state
+
+- Private repository: `/home/rmt-lab/project-boundary-private`
+- Current head: `9477ad7` (`main`, synchronized with `origin/main`), merge of the
+  approval-inbox discovery work.
+- Working tree at this checkpoint: clean.
+- Public RMT repository head: `652ad87` (`master`, synchronized with
+  `origin/master`); working tree was clean before this handoff-only edit.
+- The accepted prototype permits an authenticated external agent to propose one
+  Git tag bound to an immutable full commit OID in one operator-configured,
+  disposable local repository.
+- RMT owns policy, risk, human approval, authorization, execution admission,
+  independent verification, evidence, and signed export. Project Boundary owns
+  the external proposal API, canonical target, domain evaluation,
+  commit-bound Git adapter/observer, human approval context, and receipt.
+- Scope remains exactly one process/worker. It is not production deployed or
+  public.
+
+### Discovery gate — preserve
+
+- `APPROVAL_INBOX_DISCOVERY_PLAN.md` is merged, but approval-inbox
+  implementation is **not authorized**.
+- The gate requires evidence from one independent engineering/operations
+  participant in the target profile. Owner or AI simulation is not a valid
+  substitute.
+- The participant should use fictional/disposable data for about 20 minutes,
+  with no coding, installation, account access, or real-system access. They
+  should: approve a safe Git-tag request; reject a request with unsupported
+  rationale; reject or decline unsafe ambiguity; and interpret terminal states,
+  where only `verified_success` is success.
+- Reddit recruitment (for example, a suitable participant-recruitment
+  community) remains an available sourcing route. Recruitment is not product
+  evidence until an independent qualifying participant completes the session.
+
+### Bounded technical-hardening review — completed read-only
+
+The owner explicitly preserved the discovery gate and temporarily redirected
+work to a bounded review of the existing prototype. No hardening implementation
+was authorized or performed. Findings, in priority order:
+
+1. **High — separation of duties may fail open after provenance loss.** Project
+   Boundary records hold provenance only after hold creation. RMT's current
+   hold-provenance record is in-memory and intentionally fail-open; missing
+   provenance is treated as not agent-originated. A restart, recording failure,
+   or failure between hold creation and provenance recording could therefore
+   allow the grantor/proposer to approve despite the required separation.
+2. **Medium — preview and submit context are not bound.** Submit can supply a
+   new correlation ID, goal, reason, confidence, and agent ID while reusing only
+   the canonical target and grant ID. Immutable tag/commit binding and human
+   approval remain protected, but the previewed explanation need not be the
+   submitted explanation.
+3. **Medium — authority grants are not bound to the proposing actor.** A grant
+   binds operation, target, grantor, expiry, and consumption, but not the
+   intended authenticated agent. Another authenticated agent with the grant ID
+   and exact target could consume it.
+4. **Medium — the end-to-end test bypasses the HTTP separation gate.** It calls
+   `continue_remediation()` directly, while `check_separation` is enforced in
+   the RMT HTTP route. It therefore does not prove grantor/proposer refusal or
+   restart-safe behavior through the real entry point.
+5. **Low — dependency compatibility is not reproducibly pinned.** Project
+   Boundary uses version ranges, links RMT through `RMT_BACKEND_PATH`, and
+   imports several RMT internals without locking an exact compatible RMT
+   revision.
+
+Candidate hardening slice, requiring separate explicit implementation
+authorization: durable fail-closed Project Boundary-owned hold provenance;
+atomic/proven successful provenance recording during hold admission; grants
+bound to the authenticated proposing actor; deterministic preview-to-submit
+proposal binding; authenticated HTTP tests covering separation refusal and
+restart recovery; and an exact RMT/dependency compatibility lock. This work
+cannot substitute for participant evidence and must not relax the discovery
+gate.
+
+### Review validation evidence
+
+- Private prototype tests against a disposable `/tmp` evidence database:
+  **35 passed**.
+- Ruff with cache disabled: clean.
+- Python compilation with temporary bytecode storage: clean.
+- `pip check`: clean.
+- Git integrity check: no integrity failure (only dangling blobs reported).
+- Both repositories remained clean after the review.
+
+### Exact next-session instruction
+
+Read the private repository's `README.md`, `PRODUCT_CHARTER.md`,
+`IMPLEMENTATION_CONTRACT.md`, `USABILITY_REVIEW.md`, and
+`APPROVAL_INBOX_DISCOVERY_PLAN.md` before acting. Preserve the independent-human
+discovery gate. Do not implement the approval inbox or the hardening slice
+without separate explicit authorization. If asked to continue CAP-12, begin in
+`/home/rmt-lab/project-boundary-private`, confirm current status/HEAD and the
+applicable contract, then continue from this checkpoint rather than searching
+the public roadmap for CAP-12.
+
 ## Current state
 
 - **C01 — Governed Execution Boundary: CLOSED**
