@@ -295,3 +295,68 @@ every tracked week so far.
    an LLM-generated explanation where uncited claims are dropped before
    they reach the operator) since that piece still hasn't been written or
    posted anywhere external as far as this automation can tell.
+
+## 2026-10-19
+
+**Repo:** rajab2030/rmt-platform
+**Description:** Policy checks, approval holds, and execution evidence for AI-agent actions. Includes a local Git-tag walkthrough.
+**Last push:** 2026-10-19T09:04:07Z
+
+| Metric | Value |
+|---|---|
+| Stars | 0 |
+| Forks | 2 |
+| Topics | agent-governance, ai-agents, ai-governance, audit-trail, control-plane, devops-automation, homelab, llm-agents, policy-engine, risk-management (all 10 expected topics present) |
+
+Traffic data (trailing 14-day window, 2026-10-05 through 2026-10-18 — GitHub's
+API only ever reports a rolling 14 days, so this window overlaps roughly 7-10
+days with last entry's 2026-10-01–2026-10-14 window):
+
+| Metric (trailing 14 days) | Value |
+|---|---|
+| Views | 0 (0 unique visitors) |
+| Clones | 207 (93 unique cloners) |
+| Top referrers | none recorded |
+| Top popular paths | none recorded |
+
+**Deltas vs. prior entry (2026-10-15):**
+
+- Stars: 0 → 0 (no change)
+- Forks: 2 → 2 (no change)
+- Views (trailing 14d): 0 (0 unique) → 0 (0 unique) (no change)
+- Clones (trailing 14d): 208 (96 unique) → 207 (93 unique) — essentially flat
+  (down 1 total / down 3 unique), still the same pattern flagged the last two
+  weeks: nontrivial clone volume with zero referrer signal and zero stars,
+  consistent with CI/bot/mirror traffic rather than a read on human interest.
+
+Repo-side, the only commit since last entry is a `HANDOFF.md` checkpoint
+(`docs: HANDOFF checkpoint for CAP-12 Project Boundary (2026-10-07)`,
+pushed 2026-10-19) documenting a bounded, read-only security review of a
+**private**, separately-hosted commercial prototype (`project-boundary-private`)
+built above RMT — not a public RMT feature, so there is nothing new here to
+promote externally. The last publicly-shippable feature remains CAP-13 (the
+evidence-grounded incident explainer, 2026-10-11), already suggested twice
+(2026-10-12, 2026-10-15) for an HN/r/LocalLLaMA piece and a Lobsters post;
+this automation has no way to confirm whether either was acted on. A README
+link/file-existence spot-check (LICENSE, README.ar.md, GETTING_STARTED.md,
+the demo GIF/transcript, the showcase and local-trial READMEs, AGENT_API.md,
+RMT_GUARANTEES.md) found everything present and no obviously broken link, so
+no hygiene fix was made this run.
+
+**Suggested next actions (outside GitHub):**
+
+1. **Post the ready-made "Short post" copy** from
+   `docs/promotion/social-posts.md` (the `## Short post` section — a single
+   paragraph, zero additional writing) to X/Twitter or Mastodon. Every prior
+   week's suggestions pointed at LinkedIn, Reddit, Hacker News, Lobsters,
+   Console.dev, or Indie Hackers — X/Mastodon is the one ready-to-post channel
+   this log has never suggested, and the copy already links
+   https://rajab2030.github.io/rmt-platform/.
+2. **Submit a "Show HN" post** (https://news.ycombinator.com/submit) framed
+   specifically around CAP-13's cite-or-drop mechanism in
+   `app/reasoning/validate.py` — an LLM-generated incident explanation where
+   any claim lacking a cited evidence record is dropped before it reaches the
+   operator. This is a different angle from the 2026-09-28 Show HN suggestion
+   (which was framed around the MCR 2.0 banking experiment) and ties to the
+   newest real shipped feature rather than repeating last week's Lobsters
+   suggestion.
