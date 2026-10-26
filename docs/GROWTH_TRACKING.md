@@ -360,3 +360,65 @@ no hygiene fix was made this run.
    (which was framed around the MCR 2.0 banking experiment) and ties to the
    newest real shipped feature rather than repeating last week's Lobsters
    suggestion.
+
+## 2026-10-26
+
+**Repo:** rajab2030/rmt-platform
+**Description:** Policy checks, approval holds, and execution evidence for AI-agent actions. Includes a local Git-tag walkthrough.
+**Last push:** 2026-10-25T01:44:38Z (Dependabot branch pushes only — `master`
+has had no new commits since the 2026-10-19 entry; its head is still
+`c3c105a`, last week's growth-tracking commit)
+
+| Metric | Value |
+|---|---|
+| Stars | 0 |
+| Forks | 2 |
+| Topics | agent-governance, ai-agents, ai-governance, audit-trail, control-plane, devops-automation, homelab, llm-agents, policy-engine, risk-management (all 10 expected topics present) |
+
+Traffic stats (views/clones/referrers/popular paths) were **not available
+this run**. This session's GitHub access is scoped to the connected GitHub
+MCP server's tool set only (no `gh` CLI, no direct REST calls permitted), and
+that tool set has no `traffic/*` endpoint — the same structural gap seen in
+the first three tracked weeks, recurring now after the one week (2026-10-12)
+it was briefly reachable via `gh api`. Only repo metadata via the MCP
+server's `search_repositories` tool is logged this week.
+
+**Deltas vs. prior entry (2026-10-19):**
+
+- Stars: 0 → 0 (no change)
+- Forks: 2 → 2 (no change)
+- Unique cloners / unique visitors: not computable — traffic data unavailable
+  this run, as in the 2026-10-05/09-28/09-21 entries.
+
+No application code changed since the 2026-10-19 entry — `master` is still at
+the CAP-13 evidence-grounded incident explainer (2026-10-11) plus the
+2026-10-19 HANDOFF checkpoint. The only repo activity this week is Dependabot:
+three open dependency-update PRs (#15 npm minor/patch, #24 Dozzle image
+v11.3.4, #25 Python minor/patch across 24 updates) and two already
+closed/superseded ones (#21, #22); none merged. That's routine maintenance,
+not a promotable change, so the newest externally-promotable thing in the
+repo is still CAP-13 (`app/reasoning/validate.py`'s cite-or-drop evidence
+grounding), already suggested twice (2026-10-12, 2026-10-19).
+`docs/promotion/why-i-built-rmt.md` still carries unfilled `[OWNER: ...]`
+placeholders and remains unpublishable as-is — unchanged for a third week.
+No hygiene fix was made this run; a spot check of README links (badges,
+Getting Started, demo GIF/transcript, promotion docs) found nothing broken.
+
+**Suggested next actions (outside GitHub):**
+
+1. **Post the finished "Community introduction" copy via r/selfhosted's New
+   Project Megathread, not a standalone post.** `docs/promotion/social-posts.md`
+   → the `## Community introduction` section is complete, ready-to-paste
+   copy, but its own usage note flags that a standalone r/selfhosted
+   submission needs project-age verification and should go through the
+   subreddit's New Project Megathread when required — a distinction no
+   prior week's suggestion called out (2026-10-05 suggested r/selfhosted
+   only generically). This is the safer, rules-compliant version of that
+   same suggestion, using copy that's still sitting unused.
+2. **Publish `docs/promotion/technical-post-evidence-attestation.md` to
+   Hashnode, not just dev.to.** The draft's own front matter already lists
+   dev.to *or* Hashnode as acceptable destinations, but every prior mention
+   of this draft in this log (2026-09-21, 2026-09-28) pointed only at
+   dev.to, which this automation has no way to confirm was ever actually
+   posted. Hashnode gives the same finished copy a second, zero-extra-writing
+   channel if dev.to hasn't happened yet, or a second reach if it has.
