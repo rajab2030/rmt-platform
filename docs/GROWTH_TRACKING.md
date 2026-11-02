@@ -422,3 +422,74 @@ Getting Started, demo GIF/transcript, promotion docs) found nothing broken.
    dev.to, which this automation has no way to confirm was ever actually
    posted. Hashnode gives the same finished copy a second, zero-extra-writing
    channel if dev.to hasn't happened yet, or a second reach if it has.
+
+## 2026-11-02
+
+**Repo:** rajab2030/rmt-platform
+**Description:** Policy checks, approval holds, and execution evidence for AI-agent actions. Includes a local Git-tag walkthrough.
+**Last push:** 2026-11-01T01:47:24Z (Dependabot branch pushes only — `master`
+has had no new commits since the 2026-10-19 entry; its head is still
+`433b7ed`, last week's growth-tracking commit)
+
+| Metric | Value |
+|---|---|
+| Stars | 0 |
+| Forks | 2 |
+| Topics | agent-governance, ai-agents, ai-governance, audit-trail, control-plane, devops-automation, homelab, llm-agents, policy-engine, risk-management (all 10 expected topics present) |
+
+Traffic data (trailing 14-day window, 2026-10-19 through 2026-11-01 — `gh api`
+was reachable again this run):
+
+| Metric (trailing 14 days) | Value |
+|---|---|
+| Views | 0 (0 unique visitors) |
+| Clones | 116 (46 unique cloners) |
+| Top referrers | none recorded |
+| Top popular paths | none recorded |
+
+**Deltas vs. prior entry (2026-10-26):**
+
+- Stars: 0 → 0 (no change, six consecutive tracked weeks now)
+- Forks: 2 → 2 (no change)
+- Traffic wasn't reachable last week, so the nearest real comparison is the
+  2026-10-19 entry: Views 0 (0 unique) → 0 (0 unique), no change. Clones 207
+  (93 unique) → 116 (46 unique) over the equivalent trailing-14-day window —
+  down roughly 44% on total clones and 51% on unique cloners. Still zero
+  recorded referrers alongside nontrivial clone volume, the same pattern
+  flagged in three prior entries (2026-10-12, 2026-10-15, 2026-10-19) as more
+  consistent with CI/bot/mirror traffic than organic human interest, so this
+  drop isn't read as a loss of real audience — there's no evidence there was
+  one to lose.
+
+No application code has changed on `master` since the 2026-10-19 entry — the
+newest shippable feature remains `RMT-CAP-13` (the evidence-grounded incident
+explainer, `app/reasoning/validate.py`'s cite-or-drop grounding, 2026-10-11),
+already suggested three times for external posting (2026-10-12, 2026-10-15,
+2026-10-19). The visible repo activity this week is entirely Dependabot: the
+open dependency-PR backlog has grown from 3 (last entry) to 12 open PRs
+(#10–#13, #15–#17, #19, #23, #26–#28), none merged — routine and out of this
+automation's scope to act on, but worth the owner's attention since it's now
+a real backlog rather than a handful of updates.
+`docs/promotion/why-i-built-rmt.md` still carries unfilled `[OWNER: ...]`
+placeholders (personal background, byline) and remains unpublishable as-is —
+unchanged for a fourth week. A spot check of the README badge and topics
+found nothing broken; no hygiene fix was made this run.
+
+**Suggested next actions (outside GitHub):**
+
+1. **Submit RMT to a curated LLMOps/agent tooling list via PR** —
+   `tensorchord/Awesome-LLMOps` (https://github.com/tensorchord/Awesome-LLMOps)
+   is a maintained, actively-starred "awesome list" with a governance/
+   observability section that fits the `policy-engine` / `ai-governance` /
+   `control-plane` topics directly. No prior week has suggested a curated-list
+   PR; it needs no credentials beyond opening a PR on someone else's public
+   repo, and discovery-by-list is a different channel than anything tried so
+   far (newsletters, forums, social posts).
+2. **Post the ready "Short post" copy to Fosstodon, not generic
+   Twitter/Mastodon.** `docs/promotion/social-posts.md` → `## Short post` is
+   already-written, zero-extra-writing copy; 2026-10-19 suggested posting it
+   to "X/Twitter or Mastodon" generically, but Fosstodon
+   (https://fosstodon.org) is a FOSS/self-hosted-focused instance that matches
+   the repo's `homelab` topic and self-hosted-trial angle (the one-command
+   `docker compose run --rm showcase` walkthrough) more specifically than a
+   generic social post would.
