@@ -493,3 +493,71 @@ found nothing broken; no hygiene fix was made this run.
    the repo's `homelab` topic and self-hosted-trial angle (the one-command
    `docker compose run --rm showcase` walkthrough) more specifically than a
    generic social post would.
+
+## 2026-11-09
+
+**Repo:** rajab2030/rmt-platform
+**Description:** Policy checks, approval holds, and execution evidence for AI-agent actions. Includes a local Git-tag walkthrough.
+**Last push:** 2026-11-08T01:44:44Z (Dependabot branch pushes only — `master`
+has had no new commits since the 2026-11-02 entry; its head is still
+`a655f05`, last week's growth-tracking commit)
+
+| Metric | Value |
+|---|---|
+| Stars | 0 |
+| Forks | 2 |
+| Topics | agent-governance, ai-agents, ai-governance, audit-trail, control-plane, devops-automation, homelab, llm-agents, policy-engine, risk-management (all 10 expected topics present) |
+
+Traffic data (trailing 14-day window, 2026-10-26 through 2026-11-08 — `gh api`
+was reachable again this run):
+
+| Metric (trailing 14 days) | Value |
+|---|---|
+| Views | 0 (0 unique visitors) |
+| Clones | 91 (38 unique cloners) |
+| Top referrers | none recorded |
+| Top popular paths | none recorded |
+
+**Deltas vs. prior entry (2026-11-02):**
+
+- Stars: 0 → 0 (no change, seven consecutive tracked weeks now)
+- Forks: 2 → 2 (no change)
+- Views (trailing 14d): 0 (0 unique) → 0 (0 unique) (no change)
+- Clones (trailing 14d): 116 (46 unique) → 91 (38 unique) — down roughly 22%
+  on total clones and 17% on unique cloners. Still zero recorded referrers
+  alongside nontrivial clone volume, the same pattern flagged in four prior
+  entries (2026-10-12 through 2026-11-02) as more consistent with CI/bot/
+  mirror traffic than organic human interest.
+
+No application code has changed on `master` since the 2026-10-19 entry — the
+newest shippable feature remains `RMT-CAP-13` (the evidence-grounded incident
+explainer, `app/reasoning/validate.py`'s cite-or-drop grounding, 2026-10-11),
+now unpromoted externally (as far as this automation can verify) for four
+straight weeks despite four separate posting suggestions aimed at it
+(2026-10-12, 2026-10-15, 2026-10-19, and indirectly 2026-10-26/11-02 via
+ready-made social copy). The open Dependabot PR backlog shrank from 12 (last
+entry) to 7 open PRs (#15, #19, #23, #27, #28, #29, #30) — five were closed as
+superseded by newer version bumps rather than merged, so this is Dependabot
+self-maintenance, not a merge the owner made.
+`docs/promotion/why-i-built-rmt.md` still carries unfilled `[OWNER: ...]`
+placeholders (4 occurrences) and remains unpublishable as-is — unchanged for a
+fifth week. A spot check of the README license badge and repo topics found
+nothing broken; no hygiene fix was made this run.
+
+**Suggested next actions (outside GitHub):**
+
+1. **Submit RMT to `e2b-dev/awesome-ai-agents`** (https://github.com/e2b-dev/awesome-ai-agents,
+   PR against its open-source-projects list, or its linked submission form) —
+   a actively-maintained, agent-specific awesome list (distinct from the
+   LLMOps-focused `tensorchord/Awesome-LLMOps` suggested 2026-11-02) whose
+   audience is specifically people evaluating AI agent frameworks and
+   tooling, a tighter fit for the `ai-agents` / `llm-agents` /
+   `agent-governance` topics than a general LLMOps list.
+2. **Submit the CAP-13 cite-or-drop story to Changelog News**
+   (https://changelog.com/news/submit) — a developer-news aggregator with
+   human editors (sign-in required to submit, no API credentials needed) that
+   hasn't been tried in any prior week. Frame it the same way as the
+   2026-10-19 HN suggestion that still has no confirmed external post:
+   `app/reasoning/validate.py` drops any LLM-generated claim in an incident
+   explanation that isn't backed by a cited evidence record, before it
+   reaches the operator.
