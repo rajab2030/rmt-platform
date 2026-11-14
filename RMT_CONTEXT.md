@@ -721,6 +721,34 @@ tested → isolated-exercised → deployed → live-verified. See
 session:** capability selection is open again — return to the P-A/P-C
 shortlist discipline (§ above) or ask the owner what's next.
 
+**Status checkpoint, 2026-11-14 (verified against `origin/master` `c2c049b`,
+GitHub, and the live host):**
+- **RMT-CAP-13 slice 1 — Evidence-grounded incident explainer** is committed on
+  `master` (`bbca393`, 2026-10-11): `backend/app/reasoning/**` (read-only, opt-in
+  via `RMT_REASONING_ENABLED`, operator-auth gated; every claim must cite
+  evidence records, uncited claims are dropped; advisory only, never reaches an
+  execution path), 4 lines in `app/main.py`, and an "Explain this action" card in
+  the governed console. No `app/core/**` change. Proposal:
+  `docs/RMT_CAP_13_PROPOSAL.md`. **Live state:** the running service loads the
+  code (`/ops/reasoning/*` routes present) but the unit does not set
+  `RMT_REASONING_ENABLED`, so the capability is deployed dark. **Not verified:**
+  browser check of the Explain panel, and whether the proposal's `DRAFT` status
+  line should now read approved — the owner's 2026-10-08 settling of open
+  decisions and this commit disagree with that line; left unedited pending owner
+  decision. The CAP-05 5B default model (`deepseek-v4-flash:cloud`) was retired
+  upstream 2026-09-25; the isolated exercise used local `qwen2.5:3b`.
+- **RMT-CAP-12 is Project Boundary**, a private prototype outside this repo; see
+  the HANDOFF CAP-12 checkpoint. Do not infer it from the public roadmap.
+- **GitHub:** CI green on `master`. 13 open Dependabot PRs; 10 open Dependabot
+  security alerts (certifi ×1 **critical**, urllib3 ×3, vite ×5, source-map-js
+  ×1), each fixed by a CI-green, lockfile-only open PR (#29 certifi 2026.10.18,
+  #11 urllib3 2.8.0, #23 vite 8.3.5, #10 source-map-js 1.2.2) that awaits owner
+  merge; the live backend venv then needs a reinstall from
+  `requirements.lock.txt` and a restart. #28 (grouped Python bumps) fails CI on a
+  `pydantic_core` pin conflict. Remaining PRs are routine or major-version bumps
+  (TypeScript 7, Actions v7, Dozzle v8→v11, Python 3.15 image, websockets 17)
+  and need individual review.
+
 ## 13. Environment limitations vs genuine implementation gaps
 
 - **Shell-dependent tooling.** Git and Docker availability depend on which shell
