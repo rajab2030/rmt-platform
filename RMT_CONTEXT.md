@@ -762,11 +762,13 @@ GitHub, and the live host):**
   7 Dependabot PRs remain open, all major-version or behavioural bumps
   (TypeScript 7, `@types/node` 26, Actions v7, Dozzle v8→v11, Python 3.15
   image, websockets 17) needing individual review.
-- **Open test issue:** the Budget Control concurrency test
-  `test_concurrent_1500_commitments_produce_exactly_one_effect` is
-  intermittent (about 1 run in 10): exactly one commitment still succeeds, but
-  the loser sometimes reports `blocked_before_execution` rather than
-  `adapter_failed_no_effect`. Seen before and after the bumps; see `HANDOFF.md`.
+- **Budget Control concurrency test fixed 2026-11-14 (`ccf6ff9`, test-only):**
+  `test_concurrent_1500_commitments_produce_exactly_one_effect` was
+  intermittent (about 1 run in 10) because it left thread ordering to chance;
+  both observed loser outcomes (`adapter_failed_no_effect`,
+  `blocked_before_execution`) are valid and exactly one commitment always
+  landed. Each ordering now has its own deterministic test; the suite is 693
+  tests. See `HANDOFF.md`.
 
 ## 13. Environment limitations vs genuine implementation gaps
 

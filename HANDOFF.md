@@ -79,14 +79,21 @@ the 2026-11-14 23:09 UTC redeploy restart (second of the day).
   ok, homelab loop running with a clean first cycle, Docker adapter resolved
   and not degraded, 52 routes served, no errors or warnings in the startup
   log. The live frontend was **not** rebuilt after #15.
-- **Intermittent test (open, not caused by the bumps).**
+- **Intermittent Budget Control test — FIXED 2026-11-14 (`ccf6ff9`, test-only).**
   `app/budget/testing/test_budget_control.py::test_concurrent_1500_commitments_produce_exactly_one_effect`
-  failed 6 of 60 isolated runs on the new venv, and a one-off pre-push gate
-  failure (1 failed / 691 passed) was seen before the bumps, most likely the
-  same test. When it fails, the "exactly one `verified_success`" assertion
-  still holds; the losing request reports `blocked_before_execution` instead of
-  the expected `adapter_failed_no_effect`. Not investigated further; the full
-  suite otherwise passes 692/692.
+  failed 6 of 60 isolated runs, and a one-off pre-push gate failure
+  (1 failed / 691 passed) was seen before the dependency bumps, most likely the
+  same test. Cause: the test, not Budget Control. Two concurrent 1500
+  commitments against 2000 can lose in two valid ways — rejected by the
+  ledger's serialized transaction (`adapter_failed_no_effect`) when both pass
+  governance first, or denied by policy (`blocked_before_execution`) when the
+  winner commits before the loser is evaluated. Exactly one commitment lands
+  either way; the test accepted only the first outcome and left the ordering
+  to thread timing. Fix: a barrier at the ledger call pins the first ordering,
+  and the new
+  `test_second_1500_commitment_after_the_first_is_blocked_before_execution`
+  covers the second deterministically. Result: 150/150 repeated runs pass; the
+  full suite passes 693/693 (was 692). No application or `app/core/**` change.
 - Not merged on purpose (major/behavioural), 7 PRs still open: #16 TypeScript 7,
   #17 `@types/node` 26, #12/#13 Actions v7, #19 websockets 17, #27 Python 3.15
   quickstart image, #30 Dozzle v8→v11 (changes a live stack image).
