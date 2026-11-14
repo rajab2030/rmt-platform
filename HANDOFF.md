@@ -19,9 +19,9 @@ Read `RMT_CONTEXT.md` first, then this file.
 
 Review, docs update, and owner-authorized merge of four lockfile-only security
 PRs; no application code or `app/core/**` change. Supersedes an unpublished 2026-10-24 draft of this section.
-Verified: `master` at `f52375b`; CI green on `master`; live backend
+Verified: `master` at `832d349`; CI green on `master`; live backend
 (`rmt-control-center.service`, Python 3.14.4 venv) answers `/health` 200 after
-the 2026-11-14 20:46 UTC redeploy restart.
+the 2026-11-14 23:09 UTC redeploy restart (second of the day).
 
 - **CAP-13 slice 1** is committed (`bbca393`) and its code is loaded by the live
   service (`/ops/reasoning/*` routes are in the live OpenAPI), but
@@ -62,12 +62,34 @@ the 2026-11-14 20:46 UTC redeploy restart.
   Live venv reinstalled from `requirements.lock.txt` (certifi 2026.10.18,
   urllib3 2.8.0; `pip check` clean, `import app.main` OK) and the service
   restarted by the owner at 2026-11-14 20:46 UTC; `/health` 200, 52 routes served.
-- **#28** (grouped python-minor-patch, 25 updates) fails CI: pip
-  `ResolutionImpossible` on `pydantic_core==2.50.3` against the pinned
-  `pydantic`. Do not merge as is.
-- Not merged on purpose (major/behavioural): #16 TypeScript 7, #17 `@types/node`
-  26, #12/#13 Actions v7, #19 websockets 17, #27 Python 3.15 quickstart image,
-  #30 Dozzle v8→v11 (changes a live stack image), #15 grouped npm minor bumps.
+- **Grouped dependency bumps merged later on 2026-11-14 (owner-authorized).**
+  #28 (which failed CI on a `pydantic_core` pin conflict) was superseded by
+  **#31** (grouped python-minor-patch, 24 updates; CI green), squash-merged as
+  `7c1ccce` — includes fastapi 0.139.2→0.162.4, starlette 1.3.1→1.10.0,
+  pydantic 2.13.4→2.14.3, uvicorn 0.51.0→0.54.0. **#15** (grouped
+  npm-minor-patch, 8 updates) conflicted in `package-lock.json` with the
+  earlier security merges; Dependabot rebased it, the rebased branch was
+  checked locally (`npm ci`, `npm run build`, `npm run lint` all exit 0; lint
+  prints two `set-state-in-effect` warnings in `ObservabilityPanel.tsx` and
+  `App.tsx`) because CI runs only the backend gate, then squash-merged as
+  `832d349`. CI green on `832d349`.
+- **Second backend redeploy, 2026-11-14 23:09 UTC.** Live venv reinstalled from
+  the new `requirements.lock.txt` (`pip check` clean, `import app.main` OK) and
+  the service restarted by the owner at 23:09:26 UTC. After restart: `/health`
+  ok, homelab loop running with a clean first cycle, Docker adapter resolved
+  and not degraded, 52 routes served, no errors or warnings in the startup
+  log. The live frontend was **not** rebuilt after #15.
+- **Intermittent test (open, not caused by the bumps).**
+  `app/budget/testing/test_budget_control.py::test_concurrent_1500_commitments_produce_exactly_one_effect`
+  failed 6 of 60 isolated runs on the new venv, and a one-off pre-push gate
+  failure (1 failed / 691 passed) was seen before the bumps, most likely the
+  same test. When it fails, the "exactly one `verified_success`" assertion
+  still holds; the losing request reports `blocked_before_execution` instead of
+  the expected `adapter_failed_no_effect`. Not investigated further; the full
+  suite otherwise passes 692/692.
+- Not merged on purpose (major/behavioural), 7 PRs still open: #16 TypeScript 7,
+  #17 `@types/node` 26, #12/#13 Actions v7, #19 websockets 17, #27 Python 3.15
+  quickstart image, #30 Dozzle v8→v11 (changes a live stack image).
 - No open issues. The full ~7 min backend suite was not re-run in this review.
 
 ## Latest continuation checkpoint — CAP-12 / Project Boundary (2026-10-07)

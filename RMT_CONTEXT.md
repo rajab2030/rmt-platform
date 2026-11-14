@@ -752,10 +752,21 @@ GitHub, and the live host):**
   #10 source-map-js 1.2.2). The live backend venv is reinstalled from
   `requirements.lock.txt` and the service was restarted 2026-11-14 20:46 UTC
   (`/health` 200), so the live backend runs the fixed versions.
-  9 Dependabot PRs remain open: #28 (grouped Python bumps) fails CI on a
-  `pydantic_core` pin conflict; the rest are routine or major-version bumps
-  (TypeScript 7, Actions v7, Dozzle v8→v11, Python 3.15 image, websockets 17)
-  and need individual review.
+  Later the same day, on owner authorization, the grouped minor/patch bumps
+  were merged: #31 Python (24 updates, `7c1ccce`; supersedes the failing #28;
+  fastapi 0.162.4, starlette 1.10.0, pydantic 2.14.3) and #15 npm (8 updates,
+  `832d349`; rebased, frontend build and lint checked locally). CI green on
+  `832d349`. The live venv was reinstalled again and the service restarted
+  2026-11-14 23:09 UTC (`/health` ok, loop running, 52 routes); the live
+  frontend was not rebuilt.
+  7 Dependabot PRs remain open, all major-version or behavioural bumps
+  (TypeScript 7, `@types/node` 26, Actions v7, Dozzle v8→v11, Python 3.15
+  image, websockets 17) needing individual review.
+- **Open test issue:** the Budget Control concurrency test
+  `test_concurrent_1500_commitments_produce_exactly_one_effect` is
+  intermittent (about 1 run in 10): exactly one commitment still succeeds, but
+  the loser sometimes reports `blocked_before_execution` rather than
+  `adapter_failed_no_effect`. Seen before and after the bumps; see `HANDOFF.md`.
 
 ## 13. Environment limitations vs genuine implementation gaps
 
