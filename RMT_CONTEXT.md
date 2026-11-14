@@ -731,8 +731,15 @@ GitHub, and the live host):**
   the governed console. No `app/core/**` change. Proposal:
   `docs/RMT_CAP_13_PROPOSAL.md`. **Live state:** the running service loads the
   code (`/ops/reasoning/*` routes present) but the unit does not set
-  `RMT_REASONING_ENABLED`, so the capability is deployed dark. **Not verified:**
-  browser check of the Explain panel, and whether the proposal's `DRAFT` status
+  `RMT_REASONING_ENABLED`, so the capability is deployed dark. **Browser check
+  of the Explain panel: done 2026-11-14** on an isolated instance (scratch DB
+  copies, local `qwen2.5:3b`, headless Chromium; live `:8000` untouched) — all
+  panel states render (cited explanation, `no_grounded_explanation`,
+  `no_evidence`, disabled message). The panel sits behind the evidence lookup,
+  so it also needs `RMT_OPS_EVIDENCE_ENABLED=true`, which was not seen in the
+  live unit; model output is uneven and takes 30–50 s per explanation on CPU.
+  Details in the `HANDOFF.md` 2026-11-14 section. **Not decided:** whether the
+  proposal's `DRAFT` status
   line should now read approved — the owner's 2026-10-08 settling of open
   decisions and this commit disagree with that line; left unedited pending owner
   decision. The CAP-05 5B default model (`deepseek-v4-flash:cloud`) was retired

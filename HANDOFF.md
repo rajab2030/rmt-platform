@@ -26,9 +26,35 @@ the 2026-11-14 20:46 UTC redeploy restart.
 - **CAP-13 slice 1** is committed (`bbca393`) and its code is loaded by the live
   service (`/ops/reasoning/*` routes are in the live OpenAPI), but
   `RMT_REASONING_ENABLED` is not set in the unit, so it is deployed dark
-  (disabled by default). Browser check of the Explain panel is still not done.
+  (disabled by default).
   The proposal doc header still says DRAFT (see `RMT_CONTEXT.md` §12 checkpoint).
   Local `qwen2.5:3b` is present in Ollama; `deepseek-v4-flash:cloud` is retired.
+- **CAP-13 Explain panel browser check — DONE 2026-11-14** on an isolated
+  instance (port 18200, scratch copies of the evidence and observability DBs,
+  `RMT_RUNTIME_ENGINE=simulation`, loop off, local `qwen2.5:3b`, Vite dev
+  frontend, headless Chromium). Live `:8000` was not touched and no repo file
+  changed. Every panel state rendered with no page errors:
+  - failed action `92633779-8f83-4e2e-8ab4-e94a8786f3aa` → summary + one claim
+    ("12 columns but only 11 values") citing `audit#0`/`trace#0`, 48 s;
+  - verification-failure action `c69aab4e-af7a-47c3-af59-435934b10946` →
+    `no_grounded_explanation` (1 claim dropped), 31 s;
+  - clean action `6a083293-bc30-42bf-b679-3fe009d3a04b` → summary + one claim
+    citing `failure#0..2`, pattern `recurring`, 43 s;
+  - mixed action `084ebd8a-5115-40c1-9757-f25774e068e9` →
+    `no_grounded_explanation` (1 dropped), 38 s;
+  - unknown id → `no_evidence`; flag off → "Explanations are not enabled on
+    this server."
+  Findings: (1) the Explain card renders only after an evidence lookup, so the
+  panel also needs `RMT_OPS_EVIDENCE_ENABLED=true`; that flag was not seen in
+  the live unit's `Environment=` lines, so enabling `RMT_REASONING_ENABLED`
+  alone would likely leave the panel unreachable. (2) Model output is uneven:
+  the verification-failure case was grounded on 2026-10-09 but dropped in this
+  run, and the clean action was explained from the component's prior failures
+  rather than from the action itself. (3) 30–50 s per explanation on CPU.
+  (4) Cosmetic: summary and single claim are near-duplicates; the Explain
+  button spans the full card width. Screenshots were kept only in the session
+  scratchpad. Still open: the DRAFT header and any live enablement (both need
+  owner decision).
 - **Dependabot security alerts: 0 open** (were 10, incl. one critical certifi).
   Owner authorized the merges on 2026-11-14; squash-merged #29 certifi
   2026.10.18 (`354a924`), #23 vite 8.3.5 (`723a23c`), #11 urllib3 2.8.0
