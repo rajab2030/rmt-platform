@@ -721,7 +721,7 @@ tested → isolated-exercised → deployed → live-verified. See
 session:** capability selection is open again — return to the P-A/P-C
 shortlist discipline (§ above) or ask the owner what's next.
 
-**Status checkpoint, 2026-11-14 (verified against `origin/master` `c2c049b`,
+**Status checkpoint, 2026-11-14 (verified against `origin/master` `f52375b`,
 GitHub, and the live host):**
 - **RMT-CAP-13 slice 1 — Evidence-grounded incident explainer** is committed on
   `master` (`bbca393`, 2026-10-11): `backend/app/reasoning/**` (read-only, opt-in
@@ -739,13 +739,14 @@ GitHub, and the live host):**
   upstream 2026-09-25; the isolated exercise used local `qwen2.5:3b`.
 - **RMT-CAP-12 is Project Boundary**, a private prototype outside this repo; see
   the HANDOFF CAP-12 checkpoint. Do not infer it from the public roadmap.
-- **GitHub:** CI green on `master`. 13 open Dependabot PRs; 10 open Dependabot
-  security alerts (certifi ×1 **critical**, urllib3 ×3, vite ×5, source-map-js
-  ×1), each fixed by a CI-green, lockfile-only open PR (#29 certifi 2026.10.18,
-  #11 urllib3 2.8.0, #23 vite 8.3.5, #10 source-map-js 1.2.2) that awaits owner
-  merge; the live backend venv then needs a reinstall from
-  `requirements.lock.txt` and a restart. #28 (grouped Python bumps) fails CI on a
-  `pydantic_core` pin conflict. Remaining PRs are routine or major-version bumps
+- **GitHub:** CI green on `master` (`f52375b`). 0 open Dependabot security
+  alerts: the four lockfile-only fix PRs were merged 2026-11-14 on owner
+  authorization (#29 certifi 2026.10.18, #11 urllib3 2.8.0, #23 vite 8.3.5,
+  #10 source-map-js 1.2.2). The live backend venv is reinstalled from
+  `requirements.lock.txt` and the service was restarted 2026-11-14 20:46 UTC
+  (`/health` 200), so the live backend runs the fixed versions.
+  9 Dependabot PRs remain open: #28 (grouped Python bumps) fails CI on a
+  `pydantic_core` pin conflict; the rest are routine or major-version bumps
   (TypeScript 7, Actions v7, Dozzle v8→v11, Python 3.15 image, websockets 17)
   and need individual review.
 

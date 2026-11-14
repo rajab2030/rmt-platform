@@ -17,12 +17,11 @@ Read `RMT_CONTEXT.md` first, then this file.
 
 ## Status review — repo and GitHub (2026-11-14)
 
-Read-only review plus a docs-only update; no code, `app/core/**`, dependency, or
-deploy change. Supersedes an unpublished 2026-10-24 draft of this section.
-Verified: `master` fast-forwarded to `c2c049b` (only weekly growth-tracking
-commits since `c3c105a`); CI green on `master`; live backend
+Review, docs update, and owner-authorized merge of four lockfile-only security
+PRs; no application code or `app/core/**` change. Supersedes an unpublished 2026-10-24 draft of this section.
+Verified: `master` at `f52375b`; CI green on `master`; live backend
 (`rmt-control-center.service`, Python 3.14.4 venv) answers `/health` 200 after
-the host reboot of 2026-11-14 18:57 UTC.
+the 2026-11-14 20:46 UTC redeploy restart.
 
 - **CAP-13 slice 1** is committed (`bbca393`) and its code is loaded by the live
   service (`/ops/reasoning/*` routes are in the live OpenAPI), but
@@ -30,14 +29,13 @@ the host reboot of 2026-11-14 18:57 UTC.
   (disabled by default). Browser check of the Explain panel is still not done.
   The proposal doc header still says DRAFT (see `RMT_CONTEXT.md` §12 checkpoint).
   Local `qwen2.5:3b` is present in Ollama; `deepseek-v4-flash:cloud` is retired.
-- **Open Dependabot security alerts: 10.** #10 certifi (**critical**) →
-  2026.10.18; #1–#3 urllib3 → 2.8.0; #5–#9 vite → 8.1.6; #4 source-map-js →
-  1.2.2. Fixing PRs, all CI green, each a lockfile-only diff: **#29** certifi,
-  **#11** urllib3, **#23** vite 8.3.5, **#10** source-map-js. Merging them was
-  again declined by the agent permission classifier (2026-10-24 and
-  2026-11-14), so they remain open for the owner. The live venv still has
-  certifi 2026.6.17 / urllib3 2.7.0; after merging, it only picks up the fixes
-  on a `pip install -r requirements.lock.txt` + service restart.
+- **Dependabot security alerts: 0 open** (were 10, incl. one critical certifi).
+  Owner authorized the merges on 2026-11-14; squash-merged #29 certifi
+  2026.10.18 (`354a924`), #23 vite 8.3.5 (`723a23c`), #11 urllib3 2.8.0
+  (`4e10d5b`), #10 source-map-js 1.2.2 (`f52375b`). CI green on `f52375b`.
+  Live venv reinstalled from `requirements.lock.txt` (certifi 2026.10.18,
+  urllib3 2.8.0; `pip check` clean, `import app.main` OK) and the service
+  restarted by the owner at 2026-11-14 20:46 UTC; `/health` 200, 52 routes served.
 - **#28** (grouped python-minor-patch, 25 updates) fails CI: pip
   `ResolutionImpossible` on `pydantic_core==2.50.3` against the pinned
   `pydantic`. Do not merge as is.
