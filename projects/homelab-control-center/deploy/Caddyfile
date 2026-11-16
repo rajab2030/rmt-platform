@@ -17,10 +17,10 @@
 # starts first after a reboot wins and the other fails. Keep this in step with
 # the LAN address in the site list below.
 {
-	default_bind 192.168.223.128
+	default_bind 10.30.20.15
 }
 
-rmt.homelab.lan, 192.168.223.128 {
+rmt.homelab.lan, 10.30.20.15 {
 	tls internal
 
 	encode zstd gzip
