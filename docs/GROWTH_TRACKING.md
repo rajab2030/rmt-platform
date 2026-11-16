@@ -561,3 +561,91 @@ nothing broken; no hygiene fix was made this run.
    `app/reasoning/validate.py` drops any LLM-generated claim in an incident
    explanation that isn't backed by a cited evidence record, before it
    reaches the operator.
+
+## 2026-11-16
+
+**Repo:** rajab2030/rmt-platform
+**Description:** Policy checks, approval holds, and execution evidence for AI-agent actions. Includes a local Git-tag walkthrough.
+**Last push:** 2026-11-15T01:43:57Z
+
+| Metric | Value |
+|---|---|
+| Stars | 0 |
+| Forks | 2 |
+| Topics | agent-governance, ai-agents, ai-governance, audit-trail, control-plane, devops-automation, homelab, llm-agents, policy-engine, risk-management (all 10 expected topics present) |
+
+Traffic data (trailing 14-day window, 2026-11-01 through 2026-11-14 — `gh api`
+was reachable again this run):
+
+| Metric (trailing 14 days) | Value |
+|---|---|
+| Views | 1 (1 unique visitor) |
+| Clones | 135 (46 unique cloners) |
+| Top referrers | github.com — 1 view, 1 unique |
+| Top popular paths | `/rajab2030/rmt-platform` ("Overview") — 1 view, 1 unique |
+
+**Deltas vs. prior entry (2026-11-09):**
+
+- Stars: 0 → 0 (no change, ten consecutive tracked weeks now)
+- Forks: 2 → 2 (no change)
+- Views (trailing 14d): 0 (0 unique) → 1 (1 unique) — first nonzero view this
+  log has recorded in several weeks, and the first time a referrer
+  (github.com) has shown up at all; still a single visit, not yet a trend.
+- Clones (trailing 14d): 91 (38 unique) → 135 (46 unique) — up roughly 48% on
+  total clones and 21% on unique cloners, reversing the three-week decline
+  seen across the 2026-10-19 through 2026-11-09 entries. Still no non-GitHub
+  referrer recorded, so this remains more consistent with automated/CI
+  cloning than a confirmed organic uptick.
+
+Unlike the three prior entries (2026-10-26, 2026-11-02, 2026-11-09), which
+found `master` untouched by real commits (Dependabot-only weeks), this week
+had genuine application and operations activity: the open Dependabot
+security-alert backlog was cleared from 10 (including one critical `certifi`
+CVE) to **0 open alerts** — four lockfile-only PRs (#10 source-map-js, #11
+urllib3, #23 vite, #29 certifi) were reviewed and owner-authorized, merged,
+and followed by a live backend redeploy and restart (`/health` 200, 52
+routes). Two grouped Dependabot update PRs (#31 python-minor-patch, 24
+updates including fastapi/starlette/pydantic/uvicorn bumps; #15
+npm-minor-patch, 8 updates) were then merged after local verification
+(`pip check`, `npm ci && npm run build && npm run lint`, CI green), followed
+by a **second** same-day backend redeploy — two live restarts in one day,
+both healthy, no downtime reported. Separately, **CAP-13's "Explain this
+action" panel was browser-tested end-to-end for the first time**
+(2026-11-14, isolated instance, headless Chromium): all panel states
+rendered correctly across four real governed actions (failed,
+verification-failure, clean, mixed) plus the unknown-id and flag-off cases,
+running entirely on a local `qwen2.5:3b` model at 30-50s per explanation.
+The feature is now validated but still deployed dark in production
+(`RMT_REASONING_ENABLED` unset on the live unit, and the panel also needs
+`RMT_OPS_EVIDENCE_ENABLED=true` to be reachable at all — a dependency not
+previously confirmed). The CAP-13 proposal doc header still says DRAFT. A
+Budget Control concurrency test was also hardened this week (pinned
+interleaving in the concurrent-commitment test) — internal test-quality
+work, not externally promotable on its own.
+`docs/promotion/why-i-built-rmt.md` still carries unfilled `[OWNER: ...]`
+placeholders and remains unpublishable as-is — unchanged for a sixth
+tracked week, so it is not suggested again this run. A spot check of the
+README license badge (links to `LICENSE`, present) and repo topics found
+nothing broken; no hygiene fix was made this run.
+
+**Suggested next actions (outside GitHub):**
+
+1. **Post to r/LocalLLaMA specifically** (https://www.reddit.com/r/LocalLLaMA/submit)
+   with the concrete local-inference data point from this week's browser
+   validation: CAP-13's incident explainer runs entirely on a local
+   `qwen2.5:3b` model (no cloud LLM), takes 30-50s per explanation on CPU,
+   and drops any claim it can't cite to a specific evidence record (with a
+   real example: the verification-failure case produced
+   `no_grounded_explanation` because its one claim got dropped). Prior weeks
+   suggested CAP-13 for HN, Lobsters, and Changelog News generically; this is
+   the first suggestion aimed at r/LocalLLaMA by name, whose audience cares
+   specifically about local-model inference numbers like these.
+2. **Submit to the DevOps Weekly newsletter** (https://www.devopsweekly.com/,
+   via its submission/contact link) — a curated weekly newsletter not yet
+   tried in any prior week, and a strong fit for this week's concrete
+   operational story: clearing a 10-alert security backlog (including one
+   critical CVE) via reviewed, verified (`pip check`, `npm ci`/build/lint,
+   CI-green) merges, followed by two same-day zero-downtime production
+   redeploys. This is an operations/supply-chain hygiene angle distinct from
+   every prior suggestion, which have all centered on CAP-13 or the
+   one-command Docker trial.
