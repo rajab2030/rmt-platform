@@ -1,10 +1,12 @@
 # RMT-CAP-13 — Evidence-Grounded Incident Explainer (LLM reasoning, above-Core) — Proposal
 
-**Status:** **DRAFT — open decisions settled 2026-10-08 (owner); proposal itself
-not yet approved.** Docs-only; makes no code change. Settled: (1) Ollama-only in
-slice 1 behind a pluggable client; (2) separate `reasoning.db`; (3) ship slice 1
-alone, decide on slice 2 after the §8 quality numbers. Still open: the evidence volume cap (§9.5).  Per the standing working method, this
-becomes approved work only on the owner's explicit go-ahead on the proposal.
+**Status:** **APPROVED (owner, 2026-10-08).** Open decisions settled the same
+day: (1) Ollama-only in slice 1 behind a pluggable client; (2) separate
+`reasoning.db`; (3) ship slice 1 alone, decide on slice 2 after the §8 quality
+numbers. Still open: the evidence volume cap (§9.5). Slice 1 committed
+`bbca393`; isolated live exercise 2026-10-09 and browser check of the Explain
+panel 2026-11-14 done; live enablement 2026-11-21 via
+`deploy/systemd/cap13-reasoning.conf` (see HANDOFF.md).
 
 **Number:** **RMT-CAP-13** (owner, 2026-10-08). Section 2 must be re-verified
 against the owner's local folder before approval.

@@ -15,6 +15,44 @@
 Start the next session with the resume prompt below (see "Resume prompt").
 Read `RMT_CONTEXT.md` first, then this file.
 
+## Session 2026-11-21 — stay on the VM; RMT-CAP-13 enabled live
+
+**Platform host.** The owner chose to keep the RMT Platform on the VM
+(`rmt-lab`, 192.168.223.128); the laptop migration is paused (no cutover).
+Commit `df9191a` (laptop LAN bind, claimed the VM was retired) was reverted:
+`5c754ae`, pushed. The live VM `/etc/caddy/Caddyfile` never changed, so the
+VM served throughout. Commits now use the owner's GitHub noreply email (GitHub
+GH007 rejects the private address).
+
+**RMT-CAP-13 live enablement (owner-authorized).**
+- Proposal `docs/RMT_CAP_13_PROPOSAL.md` status line updated to APPROVED
+  (owner, 2026-10-08), the decision the owner confirmed this session.
+- New drop-in `deploy/systemd/cap13-reasoning.conf` (README table updated),
+  installed by the owner to
+  `/etc/systemd/system/rmt-control-center.service.d/cap13-reasoning.conf`,
+  then `daemon-reload` + restart:
+  `RMT_REASONING_ENABLED=true`, `RMT_OPS_EVIDENCE_ENABLED=true`,
+  `RMT_AGENT_LLM_MODEL=qwen2.5:3b`, `RMT_AGENT_LLM_MAX_TOKENS=1500`,
+  `RMT_AGENT_LLM_TIMEOUT_SECONDS=180`. The LLM settings are shared with CAP-05
+  5B; the owner explicitly chose to move CAP-05 to `qwen2.5:3b` as well (its
+  previous default `deepseek-v4-flash:cloud` returns HTTP 410 since 2026-09-25).
+- Before: `/ops/evidence` and `/ops/reasoning/explanations` returned 503
+  (disabled) with a valid operator token.
+- After: service `active`; `systemctl show -p Environment` lists all five
+  values; `/health` 200 on loopback; HTTPS on 192.168.223.128 200;
+  `/ops/evidence?action_id=92633779-…` returns the evidence chain;
+  `POST /ops/reasoning/explain {"action_id":"92633779-8f83-4e2e-8ab4-e94a8786f3aa"}`
+  -> `status: ok`, model `qwen2.5:3b`, 51.5 s, one claim ("idempotency_receipts
+  table had 12 columns but only 11 values were supplied") citing `audit#0`,
+  `trace#0` (faithful to the recorded failure). The explanation is stored in
+  the live `reasoning.db`.
+- No `app/core/**` change; no application code change.
+- Rollback: remove the installed drop-in, `daemon-reload`, restart.
+
+**Still open:** the evidence volume cap (§9.5 of the proposal); CAP-05 5B on
+`qwen2.5:3b` has not been exercised live (no agent proposal was made); slice 2
+remains a decision after the §8 quality numbers.
+
 ## Status review — repo and GitHub (2026-11-14)
 
 Review, docs update, and owner-authorized merge of four lockfile-only security

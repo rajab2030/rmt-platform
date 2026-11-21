@@ -721,6 +721,19 @@ tested → isolated-exercised → deployed → live-verified. See
 session:** capability selection is open again — return to the P-A/P-C
 shortlist discipline (§ above) or ask the owner what's next.
 
+**Update 2026-11-21 — RMT-CAP-13 ENABLED on the live server (owner-authorized).**
+Drop-in `rmt-control-center.service.d/cap13-reasoning.conf` (repo copy
+`deploy/systemd/cap13-reasoning.conf`) sets `RMT_REASONING_ENABLED=true`,
+`RMT_OPS_EVIDENCE_ENABLED=true` (CAP-09 evidence lookup, which the Explain panel
+needs), and the shared LLM settings `RMT_AGENT_LLM_MODEL=qwen2.5:3b`,
+`RMT_AGENT_LLM_MAX_TOKENS=1500`, `RMT_AGENT_LLM_TIMEOUT_SECONDS=180`. The model
+settings are shared with CAP-05 5B, so the live LLM agent also moved off the
+retired `deepseek-v4-flash:cloud` to local `qwen2.5:3b` (owner decision). The
+proposal status now reads APPROVED (2026-10-08). The DRAFT-status and
+deployed-dark notes in the 2026-11-14 checkpoint below are superseded. Also
+2026-11-21: the platform stays on the VM; the laptop migration is paused and the
+repo Caddyfile was reverted to the VM address (`5c754ae`). See HANDOFF.md.
+
 **Status checkpoint, 2026-11-14 (verified against `origin/master` `f52375b`,
 GitHub, and the live host):**
 - **RMT-CAP-13 slice 1 — Evidence-grounded incident explainer** is committed on
