@@ -138,8 +138,13 @@ handler. Unit tests missed it because `caplog` captures regardless. Fix:
 lifespan right after logging is configured (proposal §5 corrected); rejection
 logging unchanged. New lifespan test verified to fail without the fix. Isolated
 start (`:18210`, live policy file) now logs the event as JSON. `ci.sh --fast`
-PASSED, **725 passed**; zero `app/core/**` diff. The fix needs push + one more
-live restart to take effect (status endpoint already correct without it).
+PASSED, **725 passed**; zero `app/core/**` diff. Pushed `a105d47`; the owner
+restarted the live service (PID 31684, 23:44:50 UTC). Verified: journald now
+shows `homelab_remediation_policy_loaded` (`source: file`, path, sha256
+`28f2860d…`) right after the `startup` event; `/health` 200, HTTPS 200; loop
+enabled + running, no cycle error; CAP-13 `/ops/reasoning/explanations` 200.
+**RMT-CAP-14 slice 1 is complete:** proposed → approved → implemented →
+isolated-exercised → deployed → live-verified.
 
 ## Status review — repo and GitHub (2026-11-14)
 

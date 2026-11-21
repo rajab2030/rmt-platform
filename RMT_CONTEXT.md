@@ -740,9 +740,14 @@ approved the proposal `docs/RMT_CAP_14_PROPOSAL.md` with D1–D4 as recommended
 (refuse to start on an invalid file; TOML; file replaces the built-in policy;
 empty policy allowed with a warning). Scope is the CAP-04 `REMEDIATION_POLICY`
 only: the dependency map and loop thresholds were already configurable, and
-the approval/risk policies are frozen Core. **Next action:** implement CAP-14
-slice 1 against the proposal (no code written yet); isolated exercise, push
-and live deployment each need separate owner authorization.
+the approval/risk policies are frozen Core. **CAP-14 slice 1 COMPLETE (2026-11-21):**
+implemented (`08dcd0b`, log fix `a105d47`), isolated exercise PASS, deployed
+live (`/etc/rmt-platform/remediation_policy.toml` = the example file, drop-in
+`cap14-policy.conf`) and verified: loop status `policy_source: file`, startup
+event in journald, behavior unchanged. Open: D5 (coding-agent risk rules as a
+later slice) not approved; `GET /homelab/loop/status` is unauthenticated by
+existing design (now also shows the policy path + hash) — owner decision if it
+should require a token. **Next action:** capability selection is open again.
 
 **Status checkpoint, 2026-11-14 (verified against `origin/master` `f52375b`,
 GitHub, and the live host):**
