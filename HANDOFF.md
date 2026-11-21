@@ -118,7 +118,28 @@ the live server answers 200 without a token too). CAP-14 adds `policy_source`
 (policy file path + sha256) to that open response. Low sensitivity on a LAN
 deployment; recorded for the owner, no change made.
 
-Not yet done: live deployment (needs owner authorization).
+**RMT-CAP-14 live deployment (owner-authorized, 2026-11-21).** The owner ran,
+in their own terminal: install `/etc/rmt-platform/` (0755) +
+`remediation_policy.toml` (0644, byte-identical to
+`deploy/remediation_policy.example.toml`) → `rmt-policy-check.py` VALID →
+install `cap14-policy.conf` drop-in → `daemon-reload` → restart. Verified:
+service active (new PID 29817, 23:41:37 UTC); `RMT_HOMELAB_REMEDIATION_POLICY_FILE`
+in the unit environment; `/health` 200; HTTPS 200; loop status
+`policy_source` = `file`, `/etc/rmt-platform/remediation_policy.toml`, sha256
+`28f2860d…` (matches `sha256sum`), components `uptime-kuma`, `portainer`
+(unchanged); loop enabled + running, first cycle `no_remediation` for both,
+no cycle error.
+
+**Defect found live and fixed:** the `homelab_remediation_policy_loaded`
+startup event (proposal §3c) was missing from journald — the policy resolves at
+import, before the lifespan's `configure_logging()`, so the INFO line had no
+handler. Unit tests missed it because `caplog` captures regardless. Fix:
+`log_policy_in_force()` in `policy_config.py`, called from the `app/main.py`
+lifespan right after logging is configured (proposal §5 corrected); rejection
+logging unchanged. New lifespan test verified to fail without the fix. Isolated
+start (`:18210`, live policy file) now logs the event as JSON. `ci.sh --fast`
+PASSED, **725 passed**; zero `app/core/**` diff. The fix needs push + one more
+live restart to take effect (status endpoint already correct without it).
 
 ## Status review — repo and GitHub (2026-11-14)
 

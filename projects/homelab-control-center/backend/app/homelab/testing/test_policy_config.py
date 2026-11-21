@@ -19,6 +19,7 @@ from app.homelab.policy_config import (
     ENV_VAR,
     PolicyConfigError,
     load_policy_file,
+    log_policy_in_force,
     resolve_policy,
 )
 from app.homelab.remediation import BUILTIN_REMEDIATION_POLICY
@@ -96,14 +97,40 @@ def test_env_file_replaces_builtin(tmp_path, monkeypatch):
 def test_empty_policy_allowed_with_warning(tmp_path, monkeypatch, caplog):
     """D4: an empty [components] table loads; the loop never remediates."""
     monkeypatch.setenv(ENV_VAR, _write(tmp_path, "[components]\n"))
-    with caplog.at_level("WARNING", logger="rmt.homelab.policy"):
-        policy, source = resolve_policy(BUILTIN_REMEDIATION_POLICY)
+    policy, source = resolve_policy(BUILTIN_REMEDIATION_POLICY)
     assert policy == {}
     assert source.components == []
-    assert any(
-        getattr(r, "event", "") == "homelab_remediation_policy_empty"
-        for r in caplog.records
-    )
+    with caplog.at_level("INFO", logger="rmt.homelab.policy"):
+        log_policy_in_force(source)
+    events = [getattr(r, "event", "") for r in caplog.records]
+    assert "homelab_remediation_policy_loaded" in events
+    assert "homelab_remediation_policy_empty" in events
+
+
+def test_builtin_policy_logs_loaded_without_empty_warning(caplog):
+    _, source = resolve_policy(BUILTIN_REMEDIATION_POLICY)
+    with caplog.at_level("INFO", logger="rmt.homelab.policy"):
+        log_policy_in_force(source)
+    events = [getattr(r, "event", "") for r in caplog.records]
+    assert events == ["homelab_remediation_policy_loaded"]
+
+
+def test_lifespan_logs_policy_in_force(monkeypatch):
+    """The loaded event is emitted from app.main's lifespan, after logging is
+    configured -- emitted at import time it was dropped (found live
+    2026-11-21). The lifespan imports the function at call time, so patching
+    the module attribute observes the real startup call."""
+    from fastapi.testclient import TestClient
+
+    from app.homelab import remediation
+    from app.main import app
+
+    monkeypatch.setenv("RMT_AUTH_ENABLED", "false")
+    seen = []
+    monkeypatch.setattr(policy_config, "log_policy_in_force", seen.append)
+    with TestClient(app):
+        pass
+    assert seen == [remediation.REMEDIATION_POLICY_SOURCE]
 
 
 def test_sha256_tracks_file_bytes(tmp_path):

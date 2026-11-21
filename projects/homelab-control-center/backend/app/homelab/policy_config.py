@@ -205,22 +205,44 @@ def load_policy_file(path: str) -> tuple[dict, PolicySource]:
     )
 
 
-def resolve_policy(builtin: dict) -> tuple[dict, PolicySource]:
-    """The policy in force: the file named by ``RMT_HOMELAB_REMEDIATION_POLICY_FILE``
-    if set, otherwise ``builtin`` (returned as-is). Logs one
-    ``homelab_remediation_policy_loaded`` event either way; raises
-    ``PolicyConfigError`` for an invalid file (never falls back)."""
+def log_policy_in_force(source: PolicySource) -> None:
+    """Emit ``homelab_remediation_policy_loaded`` (and, for an empty file
+    policy, ``homelab_remediation_policy_empty``).
+
+    Called from ``app.main``'s lifespan right after ``configure_logging()``:
+    the policy itself is resolved at import time, before the ``rmt`` logger
+    tree has a handler, so an INFO event emitted then would be dropped."""
     from app.ops.logging_config import log_event
 
+    log_event(logger, "homelab_remediation_policy_loaded", **source.as_dict())
+    if source.source == "file" and not source.components:
+        # Decision D4: allowed -- the loop observes but never remediates.
+        log_event(
+            logger,
+            "homelab_remediation_policy_empty",
+            level=logging.WARNING,
+            path=source.path,
+            detail="no components: the operational loop will never remediate",
+        )
+
+
+def resolve_policy(builtin: dict) -> tuple[dict, PolicySource]:
+    """The policy in force: the file named by ``RMT_HOMELAB_REMEDIATION_POLICY_FILE``
+    if set, otherwise ``builtin`` (returned as-is). Raises
+    ``PolicyConfigError`` for an invalid file (never falls back). The
+    success event is logged later by ``log_policy_in_force``; a rejection
+    is logged here and its traceback reaches stderr/journald regardless."""
     path = os.environ.get(ENV_VAR, "").strip()
     if not path:
-        source = PolicySource(source="builtin", components=list(builtin.keys()))
-        log_event(logger, "homelab_remediation_policy_loaded", **source.as_dict())
-        return builtin, source
+        return builtin, PolicySource(
+            source="builtin", components=list(builtin.keys())
+        )
 
     try:
-        policy, source = load_policy_file(path)
+        return load_policy_file(path)
     except PolicyConfigError as exc:
+        from app.ops.logging_config import log_event
+
         log_event(
             logger,
             "homelab_remediation_policy_rejected",
@@ -229,15 +251,3 @@ def resolve_policy(builtin: dict) -> tuple[dict, PolicySource]:
             errors=exc.errors,
         )
         raise
-
-    log_event(logger, "homelab_remediation_policy_loaded", **source.as_dict())
-    if not policy:
-        # Decision D4: allowed -- the loop observes but never remediates.
-        log_event(
-            logger,
-            "homelab_remediation_policy_empty",
-            level=logging.WARNING,
-            path=path,
-            detail="no components: the operational loop will never remediate",
-        )
-    return policy, source

@@ -144,6 +144,13 @@ async def lifespan(app: FastAPI):
         loop_enabled=loop_config.LOOP_ENABLED,
         auth_enabled=ops_config.auth_enabled(),
     )
+    # RMT-CAP-14: the remediation policy is resolved at import (an invalid
+    # file already stopped startup); record which policy is in force now
+    # that the rmt logger tree has a handler.
+    from app.homelab.policy_config import log_policy_in_force
+    from app.homelab.remediation import REMEDIATION_POLICY_SOURCE
+
+    log_policy_in_force(REMEDIATION_POLICY_SOURCE)
 
     # S1: refuse to start with an unauthenticated mutating surface.
     if ops_config.auth_enabled() and not ops_config.operator_tokens():

@@ -166,8 +166,13 @@ same pattern as `rmt-attestation-verify.py`.
   built-in dict stays as default), `app/homelab/operational_loop.py` (adds
   `policy_source` to status), docs (`docs/operations/CONFIG.md`,
   `deploy/systemd/README.md`, capability evidence, RMT_CONTEXT/HANDOFF).
-- `app/main.py`: none expected; loading happens at import of
-  `app.homelab.remediation`, which `main.py` already imports at startup.
+- `app/main.py`: loading happens at import of `app.homelab.remediation`,
+  which `main.py` already imports at startup. *Implementation correction
+  2026-11-21:* the draft expected no `main.py` change, but the policy resolves
+  before the lifespan's `configure_logging()`, so the INFO `loaded` event was
+  dropped live. The lifespan now calls `log_policy_in_force()` right after
+  logging is configured (7 lines). Rejections need no change: the traceback
+  reaches stderr/journald and startup stops.
 - Zero `app/core/**` diff, verified with `git diff --stat -- app/core`.
 
 ## 6. Risks and recorded limitations
