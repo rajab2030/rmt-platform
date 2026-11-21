@@ -28,6 +28,7 @@ from app.core.intelligence.execution.adapters.registry import adapter_registry
 from app.core.intelligence.memory.models import MemoryRecord
 from app.core.intelligence.memory.service import remember
 from app.ops.verification import verify_executed_action
+from app.homelab.policy_config import resolve_policy
 
 
 # Homelab remediation policy. Confidence is intentionally NOT set here; it is
@@ -39,7 +40,11 @@ from app.ops.verification import verify_executed_action
 # deliberately NOT added here -- it is the load-bearing example, exercised by
 # test_continuation.py / test_remediation.py, of a component with a
 # ComponentContext that stays outside REMEDIATION_POLICY.
-REMEDIATION_POLICY = {
+#
+# RMT-CAP-14 (P-A): this literal is the BUILT-IN policy. An operator can
+# replace it with a validated TOML file via RMT_HOMELAB_REMEDIATION_POLICY_FILE
+# (app/homelab/policy_config.py); an invalid file stops startup.
+BUILTIN_REMEDIATION_POLICY = {
     "uptime-kuma": {
         "action_type": ActionType.RESTART,
         "remediate_on": {HealthStatus.CRITICAL},
@@ -53,6 +58,10 @@ REMEDIATION_POLICY = {
         "requires_approval": True,
     },
 }
+
+REMEDIATION_POLICY, REMEDIATION_POLICY_SOURCE = resolve_policy(
+    BUILTIN_REMEDIATION_POLICY
+)
 
 
 def resolve_adapter_name() -> str:

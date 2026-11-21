@@ -74,7 +74,25 @@ rules are code-only (possible later slice, D5). So slice 1 = the CAP-04
 with the T13 safe envelope enforced by the loader instead of only by a test,
 `policy_source` in loop status, and an offline checker. Proposal
 `docs/RMT_CAP_14_PROPOSAL.md` approved by the owner 2026-11-21 with D1–D4 as
-recommended. No code written yet.
+recommended.
+
+**RMT-CAP-14 slice 1 implemented (committed with this entry).** New
+`app/homelab/policy_config.py` (TOML loader + validator, `tomllib`, no new
+dependency), `scripts/rmt-policy-check.py` (offline checker, VALID/INVALID,
+exit 0/1), `deploy/remediation_policy.example.toml` (equivalent to the built-in
+policy), `deploy/systemd/cap14-policy.conf`, 30 tests in
+`app/homelab/testing/test_policy_config.py`. Changed: `remediation.py` (literal
+renamed `BUILTIN_REMEDIATION_POLICY`; `REMEDIATION_POLICY` and
+`REMEDIATION_POLICY_SOURCE` come from `resolve_policy`), `operational_loop.py`
+(`policy_source` in loop status), CONFIG.md + systemd README. Implementation
+correction: live path is `/etc/rmt-platform/remediation_policy.toml`, not
+`/etc/rmt-control-center/` (root-only 0700; the service runs as `rmt-lab`) —
+noted in the proposal §3a. Validation: `ci.sh --fast` PASSED, **723 passed**
+(693 + 30); ruff clean; `git diff --check` clean; zero `app/core/**` diff;
+checker prints VALID for the example; `import app.main` with a
+`requires_approval = false` file raises `PolicyConfigError` naming both
+entries (D1 fail-closed confirmed). Not yet done: isolated exercise, push,
+live deployment (each needs owner authorization).
 
 ## Status review — repo and GitHub (2026-11-14)
 

@@ -58,9 +58,12 @@ source of the dict it reads.
 
 - Format: **TOML**, parsed with stdlib `tomllib` (Python 3.11+; no new
   dependency). Comments allowed, which matters for a file an operator edits.
-- Location: `RMT_HOMELAB_REMEDIATION_POLICY_FILE` (absolute path). Proposed
-  live path `/etc/rmt-control-center/remediation_policy.toml`, root-owned,
-  mode `0644` (not secret), set by a new drop-in `cap14-policy.conf`.
+- Location: `RMT_HOMELAB_REMEDIATION_POLICY_FILE` (absolute path). Live path
+  `/etc/rmt-platform/remediation_policy.toml`, root-owned, mode `0644` (not
+  secret), set by a new drop-in `cap14-policy.conf`. *Implementation
+  correction 2026-11-21:* the draft named `/etc/rmt-control-center/`, but that
+  directory is root-only (`0700`) secrets storage and the service runs as
+  `rmt-lab`, which cannot read it.
 - **Unset ⇒ the built-in policy, byte-for-byte today's behavior.** The
   built-in dict stays in `remediation.py` as the default and as the reference
   the existing tests use.
