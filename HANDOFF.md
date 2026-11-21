@@ -65,6 +65,17 @@ not exercised live on qwen; it was proven on an isolated instance under CAP-04/0
 **Still open:** the evidence volume cap (§9.5 of the proposal); slice 2
 remains a decision after the §8 quality numbers.
 
+**RMT-CAP-14 selected and approved (P-A, slice 1).** Survey of the policy
+surfaces: dependency map already operator-configurable (T1-2,
+`RMT_HOMELAB_DEPENDENCIES`); loop thresholds already env (`RMT_HOMELAB_LOOP_*`);
+approval/risk/execution policy is frozen Core (inadmissible); coding-agent risk
+rules are code-only (possible later slice, D5). So slice 1 = the CAP-04
+`REMEDIATION_POLICY` as a TOML file (`RMT_HOMELAB_REMEDIATION_POLICY_FILE`),
+with the T13 safe envelope enforced by the loader instead of only by a test,
+`policy_source` in loop status, and an offline checker. Proposal
+`docs/RMT_CAP_14_PROPOSAL.md` approved by the owner 2026-11-21 with D1–D4 as
+recommended. No code written yet.
+
 ## Status review — repo and GitHub (2026-11-14)
 
 Review, docs update, and owner-authorized merge of four lockfile-only security

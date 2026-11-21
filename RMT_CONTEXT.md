@@ -734,6 +734,16 @@ deployed-dark notes in the 2026-11-14 checkpoint below are superseded. Also
 2026-11-21: the platform stays on the VM; the laptop migration is paused and the
 repo Caddyfile was reverted to the VM address (`5c754ae`). See HANDOFF.md.
 
+**Capability selection, 2026-11-21:** the owner selected roadmap **P-A** as
+**RMT-CAP-14 — Homelab Remediation Policy as Configuration (slice 1)** and
+approved the proposal `docs/RMT_CAP_14_PROPOSAL.md` with D1–D4 as recommended
+(refuse to start on an invalid file; TOML; file replaces the built-in policy;
+empty policy allowed with a warning). Scope is the CAP-04 `REMEDIATION_POLICY`
+only: the dependency map and loop thresholds were already configurable, and
+the approval/risk policies are frozen Core. **Next action:** implement CAP-14
+slice 1 against the proposal (no code written yet); isolated exercise, push
+and live deployment each need separate owner authorization.
+
 **Status checkpoint, 2026-11-14 (verified against `origin/master` `f52375b`,
 GitHub, and the live host):**
 - **RMT-CAP-13 slice 1 — Evidence-grounded incident explainer** is committed on
