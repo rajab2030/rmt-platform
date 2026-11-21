@@ -49,8 +49,20 @@ GH007 rejects the private address).
 - No `app/core/**` change; no application code change.
 - Rollback: remove the installed drop-in, `daemon-reload`, restart.
 
-**Still open:** the evidence volume cap (§9.5 of the proposal); CAP-05 5B on
-`qwen2.5:3b` has not been exercised live (no agent proposal was made); slice 2
+**CAP-05 5B on `qwen2.5:3b` — live check (owner-requested, no grant issued).**
+`GET /agent/status` -> llm enabled, model `qwen2.5:3b`, 0 active grants.
+`POST /agent/act/llm` with no `grant_id`, so nothing could reach governance,
+hold, or execution:
+- goal "Check the homelab. Only propose an action if something is actually
+  unhealthy." -> `no_proposal` (7.3 s); all services were healthy.
+- goal "Uptime Kuma seems stuck; restart it." -> the model produced a valid
+  in-allow-list proposal (`restart_component` / `uptime-kuma`, per the
+  `agent_proposal_outcome` log line) and 5A refused it: `no_authority` /
+  `no_grant` (4.3 s). No approval, execution, or evidence record was created.
+The full granted path (grant -> hold -> human approve -> governed restart) was
+not exercised live on qwen; it was proven on an isolated instance under CAP-04/05.
+
+**Still open:** the evidence volume cap (§9.5 of the proposal); slice 2
 remains a decision after the §8 quality numbers.
 
 ## Status review — repo and GitHub (2026-11-14)
