@@ -91,8 +91,34 @@ noted in the proposal §3a. Validation: `ci.sh --fast` PASSED, **723 passed**
 (693 + 30); ruff clean; `git diff --check` clean; zero `app/core/**` diff;
 checker prints VALID for the example; `import app.main` with a
 `requires_approval = false` file raises `PolicyConfigError` naming both
-entries (D1 fail-closed confirmed). Not yet done: isolated exercise, push,
-live deployment (each needs owner authorization).
+entries (D1 fail-closed confirmed). Pushed as `08dcd0b`.
+
+**RMT-CAP-14 isolated exercise — PASS (owner-authorized, 2026-11-21).**
+Separate instance on `127.0.0.1:18210`, run from a scratch folder with
+consistent `sqlite3` backup copies of `governance_evidence.db`,
+`observability.db`, `budget.db`, `reasoning.db` (env-redirected / cwd-relative),
+`RMT_RUNTIME_ENGINE=simulation`, loop disabled, auth on with a throwaway token.
+- A, no policy env: started; `policy_source.source = builtin`, components
+  `uptime-kuma`, `portainer` (unchanged behavior).
+- B, file replacing `portainer` with `dozzle`: started; `policy_components`
+  `uptime-kuma`, `dozzle`; `policy_source` = `file`, path, sha256 `7df4857d…`
+  matching `sha256sum` of the file.
+- C, `requires_approval = false` on both entries: **refused to start** (exit 1),
+  `homelab_remediation_policy_rejected` logged, `PolicyConfigError` naming both
+  entries.
+- D, valid dozzle file + `RMT_HOMELAB_DEPENDENCIES=uptime-kuma:dozzle`:
+  **refused to start** (exit 1), both entries rejected for dependency edges
+  (both directions reported).
+Live `:8000` untouched: same `MainPID` (8826) and `ActiveEnterTimestamp`
+before and after; `/health` 200. Isolated instance stopped (port free).
+
+Finding (pre-existing, not changed): `GET /homelab/loop/status` is
+unauthenticated even with `RMT_AUTH_ENABLED=true` (auth guards mutating routes;
+the live server answers 200 without a token too). CAP-14 adds `policy_source`
+(policy file path + sha256) to that open response. Low sensitivity on a LAN
+deployment; recorded for the owner, no change made.
+
+Not yet done: live deployment (needs owner authorization).
 
 ## Status review — repo and GitHub (2026-11-14)
 
