@@ -7,13 +7,13 @@
 # Keep versions here in sync with the lock file.
 
 # --- runtime ---
-fastapi==0.162.4
+fastapi==0.165.0
 uvicorn[standard]==0.54.0
 docker==7.2.0
 pydantic==2.14.3
-pydantic-settings==2.16.2
+pydantic-settings==2.16.3
 PyYAML==6.0.3
 
 # --- test only ---
 pytest==9.2.0
-httpx2==2.16.0
+httpx2==2.16.2
