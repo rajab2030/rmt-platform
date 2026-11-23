@@ -649,3 +649,80 @@ nothing broken; no hygiene fix was made this run.
    redeploys. This is an operations/supply-chain hygiene angle distinct from
    every prior suggestion, which have all centered on CAP-13 or the
    one-command Docker trial.
+
+## 2026-11-23
+
+**Repo:** rajab2030/rmt-platform
+**Description:** Policy checks, approval holds, and execution evidence for AI-agent actions. Includes a local Git-tag walkthrough.
+**Last push:** 2026-11-22T01:43:36Z
+
+| Metric | Value |
+|---|---|
+| Stars | 0 |
+| Forks | 2 |
+| Topics | agent-governance, ai-agents, ai-governance, audit-trail, control-plane, devops-automation, homelab, llm-agents, policy-engine, risk-management (all 10 expected topics present) |
+
+Traffic data (trailing 14-day window, 2026-11-09 through 2026-11-22 — `gh api`
+was reachable again this run):
+
+| Metric (trailing 14 days) | Value |
+|---|---|
+| Views | 5 (4 unique visitors) |
+| Clones | 208 (78 unique cloners) |
+| Top referrers | github.com — 1 view, 1 unique |
+| Top popular paths | `/rajab2030/rmt-platform` ("Overview") — 2 views, 2 unique; also `docs/RMT_GUARANTEES.md`, `docs/RMT_THREAT_MODEL.md`, and `tools/claude-code-guard/README.md` each at 1 view / 1 unique |
+
+**Deltas vs. prior entry (2026-11-16):**
+
+- Stars: 0 → 0 (no change, eleven consecutive tracked weeks now)
+- Forks: 2 → 2 (no change)
+- Views (trailing 14d): 1 (1 unique) → 5 (4 unique) — up 4 views / 3 unique
+  visitors, the highest view count this log has recorded; still a small
+  absolute number, but the first week with more than one distinct
+  visitor, and the first week popular-paths shows anything beyond the repo
+  root (two specific doc pages plus a tool README were actually opened,
+  which reads as a real person browsing rather than just landing on the
+  front page).
+- Clones (trailing 14d): 135 (46 unique) → 208 (78 unique) — up roughly 54%
+  on total clones and 70% on unique cloners, continuing the rebound from
+  2026-11-09's low point. Still only one referrer recorded (github.com), so
+  the clone volume's source composition (bot/CI vs. organic) remains
+  unconfirmed either way, consistent with every prior entry's caveat.
+
+Repo-side, this was the most substantial shipping week in the tracked log:
+**RMT-CAP-14** (homelab remediation policy as configuration, roadmap P-A
+slice 1) went from proposal to approved to implemented to live-verified, all
+in one session (2026-11-21). It lets an operator change what the CAP-04
+operational loop may remediate — which service, when, and how — by editing a
+validated TOML config file and restarting, with no code edit, while making it
+structurally impossible to load a policy that leaves the existing safe
+envelope (every entry stays independent and approval-gated). Confined to
+`app/homelab/**` plus one read-only status field and a new stdlib-only
+checker script — no Core change, no reopening of the frozen-Core boundary.
+This is a concrete, demonstrable mechanism (not just a claim) and hasn't been
+suggested externally in any prior week.
+`docs/promotion/why-i-built-rmt.md` was not re-checked this run (no change
+expected; not worth re-flagging an eighth week in a row). A spot check of
+README-referenced files (LICENSE, README.ar.md, GETTING_STARTED.md, the demo
+GIF/transcript, the showcase and local-trial READMEs, AGENT_API.md,
+RMT_GUARANTEES.md, RMT_THREAT_MODEL.md) and repo topics found everything
+present and no broken link — no hygiene fix was made this run.
+
+**Suggested next actions (outside GitHub):**
+
+1. **Write a short piece specifically about CAP-14's "impossible to load an
+   unsafe policy" design** — the concrete hook is that the config loader
+   refuses to start on an invalid file and enforces the existing safe-envelope
+   constraints (`docs/RMT_T13_DISPOSITION.md`) at load time, so a bad edit
+   can't silently widen what an autonomous remediation loop is allowed to do.
+   This is a different angle from every CAP-13 suggestion so far (LLM
+   grounding) and fits r/sysadmin or r/homelab well, since the feature is
+   literally "configure what your homelab automation may touch without
+   redeploying code" — a practical, homelab-specific story this log hasn't
+   pointed at that audience before.
+2. **Submit the repo to the Self-Hosted Weekly newsletter**
+   (https://selfh.st/newsletter/, via its submission link) — distinct from
+   r/selfhosted (already suggested 2026-10-05/10-26) and from DevOps Weekly
+   (suggested 2026-11-16); Self-Hosted Weekly's audience overlaps directly
+   with the `homelab` topic and CAP-14's "govern your own homelab automation"
+   framing, and submission needs no credentials beyond a public form.
