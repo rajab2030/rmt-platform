@@ -1,1 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path fill="#0f766e" d="M16 2 4 6.5v8.2c0 7.3 5.1 13.4 12 15.3 6.9-1.9 12-8 12-15.3V6.5L16 2Z"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="m10.5 16 4 4 7-8"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6.0 2.0 596 596" role="img" aria-label="RMT"><title>RMT</title>
+  <rect x="-6.0" y="2.0" width="596" height="596" rx="131" fill="#16191E"/>
+  <defs><linearGradient id="arm" gradientUnits="userSpaceOnUse" x1="150" y1="0" x2="290" y2="0"><stop offset="0" stop-color="#D6D8DC"/><stop offset="1" stop-color="#CDB98A"/></linearGradient></defs>
+  <path fill="#D6D8DC" d="M125 140C175 132 235 120 290 88C335 118 395 130 446 135L413 164C370 158 330 148 290 123C245 150 200 160 158 166V201L125 203Z"/>
+  <path fill="#D6D8DC" fill-rule="evenodd" d="M40 216H150C185 216 200 245 200 277C200 309 183 333 152 339H76V397H40ZM76 245H145C162 245 170 260 170 277C170 294 162 308 145 308H76Z"/>
+  <path fill="url(#arm)" d="M118 339H157C190 385 235 450 291 478L370 413H413L291 511C232 478 175 410 118 339Z"/>
+  <path fill="#D6D8DC" d="M213 274L247 316V397H213Z"/>
+  <path fill="#D6D8DC" d="M372 293L405 261V397H372Z"/>
+  <path fill="#CDB98A" d="M215 248H258L300 305C350 240 420 165 503 124C445 175 385 265 300 362Z"/>
+  <path fill="#CDB98A" d="M452 216H543V246H484V397H450V246H405Z"/>
+</svg>
