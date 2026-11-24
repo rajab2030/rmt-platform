@@ -1,5 +1,7 @@
 # RMT Platform
 
+<p align="center"><img src="docs/assets/brand/rmt-logo-banner.jpg" alt="RMT — Risk-Mitigated Transactions Platform" width="720"></p>
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **English** · [العربية](README.ar.md)
