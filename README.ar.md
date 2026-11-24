@@ -2,6 +2,8 @@
 
 # منصة RMT
 
+<p align="center"><img src="docs/assets/brand/rmt-logo-banner.jpg" alt="RMT — Risk-Mitigated Transactions Platform" width="720"></p>
+
 [English](README.md) · **العربية**
 
 > هذه ترجمة للـ README الإنجليزي. عند أي اختلاف، النسخة الإنجليزية هي المرجع.
