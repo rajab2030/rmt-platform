@@ -1,0 +1,29 @@
+# RMT-CAP-14 -- homelab remediation policy (CAP-04 operational loop).
+#
+# Loaded once at backend startup from RMT_HOMELAB_REMEDIATION_POLICY_FILE
+# (see deploy/systemd/cap14-policy.conf). This file REPLACES the built-in
+# policy in app/homelab/remediation.py; this example is equivalent to it.
+#
+# Rules (an invalid file stops the backend from starting -- check first with
+# backend/scripts/rmt-policy-check.py):
+#   * requires_approval = true on every entry (CAP-04 safe envelope)
+#   * the component has no dependency edges (static map or RMT_HOMELAB_DEPENDENCIES)
+#   * the component is a known homelab component (has a ComponentContext)
+#   * action: "restart" only
+#   * remediate_on: non-empty subset of ["warning", "critical"]
+#   * expected_state: non-empty string
+#   * no other keys
+#
+# An empty [components] table is allowed: the loop observes but never remediates.
+
+[components.uptime-kuma]
+action = "restart"
+remediate_on = ["critical"]
+expected_state = "running"
+requires_approval = true
+
+[components.portainer]
+action = "restart"
+remediate_on = ["critical"]
+expected_state = "running"
+requires_approval = true

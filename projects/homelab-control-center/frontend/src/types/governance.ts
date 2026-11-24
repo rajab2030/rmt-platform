@@ -58,3 +58,27 @@ export interface HoldListResponse {
 export interface VerificationListResponse {
   verifications: VerificationRow[];
 }
+
+// RMT-CAP-13 -- evidence-grounded incident explanation (read-only viewer).
+export interface ExplanationClaim {
+  text: string;
+  evidence: string[];
+}
+
+export interface ExplanationRecord {
+  explanation_id: string;
+  created_at: string;
+  incident_ref: string;
+  status: string; // ok | no_evidence | no_grounded_explanation | llm_error | llm_parse_error | invalid
+  detail?: string | null;
+  model?: string | null;
+  dropped_claims: number;
+  explanation: {
+    summary: string;
+    claims: ExplanationClaim[];
+    pattern: string;
+    suggested_action: { target: string; mechanism: string; reason: string } | null;
+    confidence: number;
+    notes: string[];
+  } | null;
+}

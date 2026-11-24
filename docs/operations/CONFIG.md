@@ -142,6 +142,12 @@ The real homelab has **no** inter-container edges (portainer / dozzle /
 uptime-kuma each need only dockerd), so this is unset in production. It exists so
 a genuine edge can be declared without a code change + redeploy.
 
+## Homelab remediation policy file — `app/homelab/policy_config.py` (CAP-14 / P-A)
+
+| Variable | Default | Effect | Set by |
+|---|---|---|---|
+| `RMT_HOMELAB_REMEDIATION_POLICY_FILE` | *(unset → built-in policy)* | **CAP-14.** Absolute path to a TOML file that **replaces** the built-in CAP-04 `REMEDIATION_POLICY` (`app/homelab/remediation.py`). Loaded once at startup; changes need a restart. The loader enforces the CAP-04 safe envelope: every entry `requires_approval = true` and no dependency edges (static map ∪ `RMT_HOMELAB_DEPENDENCIES`); also known component, `action = "restart"` only, `remediate_on` ⊆ {`warning`,`critical`}, non-empty `expected_state`, no unknown keys. **An invalid file stops the backend from starting** — check first with `backend/scripts/rmt-policy-check.py FILE`. An empty `[components]` table is allowed (the loop never remediates; warning logged). `GET /homelab/loop/status.policy_source` shows `builtin`/`file`, path and sha256. Example: `deploy/remediation_policy.example.toml`. Live path `/etc/rmt-platform/remediation_policy.toml` (root-owned, `0644`). | `cap14-policy.conf` drop-in |
+
 ## Evidence substrate — `app/core/intelligence/durable_store.py` (T0-1)
 
 | Variable | Default | Effect | Set by |

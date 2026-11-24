@@ -1,3 +1,4 @@
+import threading
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -76,7 +77,7 @@ def test_approved_2000_commit_1500_leaves_500_and_full_evidence(budget_env):
     assert budget_repository.request_detail("owner", request["id"])["status"] == "committed"
 
 
-def test_concurrent_1500_commitments_produce_exactly_one_effect(budget_env):
+def test_concurrent_1500_commitments_produce_exactly_one_effect(budget_env, monkeypatch):
     _, budget_id = _bootstrap()
     first = _submitted(budget_id)
     second = _submitted(budget_id)
@@ -86,6 +87,21 @@ def test_concurrent_1500_commitments_produce_exactly_one_effect(budget_env):
             request["id"],
             DecisionInput(decision="approved", reason="candidate"),
         )
+
+    # Pin the interleaving under test: both commitments pass governance while
+    # 2000 is still available and only then reach the ledger, so the loser must
+    # be rejected by the adapter's serialized transaction. Without the barrier
+    # the winner can commit before the loser is evaluated, and the loser is
+    # then (correctly) denied by policy instead -- that ordering is covered by
+    # test_second_1500_commitment_after_the_first_is_blocked_before_execution.
+    at_ledger = threading.Barrier(2, timeout=30)
+    apply_mutation = budget_repository.apply_mutation
+
+    def apply_once_both_are_authorized(**kwargs):
+        at_ledger.wait()
+        return apply_mutation(**kwargs)
+
+    monkeypatch.setattr(budget_repository, "apply_mutation", apply_once_both_are_authorized)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         results = list(
@@ -98,6 +114,28 @@ def test_concurrent_1500_commitments_produce_exactly_one_effect(budget_env):
     assert [r["financial_status"] for r in results].count("verified_success") == 1
     losing = [r["financial_status"] for r in results if r["financial_status"] != "verified_success"]
     assert losing == ["adapter_failed_no_effect"]
+    assert budget_repository.available_minor(budget_id) == 500
+    history = budget_repository.budget_history("owner", budget_id)
+    assert sum(row["entry_type"] == "commitment" for row in history) == 1
+
+
+def test_second_1500_commitment_after_the_first_is_blocked_before_execution(budget_env):
+    _, budget_id = _bootstrap()
+    first = _submitted(budget_id)
+    second = _submitted(budget_id)
+    for request in (first, second):
+        budget_service.decide(
+            "owner",
+            request["id"],
+            DecisionInput(decision="approved", reason="candidate"),
+        )
+
+    winner = budget_service.commit("owner", first["id"])
+    loser = budget_service.commit("owner", second["id"])
+
+    assert winner["financial_status"] == "verified_success"
+    assert loser["financial_status"] == "blocked_before_execution"
+    assert "execution_id" not in loser
     assert budget_repository.available_minor(budget_id) == 500
     history = budget_repository.budget_history("owner", budget_id)
     assert sum(row["entry_type"] == "commitment" for row in history) == 1

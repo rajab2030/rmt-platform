@@ -47,6 +47,7 @@ from app.engineering.api import router as engineering_router
 from app.agent.api import router as agent_router
 from app.coding_agent.api import router as coding_agent_router
 from app.budget.api import router as budget_router
+from app.reasoning.api import router as reasoning_router
 from app.budget.bootstrap import register_budget_domain
 
 from app.homelab import loop_config
@@ -143,6 +144,13 @@ async def lifespan(app: FastAPI):
         loop_enabled=loop_config.LOOP_ENABLED,
         auth_enabled=ops_config.auth_enabled(),
     )
+    # RMT-CAP-14: the remediation policy is resolved at import (an invalid
+    # file already stopped startup); record which policy is in force now
+    # that the rmt logger tree has a handler.
+    from app.homelab.policy_config import log_policy_in_force
+    from app.homelab.remediation import REMEDIATION_POLICY_SOURCE
+
+    log_policy_in_force(REMEDIATION_POLICY_SOURCE)
 
     # S1: refuse to start with an unauthenticated mutating surface.
     if ops_config.auth_enabled() and not ops_config.operator_tokens():
@@ -259,6 +267,10 @@ app.include_router(coding_agent_router, dependencies=[Depends(require_operator)]
 # Budget routes perform both operator authentication and domain-specific role
 # checks. The UI is only a client of these server-side boundaries.
 app.include_router(budget_router)
+
+# RMT-CAP-13: evidence-grounded incident explainer. Read-only, opt-in
+# (RMT_REASONING_ENABLED), entirely behind operator authentication.
+app.include_router(reasoning_router, dependencies=[Depends(require_operator)])
 
 
 @app.get("/")

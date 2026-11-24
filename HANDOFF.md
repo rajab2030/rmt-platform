@@ -15,6 +15,322 @@
 Start the next session with the resume prompt below (see "Resume prompt").
 Read `RMT_CONTEXT.md` first, then this file.
 
+## Session 2026-11-21 — stay on the VM; RMT-CAP-13 enabled live
+
+**Platform host.** The owner chose to keep the RMT Platform on the VM
+(`rmt-lab`, 192.168.223.128); the laptop migration is paused (no cutover).
+Commit `df9191a` (laptop LAN bind, claimed the VM was retired) was reverted:
+`5c754ae`, pushed. The live VM `/etc/caddy/Caddyfile` never changed, so the
+VM served throughout. Commits now use the owner's GitHub noreply email (GitHub
+GH007 rejects the private address).
+
+**RMT-CAP-13 live enablement (owner-authorized).**
+- Proposal `docs/RMT_CAP_13_PROPOSAL.md` status line updated to APPROVED
+  (owner, 2026-10-08), the decision the owner confirmed this session.
+- New drop-in `deploy/systemd/cap13-reasoning.conf` (README table updated),
+  installed by the owner to
+  `/etc/systemd/system/rmt-control-center.service.d/cap13-reasoning.conf`,
+  then `daemon-reload` + restart:
+  `RMT_REASONING_ENABLED=true`, `RMT_OPS_EVIDENCE_ENABLED=true`,
+  `RMT_AGENT_LLM_MODEL=qwen2.5:3b`, `RMT_AGENT_LLM_MAX_TOKENS=1500`,
+  `RMT_AGENT_LLM_TIMEOUT_SECONDS=180`. The LLM settings are shared with CAP-05
+  5B; the owner explicitly chose to move CAP-05 to `qwen2.5:3b` as well (its
+  previous default `deepseek-v4-flash:cloud` returns HTTP 410 since 2026-09-25).
+- Before: `/ops/evidence` and `/ops/reasoning/explanations` returned 503
+  (disabled) with a valid operator token.
+- After: service `active`; `systemctl show -p Environment` lists all five
+  values; `/health` 200 on loopback; HTTPS on 192.168.223.128 200;
+  `/ops/evidence?action_id=92633779-…` returns the evidence chain;
+  `POST /ops/reasoning/explain {"action_id":"92633779-8f83-4e2e-8ab4-e94a8786f3aa"}`
+  -> `status: ok`, model `qwen2.5:3b`, 51.5 s, one claim ("idempotency_receipts
+  table had 12 columns but only 11 values were supplied") citing `audit#0`,
+  `trace#0` (faithful to the recorded failure). The explanation is stored in
+  the live `reasoning.db`.
+- No `app/core/**` change; no application code change.
+- Rollback: remove the installed drop-in, `daemon-reload`, restart.
+
+**CAP-05 5B on `qwen2.5:3b` — live check (owner-requested, no grant issued).**
+`GET /agent/status` -> llm enabled, model `qwen2.5:3b`, 0 active grants.
+`POST /agent/act/llm` with no `grant_id`, so nothing could reach governance,
+hold, or execution:
+- goal "Check the homelab. Only propose an action if something is actually
+  unhealthy." -> `no_proposal` (7.3 s); all services were healthy.
+- goal "Uptime Kuma seems stuck; restart it." -> the model produced a valid
+  in-allow-list proposal (`restart_component` / `uptime-kuma`, per the
+  `agent_proposal_outcome` log line) and 5A refused it: `no_authority` /
+  `no_grant` (4.3 s). No approval, execution, or evidence record was created.
+The full granted path (grant -> hold -> human approve -> governed restart) was
+not exercised live on qwen; it was proven on an isolated instance under CAP-04/05.
+
+**Still open:** the evidence volume cap (§9.5 of the proposal); slice 2
+remains a decision after the §8 quality numbers.
+
+**RMT-CAP-14 selected and approved (P-A, slice 1).** Survey of the policy
+surfaces: dependency map already operator-configurable (T1-2,
+`RMT_HOMELAB_DEPENDENCIES`); loop thresholds already env (`RMT_HOMELAB_LOOP_*`);
+approval/risk/execution policy is frozen Core (inadmissible); coding-agent risk
+rules are code-only (possible later slice, D5). So slice 1 = the CAP-04
+`REMEDIATION_POLICY` as a TOML file (`RMT_HOMELAB_REMEDIATION_POLICY_FILE`),
+with the T13 safe envelope enforced by the loader instead of only by a test,
+`policy_source` in loop status, and an offline checker. Proposal
+`docs/RMT_CAP_14_PROPOSAL.md` approved by the owner 2026-11-21 with D1–D4 as
+recommended.
+
+**RMT-CAP-14 slice 1 implemented (committed with this entry).** New
+`app/homelab/policy_config.py` (TOML loader + validator, `tomllib`, no new
+dependency), `scripts/rmt-policy-check.py` (offline checker, VALID/INVALID,
+exit 0/1), `deploy/remediation_policy.example.toml` (equivalent to the built-in
+policy), `deploy/systemd/cap14-policy.conf`, 30 tests in
+`app/homelab/testing/test_policy_config.py`. Changed: `remediation.py` (literal
+renamed `BUILTIN_REMEDIATION_POLICY`; `REMEDIATION_POLICY` and
+`REMEDIATION_POLICY_SOURCE` come from `resolve_policy`), `operational_loop.py`
+(`policy_source` in loop status), CONFIG.md + systemd README. Implementation
+correction: live path is `/etc/rmt-platform/remediation_policy.toml`, not
+`/etc/rmt-control-center/` (root-only 0700; the service runs as `rmt-lab`) —
+noted in the proposal §3a. Validation: `ci.sh --fast` PASSED, **723 passed**
+(693 + 30); ruff clean; `git diff --check` clean; zero `app/core/**` diff;
+checker prints VALID for the example; `import app.main` with a
+`requires_approval = false` file raises `PolicyConfigError` naming both
+entries (D1 fail-closed confirmed). Pushed as `08dcd0b`.
+
+**RMT-CAP-14 isolated exercise — PASS (owner-authorized, 2026-11-21).**
+Separate instance on `127.0.0.1:18210`, run from a scratch folder with
+consistent `sqlite3` backup copies of `governance_evidence.db`,
+`observability.db`, `budget.db`, `reasoning.db` (env-redirected / cwd-relative),
+`RMT_RUNTIME_ENGINE=simulation`, loop disabled, auth on with a throwaway token.
+- A, no policy env: started; `policy_source.source = builtin`, components
+  `uptime-kuma`, `portainer` (unchanged behavior).
+- B, file replacing `portainer` with `dozzle`: started; `policy_components`
+  `uptime-kuma`, `dozzle`; `policy_source` = `file`, path, sha256 `7df4857d…`
+  matching `sha256sum` of the file.
+- C, `requires_approval = false` on both entries: **refused to start** (exit 1),
+  `homelab_remediation_policy_rejected` logged, `PolicyConfigError` naming both
+  entries.
+- D, valid dozzle file + `RMT_HOMELAB_DEPENDENCIES=uptime-kuma:dozzle`:
+  **refused to start** (exit 1), both entries rejected for dependency edges
+  (both directions reported).
+Live `:8000` untouched: same `MainPID` (8826) and `ActiveEnterTimestamp`
+before and after; `/health` 200. Isolated instance stopped (port free).
+
+Finding (pre-existing, not changed): `GET /homelab/loop/status` is
+unauthenticated even with `RMT_AUTH_ENABLED=true` (auth guards mutating routes;
+the live server answers 200 without a token too). CAP-14 adds `policy_source`
+(policy file path + sha256) to that open response. Low sensitivity on a LAN
+deployment; recorded for the owner, no change made.
+
+**RMT-CAP-14 live deployment (owner-authorized, 2026-11-21).** The owner ran,
+in their own terminal: install `/etc/rmt-platform/` (0755) +
+`remediation_policy.toml` (0644, byte-identical to
+`deploy/remediation_policy.example.toml`) → `rmt-policy-check.py` VALID →
+install `cap14-policy.conf` drop-in → `daemon-reload` → restart. Verified:
+service active (new PID 29817, 23:41:37 UTC); `RMT_HOMELAB_REMEDIATION_POLICY_FILE`
+in the unit environment; `/health` 200; HTTPS 200; loop status
+`policy_source` = `file`, `/etc/rmt-platform/remediation_policy.toml`, sha256
+`28f2860d…` (matches `sha256sum`), components `uptime-kuma`, `portainer`
+(unchanged); loop enabled + running, first cycle `no_remediation` for both,
+no cycle error.
+
+**Defect found live and fixed:** the `homelab_remediation_policy_loaded`
+startup event (proposal §3c) was missing from journald — the policy resolves at
+import, before the lifespan's `configure_logging()`, so the INFO line had no
+handler. Unit tests missed it because `caplog` captures regardless. Fix:
+`log_policy_in_force()` in `policy_config.py`, called from the `app/main.py`
+lifespan right after logging is configured (proposal §5 corrected); rejection
+logging unchanged. New lifespan test verified to fail without the fix. Isolated
+start (`:18210`, live policy file) now logs the event as JSON. `ci.sh --fast`
+PASSED, **725 passed**; zero `app/core/**` diff. Pushed `a105d47`; the owner
+restarted the live service (PID 31684, 23:44:50 UTC). Verified: journald now
+shows `homelab_remediation_policy_loaded` (`source: file`, path, sha256
+`28f2860d…`) right after the `startup` event; `/health` 200, HTTPS 200; loop
+enabled + running, no cycle error; CAP-13 `/ops/reasoning/explanations` 200.
+**RMT-CAP-14 slice 1 is complete:** proposed → approved → implemented →
+isolated-exercised → deployed → live-verified.
+
+## Status review — repo and GitHub (2026-11-14)
+
+Review, docs update, and owner-authorized merge of four lockfile-only security
+PRs; no application code or `app/core/**` change. Supersedes an unpublished 2026-10-24 draft of this section.
+Verified: `master` at `832d349`; CI green on `master`; live backend
+(`rmt-control-center.service`, Python 3.14.4 venv) answers `/health` 200 after
+the 2026-11-14 23:09 UTC redeploy restart (second of the day).
+
+- **CAP-13 slice 1** is committed (`bbca393`) and its code is loaded by the live
+  service (`/ops/reasoning/*` routes are in the live OpenAPI), but
+  `RMT_REASONING_ENABLED` is not set in the unit, so it is deployed dark
+  (disabled by default).
+  The proposal doc header still says DRAFT (see `RMT_CONTEXT.md` §12 checkpoint).
+  Local `qwen2.5:3b` is present in Ollama; `deepseek-v4-flash:cloud` is retired.
+- **CAP-13 Explain panel browser check — DONE 2026-11-14** on an isolated
+  instance (port 18200, scratch copies of the evidence and observability DBs,
+  `RMT_RUNTIME_ENGINE=simulation`, loop off, local `qwen2.5:3b`, Vite dev
+  frontend, headless Chromium). Live `:8000` was not touched and no repo file
+  changed. Every panel state rendered with no page errors:
+  - failed action `92633779-8f83-4e2e-8ab4-e94a8786f3aa` → summary + one claim
+    ("12 columns but only 11 values") citing `audit#0`/`trace#0`, 48 s;
+  - verification-failure action `c69aab4e-af7a-47c3-af59-435934b10946` →
+    `no_grounded_explanation` (1 claim dropped), 31 s;
+  - clean action `6a083293-bc30-42bf-b679-3fe009d3a04b` → summary + one claim
+    citing `failure#0..2`, pattern `recurring`, 43 s;
+  - mixed action `084ebd8a-5115-40c1-9757-f25774e068e9` →
+    `no_grounded_explanation` (1 dropped), 38 s;
+  - unknown id → `no_evidence`; flag off → "Explanations are not enabled on
+    this server."
+  Findings: (1) the Explain card renders only after an evidence lookup, so the
+  panel also needs `RMT_OPS_EVIDENCE_ENABLED=true`; that flag was not seen in
+  the live unit's `Environment=` lines, so enabling `RMT_REASONING_ENABLED`
+  alone would likely leave the panel unreachable. (2) Model output is uneven:
+  the verification-failure case was grounded on 2026-10-09 but dropped in this
+  run, and the clean action was explained from the component's prior failures
+  rather than from the action itself. (3) 30–50 s per explanation on CPU.
+  (4) Cosmetic: summary and single claim are near-duplicates; the Explain
+  button spans the full card width. Screenshots were kept only in the session
+  scratchpad. Still open: the DRAFT header and any live enablement (both need
+  owner decision).
+- **Dependabot security alerts: 0 open** (were 10, incl. one critical certifi).
+  Owner authorized the merges on 2026-11-14; squash-merged #29 certifi
+  2026.10.18 (`354a924`), #23 vite 8.3.5 (`723a23c`), #11 urllib3 2.8.0
+  (`4e10d5b`), #10 source-map-js 1.2.2 (`f52375b`). CI green on `f52375b`.
+  Live venv reinstalled from `requirements.lock.txt` (certifi 2026.10.18,
+  urllib3 2.8.0; `pip check` clean, `import app.main` OK) and the service
+  restarted by the owner at 2026-11-14 20:46 UTC; `/health` 200, 52 routes served.
+- **Grouped dependency bumps merged later on 2026-11-14 (owner-authorized).**
+  #28 (which failed CI on a `pydantic_core` pin conflict) was superseded by
+  **#31** (grouped python-minor-patch, 24 updates; CI green), squash-merged as
+  `7c1ccce` — includes fastapi 0.139.2→0.162.4, starlette 1.3.1→1.10.0,
+  pydantic 2.13.4→2.14.3, uvicorn 0.51.0→0.54.0. **#15** (grouped
+  npm-minor-patch, 8 updates) conflicted in `package-lock.json` with the
+  earlier security merges; Dependabot rebased it, the rebased branch was
+  checked locally (`npm ci`, `npm run build`, `npm run lint` all exit 0; lint
+  prints two `set-state-in-effect` warnings in `ObservabilityPanel.tsx` and
+  `App.tsx`) because CI runs only the backend gate, then squash-merged as
+  `832d349`. CI green on `832d349`.
+- **Second backend redeploy, 2026-11-14 23:09 UTC.** Live venv reinstalled from
+  the new `requirements.lock.txt` (`pip check` clean, `import app.main` OK) and
+  the service restarted by the owner at 23:09:26 UTC. After restart: `/health`
+  ok, homelab loop running with a clean first cycle, Docker adapter resolved
+  and not degraded, 52 routes served, no errors or warnings in the startup
+  log. The live frontend was **not** rebuilt after #15.
+- **Intermittent Budget Control test — FIXED 2026-11-14 (`ccf6ff9`, test-only).**
+  `app/budget/testing/test_budget_control.py::test_concurrent_1500_commitments_produce_exactly_one_effect`
+  failed 6 of 60 isolated runs, and a one-off pre-push gate failure
+  (1 failed / 691 passed) was seen before the dependency bumps, most likely the
+  same test. Cause: the test, not Budget Control. Two concurrent 1500
+  commitments against 2000 can lose in two valid ways — rejected by the
+  ledger's serialized transaction (`adapter_failed_no_effect`) when both pass
+  governance first, or denied by policy (`blocked_before_execution`) when the
+  winner commits before the loser is evaluated. Exactly one commitment lands
+  either way; the test accepted only the first outcome and left the ordering
+  to thread timing. Fix: a barrier at the ledger call pins the first ordering,
+  and the new
+  `test_second_1500_commitment_after_the_first_is_blocked_before_execution`
+  covers the second deterministically. Result: 150/150 repeated runs pass; the
+  full suite passes 693/693 (was 692). No application or `app/core/**` change.
+- Not merged on purpose (major/behavioural), 7 PRs still open: #16 TypeScript 7,
+  #17 `@types/node` 26, #12/#13 Actions v7, #19 websockets 17, #27 Python 3.15
+  quickstart image, #30 Dozzle v8→v11 (changes a live stack image).
+- No open issues. The full ~7 min backend suite was not re-run in this review.
+
+## Latest continuation checkpoint — CAP-12 / Project Boundary (2026-10-07)
+
+> **CAP-12 identity safeguard:** CAP-12 is **Project Boundary**, a private
+> commercial prototype built above RMT. Its repository is
+> `/home/rmt-lab/project-boundary-private`. Do not infer CAP-12 from the public
+> Homelab roadmap and do not rebuild or reinterpret it from an older milestone.
+
+### Current product state
+
+- Private repository: `/home/rmt-lab/project-boundary-private`
+- Current head: `9477ad7` (`main`, synchronized with `origin/main`), merge of the
+  approval-inbox discovery work.
+- Working tree at this checkpoint: clean.
+- Public RMT repository head: `652ad87` (`master`, synchronized with
+  `origin/master`); working tree was clean before this handoff-only edit.
+- The accepted prototype permits an authenticated external agent to propose one
+  Git tag bound to an immutable full commit OID in one operator-configured,
+  disposable local repository.
+- RMT owns policy, risk, human approval, authorization, execution admission,
+  independent verification, evidence, and signed export. Project Boundary owns
+  the external proposal API, canonical target, domain evaluation,
+  commit-bound Git adapter/observer, human approval context, and receipt.
+- Scope remains exactly one process/worker. It is not production deployed or
+  public.
+
+### Discovery gate — preserve
+
+- `APPROVAL_INBOX_DISCOVERY_PLAN.md` is merged, but approval-inbox
+  implementation is **not authorized**.
+- The gate requires evidence from one independent engineering/operations
+  participant in the target profile. Owner or AI simulation is not a valid
+  substitute.
+- The participant should use fictional/disposable data for about 20 minutes,
+  with no coding, installation, account access, or real-system access. They
+  should: approve a safe Git-tag request; reject a request with unsupported
+  rationale; reject or decline unsafe ambiguity; and interpret terminal states,
+  where only `verified_success` is success.
+- Reddit recruitment (for example, a suitable participant-recruitment
+  community) remains an available sourcing route. Recruitment is not product
+  evidence until an independent qualifying participant completes the session.
+
+### Bounded technical-hardening review — completed read-only
+
+The owner explicitly preserved the discovery gate and temporarily redirected
+work to a bounded review of the existing prototype. No hardening implementation
+was authorized or performed. Findings, in priority order:
+
+1. **High — separation of duties may fail open after provenance loss.** Project
+   Boundary records hold provenance only after hold creation. RMT's current
+   hold-provenance record is in-memory and intentionally fail-open; missing
+   provenance is treated as not agent-originated. A restart, recording failure,
+   or failure between hold creation and provenance recording could therefore
+   allow the grantor/proposer to approve despite the required separation.
+2. **Medium — preview and submit context are not bound.** Submit can supply a
+   new correlation ID, goal, reason, confidence, and agent ID while reusing only
+   the canonical target and grant ID. Immutable tag/commit binding and human
+   approval remain protected, but the previewed explanation need not be the
+   submitted explanation.
+3. **Medium — authority grants are not bound to the proposing actor.** A grant
+   binds operation, target, grantor, expiry, and consumption, but not the
+   intended authenticated agent. Another authenticated agent with the grant ID
+   and exact target could consume it.
+4. **Medium — the end-to-end test bypasses the HTTP separation gate.** It calls
+   `continue_remediation()` directly, while `check_separation` is enforced in
+   the RMT HTTP route. It therefore does not prove grantor/proposer refusal or
+   restart-safe behavior through the real entry point.
+5. **Low — dependency compatibility is not reproducibly pinned.** Project
+   Boundary uses version ranges, links RMT through `RMT_BACKEND_PATH`, and
+   imports several RMT internals without locking an exact compatible RMT
+   revision.
+
+Candidate hardening slice, requiring separate explicit implementation
+authorization: durable fail-closed Project Boundary-owned hold provenance;
+atomic/proven successful provenance recording during hold admission; grants
+bound to the authenticated proposing actor; deterministic preview-to-submit
+proposal binding; authenticated HTTP tests covering separation refusal and
+restart recovery; and an exact RMT/dependency compatibility lock. This work
+cannot substitute for participant evidence and must not relax the discovery
+gate.
+
+### Review validation evidence
+
+- Private prototype tests against a disposable `/tmp` evidence database:
+  **35 passed**.
+- Ruff with cache disabled: clean.
+- Python compilation with temporary bytecode storage: clean.
+- `pip check`: clean.
+- Git integrity check: no integrity failure (only dangling blobs reported).
+- Both repositories remained clean after the review.
+
+### Exact next-session instruction
+
+Read the private repository's `README.md`, `PRODUCT_CHARTER.md`,
+`IMPLEMENTATION_CONTRACT.md`, `USABILITY_REVIEW.md`, and
+`APPROVAL_INBOX_DISCOVERY_PLAN.md` before acting. Preserve the independent-human
+discovery gate. Do not implement the approval inbox or the hardening slice
+without separate explicit authorization. If asked to continue CAP-12, begin in
+`/home/rmt-lab/project-boundary-private`, confirm current status/HEAD and the
+applicable contract, then continue from this checkpoint rather than searching
+the public roadmap for CAP-12.
+
 ## Current state
 
 - **C01 — Governed Execution Boundary: CLOSED**

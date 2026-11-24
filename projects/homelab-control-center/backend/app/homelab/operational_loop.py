@@ -44,7 +44,11 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from app.homelab import loop_config
-from app.homelab.remediation import REMEDIATION_POLICY, remediate_component
+from app.homelab.remediation import (
+    REMEDIATION_POLICY,
+    REMEDIATION_POLICY_SOURCE,
+    remediate_component,
+)
 from app.homelab.observer import observe_container_state
 from app.ops.logging_config import log_event
 from app.ops.notifications import notify_held, notify_ops
@@ -553,6 +557,7 @@ class HomelabOperationalLoop:
             "last_cycle_at": _iso(self._last_cycle_at),
             "last_cycle_error": self._last_cycle_error,
             "policy_components": list(REMEDIATION_POLICY.keys()),
+            "policy_source": REMEDIATION_POLICY_SOURCE.as_dict(),
             "components": {
                 name: state.as_dict()
                 for name, state in self._components.items()

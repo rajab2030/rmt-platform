@@ -5,6 +5,7 @@ import { getToken } from "./auth";
 import type {
   AgentStatus,
   EvidenceChain,
+  ExplanationRecord,
   HoldListResponse,
   VerificationListResponse,
 } from "../types/governance";
@@ -47,6 +48,18 @@ export async function getEvidence(actionId: string): Promise<EvidenceChain> {
     await authFetch(`/ops/evidence?action_id=${encodeURIComponent(actionId)}`)
   );
   return (await resp.json()) as EvidenceChain;
+}
+
+// RMT-CAP-13: ask for an evidence-grounded explanation. 503 => feature disabled.
+export async function explainAction(actionId: string): Promise<ExplanationRecord> {
+  const resp = await throwOnUnauthorized(
+    await authFetch("/ops/reasoning/explain", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action_id: actionId }),
+    })
+  );
+  return (await resp.json()) as ExplanationRecord;
 }
 
 export async function getAgentStatus(): Promise<AgentStatus> {

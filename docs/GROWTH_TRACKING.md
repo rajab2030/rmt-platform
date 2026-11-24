@@ -154,3 +154,575 @@ has no way to verify from inside GitHub.
    "building in public" format fits a first-person origin story better than
    dev.to or Show HN, which are already earmarked for the more technical
    pieces.
+
+## 2026-10-12
+
+**Repo:** rajab2030/rmt-platform
+**Description:** Policy checks, approval holds, and execution evidence for AI-agent actions. Includes a local Git-tag walkthrough.
+**Last push:** 2026-10-11T13:21:53Z
+
+| Metric | Value |
+|---|---|
+| Stars | 0 |
+| Forks | 2 |
+| Topics | agent-governance, ai-agents, ai-governance, audit-trail, control-plane, devops-automation, homelab, llm-agents, policy-engine, risk-management (all 10 expected topics present) |
+
+Traffic data was **finally reachable this run** — `gh api` worked directly
+against `/traffic/views`, `/traffic/clones`, `/traffic/popular/referrers`,
+and `/traffic/popular/paths` (the prior three weeks' blocker, a missing
+`gh` CLI / traffic-API tool, is resolved; the GitHub MCP server's
+`get_me`/`search_repositories` tools still have no traffic endpoints, but
+`gh api` itself is now usable from this environment). GitHub's traffic API
+only reports a trailing 14-day window, so these are 2026-09-28 through
+2026-10-11 totals, not since-last-entry totals:
+
+| Metric (trailing 14 days) | Value |
+|---|---|
+| Views | 2 (1 unique visitor) |
+| Clones | 271 (117 unique cloners) |
+| Top referrers | none recorded |
+| Top popular path | `/rajab2030/rmt-platform` ("Overview"), 2 views / 1 unique |
+
+**Deltas vs. prior entry (2026-10-05):**
+
+- Stars: 0 → 0 (no change)
+- Forks: 2 → 2 (no change)
+- Unique cloners / unique visitors: not comparable to prior entries —
+  this is the first week traffic data was actually available, so there is
+  no like-for-like baseline yet. Next week's entry will be the first with a
+  real week-over-week traffic delta.
+
+Note on the clone number: 271 clones / 117 unique cloners over two weeks is
+large relative to 0 stars and no recorded referrers. That pattern (high
+clones, no stars, no referrer signal) is consistent with CI/bot/mirror
+traffic (e.g. package indexers or dependency scanners cloning the repo)
+rather than organic human interest, and shouldn't be read as a sign of
+traction on its own — worth sanity-checking against any CI or bot activity
+the owner knows about, but not something this automation can distinguish
+further from GitHub's API alone.
+
+On the repo side, `RMT-CAP-13 slice 1` shipped 2026-10-11: a read-only,
+opt-in "evidence-grounded incident explainer" (`app/reasoning/`) that
+generates an advisory explanation of a governed action where every claim
+must cite an evidence record (uncited claims are dropped), gated behind
+`RMT_REASONING_ENABLED` and operator auth, with a new "Explain this action"
+card in the governed console frontend. It never touches `app/core` or any
+execution path. Dependabot was also turned on this week (pip/npm/actions/
+docker/compose version updates).
+
+**Suggested next actions (outside GitHub):**
+
+1. **Write a short piece specifically about the incident-explainer feature**
+   (`RMT-CAP-13`, see `docs/RMT_CAP_13_PROPOSAL.md`) framed around the
+   concrete LLM-safety angle: "how do you let an LLM explain a governance
+   decision without letting it hallucinate the evidence?" — the
+   cite-or-drop validation in `app/reasoning/validate.py` is a specific,
+   demonstrable mechanism (not just a claim) that would land well on a
+   venue like Hacker News or r/LocalLLaMA, both audiences that care about
+   LLM-output grounding specifically rather than governance/DevOps framing
+   used in earlier suggestions.
+2. **Open a GitHub Discussion post explaining the clone-traffic anomaly
+   investigation** (271 clones / 0 stars this window) as a short public
+   note — even a one-paragraph "noticed higher-than-expected clone traffic,
+   still figuring out the source" is a low-effort way to signal the repo is
+   actively watched/maintained, and the repo already links
+   `/discussions` from the README front matter.
+
+## 2026-10-15
+
+**Repo:** rajab2030/rmt-platform
+**Description:** Policy checks, approval holds, and execution evidence for AI-agent actions. Includes a local Git-tag walkthrough.
+**Last push:** 2026-10-12T09:10:39Z
+
+| Metric | Value |
+|---|---|
+| Stars | 0 |
+| Forks | 2 |
+| Topics | agent-governance, ai-agents, ai-governance, audit-trail, control-plane, devops-automation, homelab, llm-agents, policy-engine, risk-management (all 10 expected topics present) |
+
+Traffic data (trailing 14-day window, 2026-10-01 through 2026-10-14 — GitHub's
+API only ever reports a rolling 14 days, so this window overlaps roughly 11
+days with last entry's 2026-09-28–2026-10-11 window rather than being a clean
+non-overlapping week):
+
+| Metric (trailing 14 days) | Value |
+|---|---|
+| Views | 0 (0 unique visitors) |
+| Clones | 208 (96 unique cloners) |
+| Top referrers | none recorded |
+| Top popular paths | none recorded |
+
+**Deltas vs. prior entry (2026-10-12):**
+
+- Stars: 0 → 0 (no change)
+- Forks: 2 → 2 (no change)
+- Views (trailing 14d): 2 (1 unique) → 0 (0 unique) — down
+- Clones (trailing 14d): 271 (117 unique) → 208 (96 unique) — down, but still
+  consistent with the same non-organic pattern flagged last week (high clone
+  volume, zero referrer signal, zero stars): likely CI/bot/mirror traffic,
+  not a read on human interest either way.
+
+No new commits landed in the repo this week — `git log` shows the last
+substantive change is still `RMT-CAP-13 slice 1` (the evidence-grounded
+incident explainer) from 2026-10-11, same as last entry. Neither of last
+week's two suggestions (a CAP-13-focused technical piece for HN/r/LocalLLaMA,
+or a GitHub Discussion post about the clone anomaly) show up as commits or
+are otherwise verifiable from inside the repo, so this automation can't tell
+whether they were acted on externally.
+
+While checking the repo this run: the `docs/promotion/` directory holds
+several finished, ready-to-post pieces that predate this tracking log and
+have never been referenced in a prior week's suggestions —
+`docs/promotion/social-posts.md` has had a complete, polished LinkedIn post
+sitting finished since 2026-09-18 (confirmed in `docs/promotion/README.md` as
+"no writing task remains for the owner"), and it has sat unposted through
+every tracked week so far.
+
+**Suggested next actions (outside GitHub):**
+
+1. **Post the finished LinkedIn copy that's been sitting ready since
+   2026-09-18** — `docs/promotion/social-posts.md` → the `## LinkedIn`
+   section is a complete post (the agent-approval-hold hook, the Git-tag
+   demo description, the explicit scope boundaries, and a link to
+   https://rajab2030.github.io/rmt-platform/) with an attachment already
+   named (`docs/assets/agent-governance-demo.gif`). It's the oldest
+   fully-drafted, zero-remaining-effort asset in the repo and hasn't been
+   suggested in any prior week's entry.
+2. **Submit the repo to Lobsters** (https://lobste.rs/stories/new, tag it
+   `security` or `programming`) — a technically-literate venue not yet
+   tried in any prior suggestion. Pair it with the CAP-13 cite-or-drop
+   grounding angle from last week's suggestion (`app/reasoning/validate.py`:
+   an LLM-generated explanation where uncited claims are dropped before
+   they reach the operator) since that piece still hasn't been written or
+   posted anywhere external as far as this automation can tell.
+
+## 2026-10-19
+
+**Repo:** rajab2030/rmt-platform
+**Description:** Policy checks, approval holds, and execution evidence for AI-agent actions. Includes a local Git-tag walkthrough.
+**Last push:** 2026-10-19T09:04:07Z
+
+| Metric | Value |
+|---|---|
+| Stars | 0 |
+| Forks | 2 |
+| Topics | agent-governance, ai-agents, ai-governance, audit-trail, control-plane, devops-automation, homelab, llm-agents, policy-engine, risk-management (all 10 expected topics present) |
+
+Traffic data (trailing 14-day window, 2026-10-05 through 2026-10-18 — GitHub's
+API only ever reports a rolling 14 days, so this window overlaps roughly 7-10
+days with last entry's 2026-10-01–2026-10-14 window):
+
+| Metric (trailing 14 days) | Value |
+|---|---|
+| Views | 0 (0 unique visitors) |
+| Clones | 207 (93 unique cloners) |
+| Top referrers | none recorded |
+| Top popular paths | none recorded |
+
+**Deltas vs. prior entry (2026-10-15):**
+
+- Stars: 0 → 0 (no change)
+- Forks: 2 → 2 (no change)
+- Views (trailing 14d): 0 (0 unique) → 0 (0 unique) (no change)
+- Clones (trailing 14d): 208 (96 unique) → 207 (93 unique) — essentially flat
+  (down 1 total / down 3 unique), still the same pattern flagged the last two
+  weeks: nontrivial clone volume with zero referrer signal and zero stars,
+  consistent with CI/bot/mirror traffic rather than a read on human interest.
+
+Repo-side, the only commit since last entry is a `HANDOFF.md` checkpoint
+(`docs: HANDOFF checkpoint for CAP-12 Project Boundary (2026-10-07)`,
+pushed 2026-10-19) documenting a bounded, read-only security review of a
+**private**, separately-hosted commercial prototype (`project-boundary-private`)
+built above RMT — not a public RMT feature, so there is nothing new here to
+promote externally. The last publicly-shippable feature remains CAP-13 (the
+evidence-grounded incident explainer, 2026-10-11), already suggested twice
+(2026-10-12, 2026-10-15) for an HN/r/LocalLLaMA piece and a Lobsters post;
+this automation has no way to confirm whether either was acted on. A README
+link/file-existence spot-check (LICENSE, README.ar.md, GETTING_STARTED.md,
+the demo GIF/transcript, the showcase and local-trial READMEs, AGENT_API.md,
+RMT_GUARANTEES.md) found everything present and no obviously broken link, so
+no hygiene fix was made this run.
+
+**Suggested next actions (outside GitHub):**
+
+1. **Post the ready-made "Short post" copy** from
+   `docs/promotion/social-posts.md` (the `## Short post` section — a single
+   paragraph, zero additional writing) to X/Twitter or Mastodon. Every prior
+   week's suggestions pointed at LinkedIn, Reddit, Hacker News, Lobsters,
+   Console.dev, or Indie Hackers — X/Mastodon is the one ready-to-post channel
+   this log has never suggested, and the copy already links
+   https://rajab2030.github.io/rmt-platform/.
+2. **Submit a "Show HN" post** (https://news.ycombinator.com/submit) framed
+   specifically around CAP-13's cite-or-drop mechanism in
+   `app/reasoning/validate.py` — an LLM-generated incident explanation where
+   any claim lacking a cited evidence record is dropped before it reaches the
+   operator. This is a different angle from the 2026-09-28 Show HN suggestion
+   (which was framed around the MCR 2.0 banking experiment) and ties to the
+   newest real shipped feature rather than repeating last week's Lobsters
+   suggestion.
+
+## 2026-10-26
+
+**Repo:** rajab2030/rmt-platform
+**Description:** Policy checks, approval holds, and execution evidence for AI-agent actions. Includes a local Git-tag walkthrough.
+**Last push:** 2026-10-25T01:44:38Z (Dependabot branch pushes only — `master`
+has had no new commits since the 2026-10-19 entry; its head is still
+`c3c105a`, last week's growth-tracking commit)
+
+| Metric | Value |
+|---|---|
+| Stars | 0 |
+| Forks | 2 |
+| Topics | agent-governance, ai-agents, ai-governance, audit-trail, control-plane, devops-automation, homelab, llm-agents, policy-engine, risk-management (all 10 expected topics present) |
+
+Traffic stats (views/clones/referrers/popular paths) were **not available
+this run**. This session's GitHub access is scoped to the connected GitHub
+MCP server's tool set only (no `gh` CLI, no direct REST calls permitted), and
+that tool set has no `traffic/*` endpoint — the same structural gap seen in
+the first three tracked weeks, recurring now after the one week (2026-10-12)
+it was briefly reachable via `gh api`. Only repo metadata via the MCP
+server's `search_repositories` tool is logged this week.
+
+**Deltas vs. prior entry (2026-10-19):**
+
+- Stars: 0 → 0 (no change)
+- Forks: 2 → 2 (no change)
+- Unique cloners / unique visitors: not computable — traffic data unavailable
+  this run, as in the 2026-10-05/09-28/09-21 entries.
+
+No application code changed since the 2026-10-19 entry — `master` is still at
+the CAP-13 evidence-grounded incident explainer (2026-10-11) plus the
+2026-10-19 HANDOFF checkpoint. The only repo activity this week is Dependabot:
+three open dependency-update PRs (#15 npm minor/patch, #24 Dozzle image
+v11.3.4, #25 Python minor/patch across 24 updates) and two already
+closed/superseded ones (#21, #22); none merged. That's routine maintenance,
+not a promotable change, so the newest externally-promotable thing in the
+repo is still CAP-13 (`app/reasoning/validate.py`'s cite-or-drop evidence
+grounding), already suggested twice (2026-10-12, 2026-10-19).
+`docs/promotion/why-i-built-rmt.md` still carries unfilled `[OWNER: ...]`
+placeholders and remains unpublishable as-is — unchanged for a third week.
+No hygiene fix was made this run; a spot check of README links (badges,
+Getting Started, demo GIF/transcript, promotion docs) found nothing broken.
+
+**Suggested next actions (outside GitHub):**
+
+1. **Post the finished "Community introduction" copy via r/selfhosted's New
+   Project Megathread, not a standalone post.** `docs/promotion/social-posts.md`
+   → the `## Community introduction` section is complete, ready-to-paste
+   copy, but its own usage note flags that a standalone r/selfhosted
+   submission needs project-age verification and should go through the
+   subreddit's New Project Megathread when required — a distinction no
+   prior week's suggestion called out (2026-10-05 suggested r/selfhosted
+   only generically). This is the safer, rules-compliant version of that
+   same suggestion, using copy that's still sitting unused.
+2. **Publish `docs/promotion/technical-post-evidence-attestation.md` to
+   Hashnode, not just dev.to.** The draft's own front matter already lists
+   dev.to *or* Hashnode as acceptable destinations, but every prior mention
+   of this draft in this log (2026-09-21, 2026-09-28) pointed only at
+   dev.to, which this automation has no way to confirm was ever actually
+   posted. Hashnode gives the same finished copy a second, zero-extra-writing
+   channel if dev.to hasn't happened yet, or a second reach if it has.
+
+## 2026-11-02
+
+**Repo:** rajab2030/rmt-platform
+**Description:** Policy checks, approval holds, and execution evidence for AI-agent actions. Includes a local Git-tag walkthrough.
+**Last push:** 2026-11-01T01:47:24Z (Dependabot branch pushes only — `master`
+has had no new commits since the 2026-10-19 entry; its head is still
+`433b7ed`, last week's growth-tracking commit)
+
+| Metric | Value |
+|---|---|
+| Stars | 0 |
+| Forks | 2 |
+| Topics | agent-governance, ai-agents, ai-governance, audit-trail, control-plane, devops-automation, homelab, llm-agents, policy-engine, risk-management (all 10 expected topics present) |
+
+Traffic data (trailing 14-day window, 2026-10-19 through 2026-11-01 — `gh api`
+was reachable again this run):
+
+| Metric (trailing 14 days) | Value |
+|---|---|
+| Views | 0 (0 unique visitors) |
+| Clones | 116 (46 unique cloners) |
+| Top referrers | none recorded |
+| Top popular paths | none recorded |
+
+**Deltas vs. prior entry (2026-10-26):**
+
+- Stars: 0 → 0 (no change, six consecutive tracked weeks now)
+- Forks: 2 → 2 (no change)
+- Traffic wasn't reachable last week, so the nearest real comparison is the
+  2026-10-19 entry: Views 0 (0 unique) → 0 (0 unique), no change. Clones 207
+  (93 unique) → 116 (46 unique) over the equivalent trailing-14-day window —
+  down roughly 44% on total clones and 51% on unique cloners. Still zero
+  recorded referrers alongside nontrivial clone volume, the same pattern
+  flagged in three prior entries (2026-10-12, 2026-10-15, 2026-10-19) as more
+  consistent with CI/bot/mirror traffic than organic human interest, so this
+  drop isn't read as a loss of real audience — there's no evidence there was
+  one to lose.
+
+No application code has changed on `master` since the 2026-10-19 entry — the
+newest shippable feature remains `RMT-CAP-13` (the evidence-grounded incident
+explainer, `app/reasoning/validate.py`'s cite-or-drop grounding, 2026-10-11),
+already suggested three times for external posting (2026-10-12, 2026-10-15,
+2026-10-19). The visible repo activity this week is entirely Dependabot: the
+open dependency-PR backlog has grown from 3 (last entry) to 12 open PRs
+(#10–#13, #15–#17, #19, #23, #26–#28), none merged — routine and out of this
+automation's scope to act on, but worth the owner's attention since it's now
+a real backlog rather than a handful of updates.
+`docs/promotion/why-i-built-rmt.md` still carries unfilled `[OWNER: ...]`
+placeholders (personal background, byline) and remains unpublishable as-is —
+unchanged for a fourth week. A spot check of the README badge and topics
+found nothing broken; no hygiene fix was made this run.
+
+**Suggested next actions (outside GitHub):**
+
+1. **Submit RMT to a curated LLMOps/agent tooling list via PR** —
+   `tensorchord/Awesome-LLMOps` (https://github.com/tensorchord/Awesome-LLMOps)
+   is a maintained, actively-starred "awesome list" with a governance/
+   observability section that fits the `policy-engine` / `ai-governance` /
+   `control-plane` topics directly. No prior week has suggested a curated-list
+   PR; it needs no credentials beyond opening a PR on someone else's public
+   repo, and discovery-by-list is a different channel than anything tried so
+   far (newsletters, forums, social posts).
+2. **Post the ready "Short post" copy to Fosstodon, not generic
+   Twitter/Mastodon.** `docs/promotion/social-posts.md` → `## Short post` is
+   already-written, zero-extra-writing copy; 2026-10-19 suggested posting it
+   to "X/Twitter or Mastodon" generically, but Fosstodon
+   (https://fosstodon.org) is a FOSS/self-hosted-focused instance that matches
+   the repo's `homelab` topic and self-hosted-trial angle (the one-command
+   `docker compose run --rm showcase` walkthrough) more specifically than a
+   generic social post would.
+
+## 2026-11-09
+
+**Repo:** rajab2030/rmt-platform
+**Description:** Policy checks, approval holds, and execution evidence for AI-agent actions. Includes a local Git-tag walkthrough.
+**Last push:** 2026-11-08T01:44:44Z (Dependabot branch pushes only — `master`
+has had no new commits since the 2026-11-02 entry; its head is still
+`a655f05`, last week's growth-tracking commit)
+
+| Metric | Value |
+|---|---|
+| Stars | 0 |
+| Forks | 2 |
+| Topics | agent-governance, ai-agents, ai-governance, audit-trail, control-plane, devops-automation, homelab, llm-agents, policy-engine, risk-management (all 10 expected topics present) |
+
+Traffic data (trailing 14-day window, 2026-10-26 through 2026-11-08 — `gh api`
+was reachable again this run):
+
+| Metric (trailing 14 days) | Value |
+|---|---|
+| Views | 0 (0 unique visitors) |
+| Clones | 91 (38 unique cloners) |
+| Top referrers | none recorded |
+| Top popular paths | none recorded |
+
+**Deltas vs. prior entry (2026-11-02):**
+
+- Stars: 0 → 0 (no change, seven consecutive tracked weeks now)
+- Forks: 2 → 2 (no change)
+- Views (trailing 14d): 0 (0 unique) → 0 (0 unique) (no change)
+- Clones (trailing 14d): 116 (46 unique) → 91 (38 unique) — down roughly 22%
+  on total clones and 17% on unique cloners. Still zero recorded referrers
+  alongside nontrivial clone volume, the same pattern flagged in four prior
+  entries (2026-10-12 through 2026-11-02) as more consistent with CI/bot/
+  mirror traffic than organic human interest.
+
+No application code has changed on `master` since the 2026-10-19 entry — the
+newest shippable feature remains `RMT-CAP-13` (the evidence-grounded incident
+explainer, `app/reasoning/validate.py`'s cite-or-drop grounding, 2026-10-11),
+now unpromoted externally (as far as this automation can verify) for four
+straight weeks despite four separate posting suggestions aimed at it
+(2026-10-12, 2026-10-15, 2026-10-19, and indirectly 2026-10-26/11-02 via
+ready-made social copy). The open Dependabot PR backlog shrank from 12 (last
+entry) to 7 open PRs (#15, #19, #23, #27, #28, #29, #30) — five were closed as
+superseded by newer version bumps rather than merged, so this is Dependabot
+self-maintenance, not a merge the owner made.
+`docs/promotion/why-i-built-rmt.md` still carries unfilled `[OWNER: ...]`
+placeholders (4 occurrences) and remains unpublishable as-is — unchanged for a
+fifth week. A spot check of the README license badge and repo topics found
+nothing broken; no hygiene fix was made this run.
+
+**Suggested next actions (outside GitHub):**
+
+1. **Submit RMT to `e2b-dev/awesome-ai-agents`** (https://github.com/e2b-dev/awesome-ai-agents,
+   PR against its open-source-projects list, or its linked submission form) —
+   a actively-maintained, agent-specific awesome list (distinct from the
+   LLMOps-focused `tensorchord/Awesome-LLMOps` suggested 2026-11-02) whose
+   audience is specifically people evaluating AI agent frameworks and
+   tooling, a tighter fit for the `ai-agents` / `llm-agents` /
+   `agent-governance` topics than a general LLMOps list.
+2. **Submit the CAP-13 cite-or-drop story to Changelog News**
+   (https://changelog.com/news/submit) — a developer-news aggregator with
+   human editors (sign-in required to submit, no API credentials needed) that
+   hasn't been tried in any prior week. Frame it the same way as the
+   2026-10-19 HN suggestion that still has no confirmed external post:
+   `app/reasoning/validate.py` drops any LLM-generated claim in an incident
+   explanation that isn't backed by a cited evidence record, before it
+   reaches the operator.
+
+## 2026-11-16
+
+**Repo:** rajab2030/rmt-platform
+**Description:** Policy checks, approval holds, and execution evidence for AI-agent actions. Includes a local Git-tag walkthrough.
+**Last push:** 2026-11-15T01:43:57Z
+
+| Metric | Value |
+|---|---|
+| Stars | 0 |
+| Forks | 2 |
+| Topics | agent-governance, ai-agents, ai-governance, audit-trail, control-plane, devops-automation, homelab, llm-agents, policy-engine, risk-management (all 10 expected topics present) |
+
+Traffic data (trailing 14-day window, 2026-11-01 through 2026-11-14 — `gh api`
+was reachable again this run):
+
+| Metric (trailing 14 days) | Value |
+|---|---|
+| Views | 1 (1 unique visitor) |
+| Clones | 135 (46 unique cloners) |
+| Top referrers | github.com — 1 view, 1 unique |
+| Top popular paths | `/rajab2030/rmt-platform` ("Overview") — 1 view, 1 unique |
+
+**Deltas vs. prior entry (2026-11-09):**
+
+- Stars: 0 → 0 (no change, ten consecutive tracked weeks now)
+- Forks: 2 → 2 (no change)
+- Views (trailing 14d): 0 (0 unique) → 1 (1 unique) — first nonzero view this
+  log has recorded in several weeks, and the first time a referrer
+  (github.com) has shown up at all; still a single visit, not yet a trend.
+- Clones (trailing 14d): 91 (38 unique) → 135 (46 unique) — up roughly 48% on
+  total clones and 21% on unique cloners, reversing the three-week decline
+  seen across the 2026-10-19 through 2026-11-09 entries. Still no non-GitHub
+  referrer recorded, so this remains more consistent with automated/CI
+  cloning than a confirmed organic uptick.
+
+Unlike the three prior entries (2026-10-26, 2026-11-02, 2026-11-09), which
+found `master` untouched by real commits (Dependabot-only weeks), this week
+had genuine application and operations activity: the open Dependabot
+security-alert backlog was cleared from 10 (including one critical `certifi`
+CVE) to **0 open alerts** — four lockfile-only PRs (#10 source-map-js, #11
+urllib3, #23 vite, #29 certifi) were reviewed and owner-authorized, merged,
+and followed by a live backend redeploy and restart (`/health` 200, 52
+routes). Two grouped Dependabot update PRs (#31 python-minor-patch, 24
+updates including fastapi/starlette/pydantic/uvicorn bumps; #15
+npm-minor-patch, 8 updates) were then merged after local verification
+(`pip check`, `npm ci && npm run build && npm run lint`, CI green), followed
+by a **second** same-day backend redeploy — two live restarts in one day,
+both healthy, no downtime reported. Separately, **CAP-13's "Explain this
+action" panel was browser-tested end-to-end for the first time**
+(2026-11-14, isolated instance, headless Chromium): all panel states
+rendered correctly across four real governed actions (failed,
+verification-failure, clean, mixed) plus the unknown-id and flag-off cases,
+running entirely on a local `qwen2.5:3b` model at 30-50s per explanation.
+The feature is now validated but still deployed dark in production
+(`RMT_REASONING_ENABLED` unset on the live unit, and the panel also needs
+`RMT_OPS_EVIDENCE_ENABLED=true` to be reachable at all — a dependency not
+previously confirmed). The CAP-13 proposal doc header still says DRAFT. A
+Budget Control concurrency test was also hardened this week (pinned
+interleaving in the concurrent-commitment test) — internal test-quality
+work, not externally promotable on its own.
+`docs/promotion/why-i-built-rmt.md` still carries unfilled `[OWNER: ...]`
+placeholders and remains unpublishable as-is — unchanged for a sixth
+tracked week, so it is not suggested again this run. A spot check of the
+README license badge (links to `LICENSE`, present) and repo topics found
+nothing broken; no hygiene fix was made this run.
+
+**Suggested next actions (outside GitHub):**
+
+1. **Post to r/LocalLLaMA specifically** (https://www.reddit.com/r/LocalLLaMA/submit)
+   with the concrete local-inference data point from this week's browser
+   validation: CAP-13's incident explainer runs entirely on a local
+   `qwen2.5:3b` model (no cloud LLM), takes 30-50s per explanation on CPU,
+   and drops any claim it can't cite to a specific evidence record (with a
+   real example: the verification-failure case produced
+   `no_grounded_explanation` because its one claim got dropped). Prior weeks
+   suggested CAP-13 for HN, Lobsters, and Changelog News generically; this is
+   the first suggestion aimed at r/LocalLLaMA by name, whose audience cares
+   specifically about local-model inference numbers like these.
+2. **Submit to the DevOps Weekly newsletter** (https://www.devopsweekly.com/,
+   via its submission/contact link) — a curated weekly newsletter not yet
+   tried in any prior week, and a strong fit for this week's concrete
+   operational story: clearing a 10-alert security backlog (including one
+   critical CVE) via reviewed, verified (`pip check`, `npm ci`/build/lint,
+   CI-green) merges, followed by two same-day zero-downtime production
+   redeploys. This is an operations/supply-chain hygiene angle distinct from
+   every prior suggestion, which have all centered on CAP-13 or the
+   one-command Docker trial.
+
+## 2026-11-23
+
+**Repo:** rajab2030/rmt-platform
+**Description:** Policy checks, approval holds, and execution evidence for AI-agent actions. Includes a local Git-tag walkthrough.
+**Last push:** 2026-11-22T01:43:36Z
+
+| Metric | Value |
+|---|---|
+| Stars | 0 |
+| Forks | 2 |
+| Topics | agent-governance, ai-agents, ai-governance, audit-trail, control-plane, devops-automation, homelab, llm-agents, policy-engine, risk-management (all 10 expected topics present) |
+
+Traffic data (trailing 14-day window, 2026-11-09 through 2026-11-22 — `gh api`
+was reachable again this run):
+
+| Metric (trailing 14 days) | Value |
+|---|---|
+| Views | 5 (4 unique visitors) |
+| Clones | 208 (78 unique cloners) |
+| Top referrers | github.com — 1 view, 1 unique |
+| Top popular paths | `/rajab2030/rmt-platform` ("Overview") — 2 views, 2 unique; also `docs/RMT_GUARANTEES.md`, `docs/RMT_THREAT_MODEL.md`, and `tools/claude-code-guard/README.md` each at 1 view / 1 unique |
+
+**Deltas vs. prior entry (2026-11-16):**
+
+- Stars: 0 → 0 (no change, eleven consecutive tracked weeks now)
+- Forks: 2 → 2 (no change)
+- Views (trailing 14d): 1 (1 unique) → 5 (4 unique) — up 4 views / 3 unique
+  visitors, the highest view count this log has recorded; still a small
+  absolute number, but the first week with more than one distinct
+  visitor, and the first week popular-paths shows anything beyond the repo
+  root (two specific doc pages plus a tool README were actually opened,
+  which reads as a real person browsing rather than just landing on the
+  front page).
+- Clones (trailing 14d): 135 (46 unique) → 208 (78 unique) — up roughly 54%
+  on total clones and 70% on unique cloners, continuing the rebound from
+  2026-11-09's low point. Still only one referrer recorded (github.com), so
+  the clone volume's source composition (bot/CI vs. organic) remains
+  unconfirmed either way, consistent with every prior entry's caveat.
+
+Repo-side, this was the most substantial shipping week in the tracked log:
+**RMT-CAP-14** (homelab remediation policy as configuration, roadmap P-A
+slice 1) went from proposal to approved to implemented to live-verified, all
+in one session (2026-11-21). It lets an operator change what the CAP-04
+operational loop may remediate — which service, when, and how — by editing a
+validated TOML config file and restarting, with no code edit, while making it
+structurally impossible to load a policy that leaves the existing safe
+envelope (every entry stays independent and approval-gated). Confined to
+`app/homelab/**` plus one read-only status field and a new stdlib-only
+checker script — no Core change, no reopening of the frozen-Core boundary.
+This is a concrete, demonstrable mechanism (not just a claim) and hasn't been
+suggested externally in any prior week.
+`docs/promotion/why-i-built-rmt.md` was not re-checked this run (no change
+expected; not worth re-flagging an eighth week in a row). A spot check of
+README-referenced files (LICENSE, README.ar.md, GETTING_STARTED.md, the demo
+GIF/transcript, the showcase and local-trial READMEs, AGENT_API.md,
+RMT_GUARANTEES.md, RMT_THREAT_MODEL.md) and repo topics found everything
+present and no broken link — no hygiene fix was made this run.
+
+**Suggested next actions (outside GitHub):**
+
+1. **Write a short piece specifically about CAP-14's "impossible to load an
+   unsafe policy" design** — the concrete hook is that the config loader
+   refuses to start on an invalid file and enforces the existing safe-envelope
+   constraints (`docs/RMT_T13_DISPOSITION.md`) at load time, so a bad edit
+   can't silently widen what an autonomous remediation loop is allowed to do.
+   This is a different angle from every CAP-13 suggestion so far (LLM
+   grounding) and fits r/sysadmin or r/homelab well, since the feature is
+   literally "configure what your homelab automation may touch without
+   redeploying code" — a practical, homelab-specific story this log hasn't
+   pointed at that audience before.
+2. **Submit the repo to the Self-Hosted Weekly newsletter**
+   (https://selfh.st/newsletter/, via its submission link) — distinct from
+   r/selfhosted (already suggested 2026-10-05/10-26) and from DevOps Weekly
+   (suggested 2026-11-16); Self-Hosted Weekly's audience overlaps directly
+   with the `homelab` topic and CAP-14's "govern your own homelab automation"
+   framing, and submission needs no credentials beyond a public form.

@@ -721,6 +721,83 @@ tested → isolated-exercised → deployed → live-verified. See
 session:** capability selection is open again — return to the P-A/P-C
 shortlist discipline (§ above) or ask the owner what's next.
 
+**Update 2026-11-21 — RMT-CAP-13 ENABLED on the live server (owner-authorized).**
+Drop-in `rmt-control-center.service.d/cap13-reasoning.conf` (repo copy
+`deploy/systemd/cap13-reasoning.conf`) sets `RMT_REASONING_ENABLED=true`,
+`RMT_OPS_EVIDENCE_ENABLED=true` (CAP-09 evidence lookup, which the Explain panel
+needs), and the shared LLM settings `RMT_AGENT_LLM_MODEL=qwen2.5:3b`,
+`RMT_AGENT_LLM_MAX_TOKENS=1500`, `RMT_AGENT_LLM_TIMEOUT_SECONDS=180`. The model
+settings are shared with CAP-05 5B, so the live LLM agent also moved off the
+retired `deepseek-v4-flash:cloud` to local `qwen2.5:3b` (owner decision). The
+proposal status now reads APPROVED (2026-10-08). The DRAFT-status and
+deployed-dark notes in the 2026-11-14 checkpoint below are superseded. Also
+2026-11-21: the platform stays on the VM; the laptop migration is paused and the
+repo Caddyfile was reverted to the VM address (`5c754ae`). See HANDOFF.md.
+
+**Capability selection, 2026-11-21:** the owner selected roadmap **P-A** as
+**RMT-CAP-14 — Homelab Remediation Policy as Configuration (slice 1)** and
+approved the proposal `docs/RMT_CAP_14_PROPOSAL.md` with D1–D4 as recommended
+(refuse to start on an invalid file; TOML; file replaces the built-in policy;
+empty policy allowed with a warning). Scope is the CAP-04 `REMEDIATION_POLICY`
+only: the dependency map and loop thresholds were already configurable, and
+the approval/risk policies are frozen Core. **CAP-14 slice 1 COMPLETE (2026-11-21):**
+implemented (`08dcd0b`, log fix `a105d47`), isolated exercise PASS, deployed
+live (`/etc/rmt-platform/remediation_policy.toml` = the example file, drop-in
+`cap14-policy.conf`) and verified: loop status `policy_source: file`, startup
+event in journald, behavior unchanged. Open: D5 (coding-agent risk rules as a
+later slice) not approved; `GET /homelab/loop/status` is unauthenticated by
+existing design (now also shows the policy path + hash) — owner decision if it
+should require a token. **Next action:** capability selection is open again.
+
+**Status checkpoint, 2026-11-14 (verified against `origin/master` `f52375b`,
+GitHub, and the live host):**
+- **RMT-CAP-13 slice 1 — Evidence-grounded incident explainer** is committed on
+  `master` (`bbca393`, 2026-10-11): `backend/app/reasoning/**` (read-only, opt-in
+  via `RMT_REASONING_ENABLED`, operator-auth gated; every claim must cite
+  evidence records, uncited claims are dropped; advisory only, never reaches an
+  execution path), 4 lines in `app/main.py`, and an "Explain this action" card in
+  the governed console. No `app/core/**` change. Proposal:
+  `docs/RMT_CAP_13_PROPOSAL.md`. **Live state:** the running service loads the
+  code (`/ops/reasoning/*` routes present) but the unit does not set
+  `RMT_REASONING_ENABLED`, so the capability is deployed dark. **Browser check
+  of the Explain panel: done 2026-11-14** on an isolated instance (scratch DB
+  copies, local `qwen2.5:3b`, headless Chromium; live `:8000` untouched) — all
+  panel states render (cited explanation, `no_grounded_explanation`,
+  `no_evidence`, disabled message). The panel sits behind the evidence lookup,
+  so it also needs `RMT_OPS_EVIDENCE_ENABLED=true`, which was not seen in the
+  live unit; model output is uneven and takes 30–50 s per explanation on CPU.
+  Details in the `HANDOFF.md` 2026-11-14 section. **Not decided:** whether the
+  proposal's `DRAFT` status
+  line should now read approved — the owner's 2026-10-08 settling of open
+  decisions and this commit disagree with that line; left unedited pending owner
+  decision. The CAP-05 5B default model (`deepseek-v4-flash:cloud`) was retired
+  upstream 2026-09-25; the isolated exercise used local `qwen2.5:3b`.
+- **RMT-CAP-12 is Project Boundary**, a private prototype outside this repo; see
+  the HANDOFF CAP-12 checkpoint. Do not infer it from the public roadmap.
+- **GitHub:** CI green on `master` (`f52375b`). 0 open Dependabot security
+  alerts: the four lockfile-only fix PRs were merged 2026-11-14 on owner
+  authorization (#29 certifi 2026.10.18, #11 urllib3 2.8.0, #23 vite 8.3.5,
+  #10 source-map-js 1.2.2). The live backend venv is reinstalled from
+  `requirements.lock.txt` and the service was restarted 2026-11-14 20:46 UTC
+  (`/health` 200), so the live backend runs the fixed versions.
+  Later the same day, on owner authorization, the grouped minor/patch bumps
+  were merged: #31 Python (24 updates, `7c1ccce`; supersedes the failing #28;
+  fastapi 0.162.4, starlette 1.10.0, pydantic 2.14.3) and #15 npm (8 updates,
+  `832d349`; rebased, frontend build and lint checked locally). CI green on
+  `832d349`. The live venv was reinstalled again and the service restarted
+  2026-11-14 23:09 UTC (`/health` ok, loop running, 52 routes); the live
+  frontend was not rebuilt.
+  7 Dependabot PRs remain open, all major-version or behavioural bumps
+  (TypeScript 7, `@types/node` 26, Actions v7, Dozzle v8→v11, Python 3.15
+  image, websockets 17) needing individual review.
+- **Budget Control concurrency test fixed 2026-11-14 (`ccf6ff9`, test-only):**
+  `test_concurrent_1500_commitments_produce_exactly_one_effect` was
+  intermittent (about 1 run in 10) because it left thread ordering to chance;
+  both observed loser outcomes (`adapter_failed_no_effect`,
+  `blocked_before_execution`) are valid and exactly one commitment always
+  landed. Each ordering now has its own deterministic test; the suite is 693
+  tests. See `HANDOFF.md`.
+
 ## 13. Environment limitations vs genuine implementation gaps
 
 - **Shell-dependent tooling.** Git and Docker availability depend on which shell
